@@ -60,11 +60,12 @@ const TR = TRAIN ? { x: -40, v: 16, st: 'run', t: 45, station: null, next: null 
 const trainCars = new Map(), trainInters = [];
 const STATIONS = WORLD_LIST.filter((w) => w !== 'elektrichka');
 function pickStation() { return STATIONS[(Math.random() * STATIONS.length) | 0]; }
+const trainGlass = std({ color: 0xc8d4d0, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.18, depthWrite: false });
 const seatWood = rep(std({ map: TX.plank, color: 0xc89a6a, roughness: 0.6 }), 0.6, 1.2), carWall = std({ color: 0x9aa890, roughness: 0.6 }), carFloor = rep(std({ map: TX.lino2, roughness: 0.5 }), 1.2, 1.2);
 function trainCar(k) { const g = new THREE.Group(), b = new Batch(), r = rng(k * 71 + 5), F = TRAIN_FLOOR, L = CARL - 0.5;
   b.box(carFloor, L / 2, F - 0.05, 0, L, 0.1, TRW * 2);
   b.box(std({ color: 0x3a6a3a, roughness: 0.5 }), L / 2, F - 0.65, 0, L, 1.1, TRW * 2 + 0.2);
-  for (const s of [-1, 1]) { b.box(carWall, L / 2, F + 0.45, s * TRW, L, 0.9, 0.06); b.box(carWall, L / 2, F + 2.25, s * TRW, L, 0.5, 0.06); for (let w = 0; w < 8; w++) { b.box(carWall, 2.4 + w * 2.0, F + 1.45, s * TRW, 0.3, 1.1, 0.06); b.box(M.glass, 2.55 + w * 2.0 + 0.85, F + 1.45, s * TRW, 1.7, 1.1, 0.02); }
+  for (const s of [-1, 1]) { b.box(carWall, L / 2, F + 0.45, s * TRW, L, 0.9, 0.06); b.box(carWall, L / 2, F + 2.25, s * TRW, L, 0.5, 0.06); for (let w = 0; w < 8; w++) { b.box(carWall, 2.4 + w * 2.0, F + 1.45, s * TRW, 0.3, 1.1, 0.06); b.box(trainGlass, 2.55 + w * 2.0 + 0.85, F + 1.45, s * TRW, 1.7, 1.1, 0.02); }
     b.box(carWall, 0.8, F + 1.2, s * TRW, 1.6, 2.4, 0.06); }
   b.box(std({ color: 0xd8d4c8, roughness: 0.8 }), L / 2, F + 2.55, 0, L, 0.1, TRW * 2);
   for (const ex of [0, L]) { b.box(carWall, ex, F + 1.25, -1.0, 0.08, 2.5, 1.0); b.box(carWall, ex, F + 1.25, 1.0, 0.08, 2.5, 1.0); b.box(carWall, ex, F + 2.3, 0, 0.08, 0.4, 1.0); }
