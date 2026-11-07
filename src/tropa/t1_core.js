@@ -6,6 +6,7 @@ const Q = {
   pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 1.5), msaa: MOBILE ? 0 : 4, fogSteps: MOBILE ? 5 : 9,
 };
 const TEST = location.hash.includes('test');
+if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
@@ -27,7 +28,9 @@ function vnoise(x, z) { const xi = Math.floor(x), zi = Math.floor(z), xf = x - x
 const WORLD = window.WORLD || 'tropa';          // 'tropa' | 'vorota'
 const GARDEN = WORLD === 'vorota';
 const HOUSE = WORLD === 'dom';
-const ROAD_C = GARDEN || HOUSE ? -100000 : -35, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
+const PODEZD = WORLD === 'podezd';
+const INDOOR = HOUSE || PODEZD;
+const ROAD_C = GARDEN || INDOOR ? -100000 : -35, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
 const FENCE = 44;
 const GROUND_Y = HOUSE ? -6 : 0;                     // в «Доме» земля — во дворах-колодцах, на 6 м ниже пола                                      // забор участка (мир «Ворота»): z = ±44
 // грядки: клетки 24×16 м, детерминированный узор (одинаковый в JS и GLSL)
@@ -40,7 +43,7 @@ function bedM(x, z) {
 }
 function pathC(x) { return 2.2 * Math.sin(x * 0.011) + 0.9 * Math.sin(x * 0.037 + 1.3); }
 function groundH(x, z) {
-  if (HOUSE) return 0;
+  if (INDOOR) return 0;
   let h = 0.22 * Math.sin(x * 0.061 + z * 0.043) + 0.15 * Math.sin(x * 0.137 - z * 0.089 + 2.0) + 0.08 * Math.sin(x * 0.29 + z * 0.31);
   const dp = Math.abs(z - pathC(x)); const pf = smooth(1.4, 3.6, dp); h = h * pf - 0.05 * (1 - pf);
   const rd = Math.abs(z - ROAD_C); h = lerp(0.28, h, smooth(ROAD_HW + 0.6, ROAD_HW + 4.0, rd));
@@ -49,7 +52,7 @@ function groundH(x, z) {
 const GLSL_WORLD = `
 float pathC(float x){ return 2.2*sin(x*0.011)+0.9*sin(x*0.037+1.3); }
 float groundH(vec2 p){
-  ${HOUSE ? 'return 0.0;' : ''}
+  ${INDOOR ? 'return 0.0;' : ''}
   float h=0.22*sin(p.x*0.061+p.y*0.043)+0.15*sin(p.x*0.137-p.y*0.089+2.0)+0.08*sin(p.x*0.29+p.y*0.31);
   float dp=abs(p.y-pathC(p.x)); float pf=smoothstep(1.4,3.6,dp); h=h*pf-0.05*(1.0-pf);
   float rd=abs(p.y-(${ROAD_C.toFixed(1)})); h=mix(0.28,h,smoothstep(${(ROAD_HW + 0.6).toFixed(1)},${(ROAD_HW + 4.0).toFixed(1)},rd));

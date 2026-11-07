@@ -86,6 +86,7 @@ const Q = {
   pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 1.5), msaa: MOBILE ? 0 : 4, fogSteps: MOBILE ? 5 : 9,
 };
 const TEST = location.hash.includes('test');
+if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
@@ -107,7 +108,9 @@ function vnoise(x, z) { const xi = Math.floor(x), zi = Math.floor(z), xf = x - x
 const WORLD = window.WORLD || 'tropa';          // 'tropa' | 'vorota'
 const GARDEN = WORLD === 'vorota';
 const HOUSE = WORLD === 'dom';
-const ROAD_C = GARDEN || HOUSE ? -100000 : -35, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
+const PODEZD = WORLD === 'podezd';
+const INDOOR = HOUSE || PODEZD;
+const ROAD_C = GARDEN || INDOOR ? -100000 : -35, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
 const FENCE = 44;
 const GROUND_Y = HOUSE ? -6 : 0;                     // в «Доме» земля — во дворах-колодцах, на 6 м ниже пола                                      // забор участка (мир «Ворота»): z = ±44
 // грядки: клетки 24×16 м, детерминированный узор (одинаковый в JS и GLSL)
@@ -120,7 +123,7 @@ function bedM(x, z) {
 }
 function pathC(x) { return 2.2 * Math.sin(x * 0.011) + 0.9 * Math.sin(x * 0.037 + 1.3); }
 function groundH(x, z) {
-  if (HOUSE) return 0;
+  if (INDOOR) return 0;
   let h = 0.22 * Math.sin(x * 0.061 + z * 0.043) + 0.15 * Math.sin(x * 0.137 - z * 0.089 + 2.0) + 0.08 * Math.sin(x * 0.29 + z * 0.31);
   const dp = Math.abs(z - pathC(x)); const pf = smooth(1.4, 3.6, dp); h = h * pf - 0.05 * (1 - pf);
   const rd = Math.abs(z - ROAD_C); h = lerp(0.28, h, smooth(ROAD_HW + 0.6, ROAD_HW + 4.0, rd));
@@ -129,7 +132,7 @@ function groundH(x, z) {
 const GLSL_WORLD = `
 float pathC(float x){ return 2.2*sin(x*0.011)+0.9*sin(x*0.037+1.3); }
 float groundH(vec2 p){
-  ${HOUSE ? 'return 0.0;' : ''}
+  ${INDOOR ? 'return 0.0;' : ''}
   float h=0.22*sin(p.x*0.061+p.y*0.043)+0.15*sin(p.x*0.137-p.y*0.089+2.0)+0.08*sin(p.x*0.29+p.y*0.31);
   float dp=abs(p.y-pathC(p.x)); float pf=smoothstep(1.4,3.6,dp); h=h*pf-0.05*(1.0-pf);
   float rd=abs(p.y-(${ROAD_C.toFixed(1)})); h=mix(0.28,h,smoothstep(${(ROAD_HW + 0.6).toFixed(1)},${(ROAD_HW + 4.0).toFixed(1)},rd));
@@ -782,10 +785,10 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), skyMat); sky.f
 { const envScene = new THREE.Scene(); const s2 = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMat.clone()); s2.material.uniforms = skyU; envScene.add(s2);
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a2c })); gnd.position.y = -2; envScene.add(gnd);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0.02).texture; pm.dispose(); }
-const ENV_TEX = scene.environment; if (HOUSE) scene.environment = null;
-const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, HOUSE ? 0.035 : 0.35); scene.add(hemi);
+const ENV_TEX = scene.environment; if (INDOOR) scene.environment = null;
+const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : 0.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
-sun.castShadow = Q.shadows && !HOUSE; if (HOUSE) sun.intensity = 0; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
 
@@ -1026,6 +1029,7 @@ function buildChunk(cx, cz) {
 }
 let chunkQueue = [];
 function updateChunks(px, pz, force) {
+  if (PODEZD) return podUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];
   for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
   chunkQueue.sort((a, b) => a[2] - b[2]);
@@ -1081,7 +1085,7 @@ function makeTruck() {
   g.traverse((o) => { o.castShadow = Q.shadows; }); return { g, len: 16.5, wheels: g.children.filter((c) => c.geometry === wheelGeo) };
 }
 const cars = [];
-for (let i = 0; i < (GARDEN || HOUSE ? 0 : 9); i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
+for (let i = 0; i < (GARDEN || INDOOR ? 0 : 9); i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
 function updateCars(dt, px) {
   for (const c of cars) {
     const dir = c.lane === 0 ? -1 : 1; c.x += dir * c.v * dt;
@@ -1104,7 +1108,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -1134,7 +1138,7 @@ const post = (() => {
       float T = exp(-od);
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${HOUSE ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}
+      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*0.35*(0.5+0.5*T);
       col = aces(col*expo);
@@ -1190,7 +1194,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (HOUSE) return 'lino'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR) return 'lino'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -1228,7 +1232,7 @@ function updateAudio(dt, gust) {
   const L = AC.listener, fw = new V3(0, 0, -1).applyQuaternion(camera.quaternion), up = new V3(0, 1, 0).applyQuaternion(camera.quaternion);
   if (L.positionX) { L.positionX.value = P.x; L.positionY.value = camera.position.y; L.positionZ.value = P.z; L.forwardX.value = fw.x; L.forwardY.value = fw.y; L.forwardZ.value = fw.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
   else { L.setPosition(P.x, camera.position.y, P.z); L.setOrientation(fw.x, fw.y, fw.z, up.x, up.y, up.z); }
-  windG.gain.value = (0.18 + gust * 0.32) * (HOUSE ? 0.25 : 1); rustleG.gain.value = HOUSE ? 0 : 0.004 + gust * 0.02;
+  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : 1); rustleG.gain.value = INDOOR ? 0 : 0.004 + gust * 0.02;
   const rd = Math.abs(P.z - ROAD_C); humG.gain.value = GARDEN ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
   for (const c of cars) { const s = c.snd; if (!s) continue; const dir = c.lane === 0 ? -1 : 1, cz = LANE_Z[c.lane];
     const dx = P.x - c.x, dz = P.z - cz, d = Math.hypot(dx, dz) || 1, vr = dir * c.v * dx / d; const dop = clamp(343 / (343 - vr), 0.7, 1.4);
@@ -1247,7 +1251,7 @@ function save() { try { localStorage.setItem('tropa_money', money); } catch (e) 
 let hitCar = null, flash = 0;
 function onRoad(z) { return z > ROAD_C - ROAD_HW + 0.2 && z < ROAD_C + ROAD_HW - 0.2; }
 function killCheck() {
-  if (dead || GARDEN || HOUSE) return;
+  if (dead || GARDEN || INDOOR) return;
   if (onRoad(P.z)) {
     if (!hitCar) { const lane = P.z < ROAD_C ? 0 : 1, c = cars.filter((q) => q.lane === lane).sort((a, b) => Math.abs(a.x - P.x) - Math.abs(b.x - P.x))[0]; const dir = lane === 0 ? -1 : 1; c.x = P.x - dir * 45; c.v = 30; hitCar = c; horn(); }
     const c = hitCar; if (Math.abs(c.x - P.x) < c.len / 2 + 1.0 && Math.abs(LANE_Z[c.lane] - P.z) < 3) die();
@@ -1282,7 +1286,7 @@ function frame(now) {
   if (!TEST) requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt; SHARED.uTime.value = clock;
   gust = clamp(0.5 + 0.5 * Math.sin(clock * 0.21) * Math.sin(clock * 0.53 + 1) + 0.25 * Math.sin(clock * 1.7), 0, 1);
-  if (started && !dead && !(HOUSE && jumping)) {
+  if (started && !dead && !(INDOOR && jumping)) {
     let fx = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, sx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
     const l = Math.hypot(fx, sx); if (l > 1) { fx /= l; sx /= l; }
     const target = (keys.ShiftLeft || keys.ShiftRight || running ? 5.6 : 2.3) * Math.min(1, l);
@@ -1291,11 +1295,12 @@ function frame(now) {
     if (l > 0.01) { P.dx = (fwx * fx - fwz * sx) / l; P.dz = (fwz * fx + fwx * sx) / l; }
     let nx = P.x + (P.dx || 0) * P.speed * dt, nz = P.z + (P.dz || 0) * P.speed * dt;
     [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;
-    P.vy -= 11 * dt; P.y += P.vy * dt; if (P.y <= 0) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = 0; P.vy = 0; P.ground = true; } else P.ground = false;
+    P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false;
     if (P.ground && P.speed > 0.3) { bob += dt * (3.2 + P.speed * 1.3); if (bob - lastStep > Math.PI * 2) { lastStep = bob; footstep(surfaceAt(P.x, P.z), P.speed > 4); } }
     killCheck();
     for (let i = coinsLive.length - 1; i >= 0; i--) { const c = coinsLive[i], t = taken.get(c.id); const vis = t === undefined || clock - t > RESPAWN; if (vis && t !== undefined) taken.delete(c.id); c.obj.visible = vis; if (!vis) continue;
       if (c.type === 0) { c.obj.children[0].rotation.z += dt * 2.2; c.obj.children[0].position.y = 0.35 + Math.sin(clock * 2 + i) * 0.04; }
+      if (c.fy !== undefined && Math.abs(c.fy - P.y) > 1.3) continue;
       if (Math.hypot(c.x - P.x, c.z - P.z) < (c.type >= 3 ? 0.9 : 1.1)) { const T = COIN_TYPES[c.type]; taken.set(c.id, clock);
         if (T.k === 'trash') { TRASHN++; if ($('f_trash')) $('f_trash').textContent = TRASHN; try { localStorage.setItem('dom_trash', TRASHN); } catch (e) {} toast(`${T.n} <b style="color:#bbb">+1 мусор</b>`); burst(0.1, 'bandpass', 2200, 1, 0.3); }
         else if (T.k) { FR[T.k]++; showFruit(); try { localStorage.setItem('vorota_fruit', JSON.stringify(FR)); } catch (e) {} toast(T.k === 'rasp' ? `Малина <b style="color:#e0566b">+1</b>` : `${T.n} <b style="color:#cfe08a">+1</b>`); burst(0.08, 'bandpass', 1400, 1.2, 0.25); blip([T.k === 'rasp' ? 1568 : 784], 0.18, 'sine', 0.05); }
@@ -1303,9 +1308,9 @@ function frame(now) {
   } else if (!started) { P.yaw += dt * 0.02; }
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: 0, z: 0, y: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (HOUSE && Math.random() < 0.8)) creak(); else crow(); } }
+  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else crow(); } }
   autoQuality(dt);
-  if (HOUSE) houseUpdate(dt);
+  if (INDOOR) houseUpdate(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);
   ground.position.set(Math.round(P.x / (GS / GSEG)) * (GS / GSEG), GROUND_Y, Math.round(P.z / (GS / GSEG)) * (GS / GSEG));
   placeCamera(); grass.update(camera.position);
@@ -1521,61 +1526,203 @@ function buildHouseChunk(cx, cz) {
   return { group, cols: b.cols };
 }
 // --- свет: фонарик + пул ламп ---
-const torch = new THREE.SpotLight(0xfff0d6, HOUSE ? 32 : 0, 24, 0.6, 0.55, 2);
-torch.castShadow = !MOBILE && HOUSE; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005; torch.shadow.camera.near = 0.2;
+const torch = new THREE.SpotLight(0xfff0d6, INDOOR ? 32 : 0, 24, 0.6, 0.55, 2);
+torch.castShadow = !MOBILE && INDOOR; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005; torch.shadow.camera.near = 0.2;
 const torchTarget = new THREE.Object3D(); torchTarget.position.set(0, -0.15, -1); camera.add(torch, torchTarget); torch.position.set(0.15, -0.12, 0.05); torch.target = torchTarget;
-if (HOUSE) scene.add(camera);
-let torchOn = HOUSE;
-const LPOOL = []; if (HOUSE) for (let k = 0; k < 4; k++) { const l = new THREE.PointLight(0xffc27a, 0, 8, 2); scene.add(l); LPOOL.push(l); }
+if (INDOOR) scene.add(camera);
+let torchOn = INDOOR;
+const LPOOL = []; if (INDOOR) for (let k = 0; k < 4; k++) { const l = new THREE.PointLight(0xffc27a, 0, 8, 2); scene.add(l); LPOOL.push(l); }
 function houseUpdate(dt) {
   // чистим якоря выгруженных чанков
   for (const arr of [doorsLive, winAnchors, bulbAnchors]) for (let k = arr.length - 1; k >= 0; k--) if (!arr[k].group.parent) arr.splice(k, 1);
   torch.intensity = torchOn ? 32 * (0.97 + Math.sin(clock * 13) * 0.01 + Math.sin(clock * 3.1) * 0.02) : 0;
   // лампы: ближайшие 4 якоря (лампы и окна)
   const cand = [];
-  for (const a of bulbAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < 20) cand.push([d, a, 0]); }
-  for (const a of winAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < 14) cand.push([d + 2, a, 1]); }
+  for (const a of bulbAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z, (a.fy || 0) - P.y); if (d < 20) cand.push([d, a, 0]); }
+  for (const a of winAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z, (a.y || 0) - P.y); if (d < 14) cand.push([d + 2, a, 1]); }
   cand.sort((u, v) => u[0] - v[0]);
   for (let k = 0; k < LPOOL.length; k++) { const l = LPOOL[k], c = cand[k]; if (!c) { l.intensity = 0; continue; } const a = c[1];
     if (c[2] === 0) { let f = 1; if (a.flick) { f = Math.sin(clock * 23 + a.ph) > -0.6 ? 1 : 0.1; if (Math.sin(clock * 0.7 + a.ph) > 0.85) f *= Math.random() < 0.5 ? 0.2 : 1; a.mesh.material = f > 0.5 ? MH.bulb : MH.bulbOff; }
       l.color.setHex(0xffc27a); l.intensity = 2.6 * f; l.distance = 7.5; l.position.set(a.x, a.y, a.z); }
-    else { l.color.setHex(0xb4c2d0); l.intensity = 4.5; l.distance = 6.5; l.position.set(a.x - a.nx * 0.6, 1.6, a.z - a.nz * 0.6); } }
+    else { l.color.setHex(0xb4c2d0); l.intensity = 4.5; l.distance = 6.5; l.position.set(a.x - a.nx * 0.6, (a.y || 0) + 1.6, a.z - a.nz * 0.6); } }
   // двери анимируются
   for (const d of doorsLive) if (Math.abs(d.ang - d.target) > 0.001) { d.ang += (d.target - d.ang) * Math.min(1, dt * 5); d.pivot.rotation.y = d.base + d.side * d.ang; d.col.off = d.ang > 0.25; }
   // подсказка
   let best = null, bd = 1.7;
-  for (const d of doorsLive) { const dd = Math.hypot(d.x - P.x, d.z - P.z); if (dd < bd) { bd = dd; best = { door: d }; } }
-  for (const w of winAnchors) { const dd = Math.hypot(w.x - P.x, w.z - P.z); if (dd < Math.min(bd, 1.5)) { bd = dd; best = { win: w }; } }
+  for (const d of doorsLive) { if (Math.abs((d.y || 0) - P.y) > 1.2) continue; const dd = Math.hypot(d.x - P.x, d.z - P.z); if (dd < bd) { bd = dd; best = { door: d }; } }
+  for (const w of winAnchors) { if (w.open === false || Math.abs((w.y || 0) - P.y) > 1.2) continue; const dd = Math.hypot(w.x - P.x, w.z - P.z); if (dd < Math.min(bd, 1.5)) { bd = dd; best = { win: w }; } }
   housePrompt.door = best && best.door; housePrompt.win = best && best.win;
   // закрытая дверь сама открывается, если упереться в неё
-  if (housePrompt.door && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
-  const pe = $('prompt'); if (pe) { const t = jumping ? '' : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
+  if (housePrompt.door && !housePrompt.door.knock && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
+  const pe = $('prompt'); if (pe) { const t = jumping ? '' : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.knock ? 'E — постучать' : housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
   if (jumping) jumpStep(dt);
 }
 let jumping = null;
 function houseInteract() {
-  if (!HOUSE || !started || jumping) return;
-  if (housePrompt.win) { const w = housePrompt.win; jumping = { t: 0, w, sx: P.x, sz: P.z }; if (document.pointerLockElement) document.exitPointerLock(); burst(0.4, 'highpass', 900, 0.4, 0.4); return; }
+  if (!INDOOR || !started || jumping) return;
+  if (housePrompt.win) { const w = housePrompt.win; jumping = { t: 0, w, sx: P.x, sz: P.z, y0: P.y }; if (document.pointerLockElement) document.exitPointerLock(); burst(0.4, 'highpass', 900, 0.4, 0.4); return; }
+  if (housePrompt.door && housePrompt.door.knock) { podKnock(housePrompt.door); return; }
   if (housePrompt.door) { const d = housePrompt.door; d.target = d.target > 0.3 ? 0 : 1.55; creak(); }
 }
 function jumpStep(dt) {
   const j = jumping; j.t += dt; const w = j.w;
   const k1 = Math.min(1, j.t / 0.7);
   P.x = lerp(j.sx, w.x + w.nx * 1.4, k1); P.z = lerp(j.sz, w.z + w.nz * 1.4, k1); P.yaw = lerp(P.yaw, Math.atan2(-w.nx, -w.nz), 0.1);
-  P.y = j.t < 0.7 ? Math.sin(k1 * Math.PI) * 0.6 + k1 * 0.3 : 0.9 - 9.8 * (j.t - 0.7) * (j.t - 0.7) * 1.2;
+  P.y = j.y0 + (j.t < 0.7 ? Math.sin(k1 * Math.PI) * 0.6 + k1 * 0.3 : 0.9 - 9.8 * (j.t - 0.7) * (j.t - 0.7) * 1.2);
   P.pitch = lerp(P.pitch, j.t < 0.7 ? 0 : -0.9, 0.05);
   const f = $('fade'); if (j.t > 0.9) { f.style.transition = 'opacity 0.5s'; f.style.background = '#000'; f.style.opacity = 1; }
-  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem('dom_trash', TRASHN); } catch (e) {} location.href = 'vorota.html'; }
+  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem('dom_trash', TRASHN); } catch (e) {} location.href = PODEZD ? 'tropa.html' : 'vorota.html'; }
 }
 let TRASHN = 0; try { TRASHN = +localStorage.getItem('dom_trash') || 0; } catch (e) {}
-if (HOUSE) {
-  P.x = HC / 2; P.z = HC / 2; P.yaw = 0.6;
+if (HOUSE) { P.x = HC / 2; P.z = HC / 2; P.yaw = 0.6; }
+if (INDOOR) {
   addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') houseInteract(); if (e.code === 'KeyF') torchOn = !torchOn; });
   if ($('tE')) $('tE').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); houseInteract(); }, { passive: false });
   if ($('tLight')) $('tLight').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); torchOn = !torchOn; }, { passive: false });
   if ($('f_trash')) $('f_trash').textContent = TRASHN;
 }
 if (TEST) window.__house = { cellType, winAnchors, doorsLive, interact: houseInteract, get jumping() { return jumping; } };
+
+// ===================== «ПОДЪЕЗД»: бесконечная лестница =====================
+const FH = 2.8, PW = 2.7, PL = 2.7, WELL0 = 1.28, WELL1 = 1.42, MIDD = 1.5, LAND = 2.0, LX0 = -1.6, LX1 = 4.3;
+// высота поверхности в пределах этажного модуля (0..FH)
+function podLocal(x, z) {
+  if (z < 0) return 0; if (z > PL) return FH / 2;
+  return x < (WELL0 + WELL1) / 2 ? (z / PL) * FH / 2 : FH / 2 + (1 - z / PL) * FH / 2;
+}
+function podSurface(x, z, y) { const s = podLocal(x, z); const n = Math.floor((y + 0.45 - s) / FH); return n * FH + s; }
+// --- текстуры ---
+const PAINTS = [['#3f6a52', '#2d5040'], ['#3d5f7e', '#2b4660'], ['#6e5a3c', '#54432c'], ['#5d6b3a', '#47522c'], ['#7a3f36', '#5c2f29']];
+const SCRIBBLES = ['Цой жив', 'ЛЁХА', 'Здесь был Вася', 'Спартак', '♥', 'КИНО', 'не курить!!!', '2007', 'Катя + Дима', 'АУ', 'выхода нет', '13'];
+function podWallTex(k) {
+  const [c1, c2] = PAINTS[k % PAINTS.length], r = rng(k * 17 + 3);
+  return texFrom(mkCanvas(512, 512, (g, w, h) => {
+    // верх — побелка, низ (до 1.55 м из 2.8) — масляная краска
+    const split = h * (1 - 1.55 / 2.8);
+    g.fillStyle = '#c9c4b4'; g.fillRect(0, 0, w, split);
+    const gr = g.createLinearGradient(0, split, 0, h); gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0, split, w, h - split);
+    g.fillStyle = 'rgba(30,25,20,0.55)'; g.fillRect(0, split - 2, w, 4); // полоса-бордюр
+    for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.06})`; g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 3); }
+    for (let i = 0; i < 26; i++) { const x = r() * w, y = r() * h, s = 10 + r() * 60; const q = g.createRadialGradient(x, y, 0, x, y, s); q.addColorStop(0, `rgba(${r() < 0.5 ? '40,35,25' : '120,110,90'},${0.08 + r() * 0.12})`); q.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = q; g.fillRect(x - s, y - s, s * 2, s * 2); }
+    for (let i = 0; i < 3; i++) { const x = r() * w, y = split + r() * (h - split - 30), s = 5 + r() * 14; g.fillStyle = 'rgba(150,145,128,0.85)'; g.beginPath(); for (let a = 0; a < 6.28; a += 0.5) g.lineTo(x + Math.cos(a) * s * (0.6 + r() * 0.5), y + Math.sin(a) * s * (0.6 + r() * 0.5)); g.fill(); } // облупленная краска
+    for (let i = 0; i < 3; i++) { g.strokeStyle = 'rgba(40,35,30,0.5)'; g.lineWidth = 1; let x = r() * w, y = r() * split; g.beginPath(); g.moveTo(x, y); for (let k2 = 0; k2 < 8; k2++) { x += (r() - 0.5) * 30; y += 10 + r() * 20; g.lineTo(x, y); } g.stroke(); } // трещины
+    for (let i = 0; i < 3; i++) { g.save(); g.translate(30 + r() * (w - 160), split + 30 + r() * (h - split - 70)); g.rotate((r() - 0.5) * 0.4); g.fillStyle = ['rgba(20,20,20,0.75)', 'rgba(140,20,20,0.7)', 'rgba(20,30,90,0.7)'][(r() * 3) | 0]; g.font = `${16 + (r() * 18 | 0)}px ${r() < 0.5 ? 'serif' : 'sans-serif'}`; g.fillText(SCRIBBLES[(r() * SCRIBBLES.length) | 0], 0, 0); g.restore(); }
+    g.fillStyle = 'rgba(40,30,20,0.35)'; for (let i = 0; i < 40; i++) g.fillRect(r() * w, split + r() * (h - split), 1.5, 1.5);
+  }));
+}
+TX.tile = texFrom(mkCanvas(256, 256, (g, w, h) => { const r = rng(61), n = 16, s = w / n; g.fillStyle = '#2a201a'; g.fillRect(0, 0, w, h);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const c = ((x + y) % 2) ? ['#8a5a40', '#7a4e38', '#94654a'][(r() * 3) | 0] : ['#c4b294', '#b8a688', '#cfbf9f'][(r() * 3) | 0]; g.fillStyle = r() < 0.04 ? '#5a5048' : c; g.fillRect(x * s + 0.8, y * s + 0.8, s - 1.6, s - 1.6); } }));
+TX.leather = texFrom(mkCanvas(256, 512, (g, w, h) => { const r = rng(71), base = ['#4a2a22', '#3a2a2a', '#5a3a2a', '#2a2a30'][(r() * 4) | 0]; g.fillStyle = base; g.fillRect(0, 0, w, h);
+  const st = 64; for (let y = -st; y < h + st; y += st) for (let x = -st; x < w + st; x += st) { const ox = (y / st) % 2 ? st / 2 : 0; g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.moveTo(x + ox, y - st / 2); g.lineTo(x + ox + st / 2, y); g.lineTo(x + ox, y + st / 2); g.lineTo(x + ox - st / 2, y); g.fill(); g.fillStyle = '#c8a860'; g.beginPath(); g.arc(x + ox, y - st / 2, 3.5, 0, 6.28); g.fill(); }
+  g.strokeStyle = 'rgba(200,170,100,0.7)'; g.lineWidth = 3; g.strokeRect(10, 10, w - 20, h - 20);
+  for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(r() * w, r() * h, 2 + r() * 20, 1 + r() * 4); } }));
+const PWALL = PAINTS.map((_, k) => rep(std({ map: podWallTex(k), roughness: 0.75, vertexColors: true }), 2.4, 2.8));
+const MP = {
+  tile: rep(std({ map: TX.tile, roughness: 0.6 }), 1.2, 1.2),
+  conc: M.conc,
+  leather: rep(std({ map: TX.leather, roughness: 0.6, vertexColors: true }), 0.9, 2.05),
+  rail: envMat({ color: 0x4a2c1e, roughness: 0.35 }, 0.3),
+  bars: envMat({ color: 0x2a2c2c, roughness: 0.5, metalness: 0.6 }, 0.3),
+  radiator: envMat({ color: 0xc8c4b8, roughness: 0.5, metalness: 0.2 }, 0.3),
+  dirtyGlass: std({ color: 0xb8c0b8, roughness: 0.2, transparent: true, opacity: 0.35, depthWrite: false }),
+};
+const floorNumMats = new Map();
+function floorNumMat(n) { if (!floorNumMats.has(n)) floorNumMats.set(n, new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.9, map: texFrom(mkCanvas(128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(240,235,220,0.85)'; g.font = 'bold 88px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 4); })) })); return floorNumMats.get(n); }
+// --- модуль этажа ---
+const podMods = new Map();
+function buildFloor(n) {
+  const group = new THREE.Group(), b = new Batch(), y0 = n * FH, r = rng(n * 7919 + 31), wallM = PWALL[(((n % 5) + 5) % 5)], wc = shade(0.9 + r() * 0.15);
+  b.push(0, y0, 0);
+  // площадка этажа (плитка) и плита потолка над ней
+  b.box(MP.tile, (LX0 + LX1) / 2, -0.06, -LAND / 2, LX1 - LX0, 0.12, LAND);
+  b.box(MP.conc, (LX0 + LX1) / 2, FH - 0.2, -LAND / 2, LX1 - LX0, 0.16, LAND, shade(0.95));
+  // межэтажная площадка
+  b.box(MP.conc, PW / 2, FH / 2 - 0.1, PL + MIDD / 2, PW, 0.2, MIDD, shade(0.85));
+  // марши: ступени
+  const NS = 9, rise = FH / 2 / NS, tread = PL / NS;
+  for (let k = 0; k < NS; k++) {
+    const topA = (k + 1) * rise, zA = k * tread + tread / 2; b.box(MP.conc, WELL0 / 2, topA - 0.12, zA, WELL0, 0.24, tread + 0.01, shade(0.85 + r() * 0.12));
+    const topB = FH / 2 + (k + 1) * rise, zB = PL - k * tread - tread / 2; b.box(MP.conc, (WELL1 + PW) / 2, topB - 0.12, zB, PW - WELL1, 0.24, tread + 0.01, shade(0.85 + r() * 0.12));
+  }
+  // наклонные плиты снизу маршей
+  const slope = Math.atan2(FH / 2, PL), sl = Math.hypot(FH / 2, PL);
+  b.box(MP.conc, WELL0 / 2, FH / 4 - 0.25, PL / 2, WELL0, 0.12, sl, shade(0.7), -slope);
+  b.box(MP.conc, (WELL1 + PW) / 2, FH * 0.75 - 0.25, PL / 2, PW - WELL1, 0.12, sl, shade(0.7), slope);
+  // стены лестничной клетки
+  b.box(wallM, -0.06, FH / 2, (PL + MIDD) / 2, 0.12, FH, PL + MIDD, wc);
+  b.box(wallM, PW + 0.06, FH / 2, (PL + MIDD) / 2, 0.12, FH, PL + MIDD, wc);
+  // торцевая стена с окном (на межэтажной площадке)
+  const WZ = PL + MIDD + 0.06, wy0 = FH / 2 + 0.9, wy1 = FH / 2 + 2.2, wx0 = PW / 2 - 0.65, wx1 = PW / 2 + 0.65;
+  b.box(wallM, wx0 / 2, FH / 2, WZ, wx0, FH, 0.12, wc); b.box(wallM, (wx1 + PW) / 2, FH / 2, WZ, PW - wx1, FH, 0.12, wc);
+  b.box(wallM, PW / 2, wy0 / 2, WZ, wx1 - wx0, wy0, 0.12, wc); b.box(wallM, PW / 2, (wy1 + FH) / 2 + 0.02, WZ, wx1 - wx0, FH - wy1 + 0.04, 0.12, wc);
+  const fc = lin([0.72, 0.68, 0.6]);
+  b.box(M.paint, PW / 2, wy0 + 0.02, WZ - 0.1, 1.45, 0.05, 0.3, fc); b.box(M.paint, wx0, (wy0 + wy1) / 2, WZ, 0.07, wy1 - wy0, 0.16, fc); b.box(M.paint, wx1, (wy0 + wy1) / 2, WZ, 0.07, wy1 - wy0, 0.16, fc); b.box(M.paint, PW / 2, wy1, WZ, 1.4, 0.07, 0.16, fc); b.box(M.paint, PW / 2, (wy0 + wy1) / 2, WZ, 0.05, wy1 - wy0, 0.12, fc);
+  const openW = r() < 0.55; // створка открыта — можно выпрыгнуть
+  if (!openW) b.box(MP.dirtyGlass, PW / 2, (wy0 + wy1) / 2, WZ, 1.26, wy1 - wy0 - 0.06, 0.01);
+  else { b.box(MP.dirtyGlass, PW / 2 - 0.33, (wy0 + wy1) / 2, WZ, 0.6, wy1 - wy0 - 0.06, 0.01); const g2 = new THREE.BoxGeometry(0.6, wy1 - wy0 - 0.08, 0.03).translate(-0.3, 0, 0); b.add(M.paint, g2, new THREE.Matrix4().compose(new V3(wx1, (wy0 + wy1) / 2, WZ - 0.05), new THREE.Quaternion().setFromAxisAngle(UP, -1.1), new V3(1, 1, 1)), fc); }
+  // батарея под окном, банка-пепельница, цветок
+  for (let k = 0; k < 9; k++) b.box(MP.radiator, PW / 2 - 0.45 + k * 0.11, FH / 2 + 0.42, WZ - 0.2, 0.07, 0.55, 0.12);
+  b.cyl(M.metal, PW / 2 + 0.45, wy0 + 0.1, WZ - 0.12, 0.05, 0.05, 0.12, 10, PAINT.galv); if (r() < 0.5) { b.cyl(M.paint, PW / 2 - 0.4, wy0 + 0.09, WZ - 0.12, 0.07, 0.05, 0.13, 10, lin([0.6, 0.3, 0.2])); b.geo(M.leafOlive, new THREE.IcosahedronGeometry(0.12, 0), PW / 2 - 0.4, wy0 + 0.25, WZ - 0.12, 0, r(), 0, 1, shade(0.7)); }
+  // стены площадки этажа
+  b.box(wallM, (LX0 + LX1) / 2, FH / 2, -LAND - 0.06, LX1 - LX0, FH, 0.12, wc);
+  b.box(wallM, LX0 - 0.06, FH / 2, -LAND / 2, 0.12, FH, LAND, wc); b.box(wallM, LX1 + 0.06, FH / 2, -LAND / 2, 0.12, FH, LAND, wc);
+  b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
+  // номер этажа
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.45), floorNumMat(n + 1)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
+  // квартирные двери (дерматин), номера
+  const doors = [[0.25, -LAND, 0], [PW - 0.25 - 0.9, -LAND, 0], [LX0, -LAND / 2 - 0.45, 1], [LX1, -LAND / 2 + 0.45, -1]];
+  doors.forEach(([dx, dz, side], k) => {
+    const dc = shade(0.75 + r() * 0.4), metal = r() < 0.3;
+    if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
+    else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
+    const ax = side === 0 ? dx + 0.45 : dx + side * 0.3, az = side === 0 ? dz + 0.3 : dz;
+    doorsLive.push({ knock: true, x: ax, z: az, y: y0, apt: n * 4 + k + 1, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
+  });
+  // щиток с проводами
+  b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42])); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
+  // перила: стойки + коричневый поручень
+  for (const [x, zs, ze, ys, ye] of [[WELL0, 0, PL, 0, FH / 2], [WELL1, PL, 0, FH / 2, FH]]) {
+    const nb = 10; for (let k = 0; k <= nb; k++) { const t = k / nb, z = lerp(zs, ze, t), yb = lerp(ys, ye, t); b.box(MP.bars, x, yb + 0.45, z, 0.02, 0.9, 0.02); }
+    b.pipe(MP.rail, new V3(x, ys + 0.92, zs), new V3(x, ye + 0.92, ze), 0.03); b.pipe(MP.bars, new V3(x, ys + 0.12, zs), new V3(x, ye + 0.12, ze), 0.01);
+  }
+  b.pipe(MP.rail, new V3(WELL0, FH / 2 + 0.92, PL), new V3(WELL1, FH / 2 + 0.92, PL), 0.03);
+  // лампочка на площадке (некоторые не горят)
+  const on = r() < 0.7, bx = (LX0 + LX1) / 2 + 0.3, bz = -LAND / 2; b.lines.push(new V3(bx, y0 + FH - 0.12, bz), new V3(bx, y0 + FH - 0.4, bz));
+  const flick = on && r() < 0.3; let bulb = null; if (flick) { bulb = new THREE.Mesh(BULB_GEO, MH.bulb); bulb.position.set(bx, y0 + FH - 0.45, bz); group.add(bulb); } else b.geo(on ? MH.bulb : MH.bulbOff, BULB_GEO, bx, FH - 0.45, bz, 0, 0, 0, 1);
+  if (on) bulbAnchors.push({ x: bx, y: y0 + FH - 0.55, fy: y0, z: bz, flick, ph: r() * 100, group, mesh: bulb });
+  winAnchors.push({ x: PW / 2, z: WZ - 0.1, y: y0 + FH / 2, nx: 0, nz: 1, group, open: openW });
+  // хлам на площадке
+  if (r() < 0.35) b.box(M.paint, LX0 + 0.4, 0.25, -LAND + 0.4, 0.5, 0.5, 0.45, lin([0.12, 0.12, 0.12]), 0, r(), 0); // мешок
+  if (r() < 0.25) { b.box(M.plank, LX1 - 0.5, 0.45, -LAND + 0.4, 0.42, 0.04, 0.42, shade(0.8)); b.box(M.plank, LX1 - 0.5, 0.7, -LAND + 0.2, 0.42, 0.5, 0.04, shade(0.8)); for (const [ox, oz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) b.box(M.plank, LX1 - 0.5 + ox, 0.22, -LAND + 0.4 + oz, 0.04, 0.45, 0.04, shade(0.8)); }
+  b.pop();
+  // мусор
+  const spots = [[LX0 + 0.5 + r() * 4.5, -0.3 - r() * 1.4, 0], [0.3 + r() * 0.7, PL + 0.3 + r() * 1, FH / 2], [PW / 2 + (r() - 0.5) * 1.6, PL + 0.4 + r() * 0.9, FH / 2]];
+  spots.forEach(([x, z, yy], k) => { if (r() < 0.45) { addTrash(group, x, z, `p${n},${k}`, r); const c = coinsLive[coinsLive.length - 1]; c.obj.position.y = y0 + yy; c.fy = y0 + yy; } });
+  b.build(group); scene.add(group);
+  return group;
+}
+// статические коллизии лестничной клетки (одинаковы на всех этажах)
+const podCols = [
+  { x: -0.12, z: (PL + MIDD) / 2, hx: 0.12, hz: (PL + MIDD) / 2 }, { x: PW + 0.12, z: (PL + MIDD) / 2, hx: 0.12, hz: (PL + MIDD) / 2 },
+  { x: PW / 2, z: PL + MIDD + 0.1, hx: PW / 2, hz: 0.12 },
+  { x: (WELL0 + WELL1) / 2, z: PL / 2 + 0.02, hx: (WELL1 - WELL0) / 2 + 0.02, hz: PL / 2 + 0.02 },
+  { x: (LX0 + LX1) / 2, z: -LAND - 0.1, hx: (LX1 - LX0) / 2, hz: 0.12 }, { x: LX0 - 0.1, z: -LAND / 2, hx: 0.12, hz: LAND / 2 + 0.1 }, { x: LX1 + 0.1, z: -LAND / 2, hx: 0.12, hz: LAND / 2 + 0.1 },
+  { x: LX0 / 2, z: 0.1, hx: -LX0 / 2, hz: 0.12 }, { x: (PW + LX1) / 2, z: 0.1, hx: (LX1 - PW) / 2, hz: 0.12 },
+].map((c) => Object.assign(c, { c: 1, s: 0 }));
+function podUpdate() {
+  if (!colliders.has('pod')) colliders.set('pod', podCols);
+  const cur = Math.floor((P.y + 0.5) / FH);
+  for (let n = cur - 2; n <= cur + 2; n++) if (!podMods.has(n)) podMods.set(n, buildFloor(n));
+  for (const [n, g] of podMods) if (Math.abs(n - cur) > 3) { scene.remove(g); g.traverse((o) => { if (o.geometry && o.geometry !== BULB_GEO && !Object.values(trashGeo).includes(o.geometry)) o.geometry.dispose(); }); for (let i = coinsLive.length - 1; i >= 0; i--) if (coinsLive[i].group === g) coinsLive.splice(i, 1); podMods.delete(n); }
+  const fe = $('f_floor'); if (fe) { const t = String(Math.floor((P.y + 0.3) / FH) + 1); if (fe.textContent !== t) fe.textContent = t; }
+}
+// звуки подъезда: далёкий хлопок двери, шаги этажом выше, лай за дверью
+function podSound() { if (!AC) return; const t = Math.random();
+  if (t < 0.4) { burst(0.5, 'lowpass', 180, 0.7, 0.5, Math.random() - 0.5); setTimeout(() => burst(0.3, 'lowpass', 120, 0.7, 0.25), 90); }
+  else if (t < 0.75) { for (let k = 0; k < 6; k++) setTimeout(() => burst(0.08, 'bandpass', 700, 1.2, 0.08, 0.3), k * 520); }
+  else { for (let k = 0; k < 3; k++) setTimeout(() => { burst(0.12, 'bandpass', 520, 3, 0.12, -0.4); }, k * 300); } }
+function podKnock(d) { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['Тишина.', 'За дверью кто-то есть. Но не открывают.', 'Никого.', 'Где-то за дверью работает телевизор.', 'Шаги… и снова тишина.'][(Math.random() * 5) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); }
+if (PODEZD) { P.x = PW / 2 + 0.3; P.z = -1.0; P.y = 0; P.yaw = Math.PI; ground.visible = false; grass.mesh.visible = false; }
 
 })();
 </script>

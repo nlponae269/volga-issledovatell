@@ -21,15 +21,15 @@ s = patch(s, "  const run = (keys.ShiftLeft", "  if (window.CHEAT) P.stam = 1;\n
 s = s.replace('<title>', '<title>DEV ', 1).replace('<script>', cheat + '<script>', 1)
 (out / 'index.html').write_text(s, encoding='utf-8')
 # --- Тропа и Ворота ---
-for f in ['tropa.html', 'vorota.html', 'dom.html']:
+for f in ['tropa.html', 'vorota.html', 'dom.html', 'podezd.html']:
     s = (root / f).read_text(encoding='utf-8')
     s = patch(s, '? 5.6 : 2.3) * Math.min(1, l);', '? 5.6 : 2.3) * Math.min(1, l) * (window.CHEAT ? CHEAT.mult : 1);', f + ' speed')
     s = patch(s, '    [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;\n    P.vy -= 11 * dt;', '''    if (window.CHEAT && CHEAT.fly) { const cp = Math.cos(P.pitch), v = CHEAT.flySpeed * ((keys.ShiftLeft || keys.ShiftRight || running) ? 3 : 1);
-      P.x += (fwx * cp * fx - fwz * sx) * v * dt; P.z += (fwz * cp * fx + fwx * sx) * v * dt; P.y = Math.max(0, P.y + (Math.sin(P.pitch) * fx + CHEAT.vert()) * v * dt); P.vy = 0; P.ground = P.y < 0.01; P.speed = 0; }
+      P.x += (fwx * cp * fx - fwz * sx) * v * dt; P.z += (fwz * cp * fx + fwx * sx) * v * dt; P.y = Math.max(PODEZD ? -1e9 : 0, P.y + (Math.sin(P.pitch) * fx + CHEAT.vert()) * v * dt); P.vy = 0; P.ground = P.y < 0.01; P.speed = 0; }
     else { [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz; }
     if (!(window.CHEAT && CHEAT.fly)) P.vy -= 11 * dt;''', f + ' fly')
     s = patch(s, 'P.vy = 0; P.ground = true; } else P.ground = false;', 'P.vy = 0; P.ground = true; } else if (!(window.CHEAT && CHEAT.fly)) P.ground = false;', f + ' ground')
-    s = patch(s, 'if (dead || GARDEN || HOUSE) return;', 'if (dead || GARDEN || HOUSE || (window.CHEAT && CHEAT.fly && P.y > 2)) return;', f + ' road')
+    s = patch(s, 'if (dead || GARDEN || INDOOR) return;', 'if (dead || GARDEN || INDOOR || (window.CHEAT && CHEAT.fly && P.y > 2)) return;', f + ' road')
     s = s.replace('<title>', '<title>DEV ', 1).replace('<script>', cheat + '<script>', 1)
     (out / f).write_text(s, encoding='utf-8')
 print('dev ok')

@@ -192,55 +192,56 @@ function buildHouseChunk(cx, cz) {
   return { group, cols: b.cols };
 }
 // --- свет: фонарик + пул ламп ---
-const torch = new THREE.SpotLight(0xfff0d6, HOUSE ? 32 : 0, 24, 0.6, 0.55, 2);
-torch.castShadow = !MOBILE && HOUSE; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005; torch.shadow.camera.near = 0.2;
+const torch = new THREE.SpotLight(0xfff0d6, INDOOR ? 32 : 0, 24, 0.6, 0.55, 2);
+torch.castShadow = !MOBILE && INDOOR; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005; torch.shadow.camera.near = 0.2;
 const torchTarget = new THREE.Object3D(); torchTarget.position.set(0, -0.15, -1); camera.add(torch, torchTarget); torch.position.set(0.15, -0.12, 0.05); torch.target = torchTarget;
-if (HOUSE) scene.add(camera);
-let torchOn = HOUSE;
-const LPOOL = []; if (HOUSE) for (let k = 0; k < 4; k++) { const l = new THREE.PointLight(0xffc27a, 0, 8, 2); scene.add(l); LPOOL.push(l); }
+if (INDOOR) scene.add(camera);
+let torchOn = INDOOR;
+const LPOOL = []; if (INDOOR) for (let k = 0; k < 4; k++) { const l = new THREE.PointLight(0xffc27a, 0, 8, 2); scene.add(l); LPOOL.push(l); }
 function houseUpdate(dt) {
   // чистим якоря выгруженных чанков
   for (const arr of [doorsLive, winAnchors, bulbAnchors]) for (let k = arr.length - 1; k >= 0; k--) if (!arr[k].group.parent) arr.splice(k, 1);
   torch.intensity = torchOn ? 32 * (0.97 + Math.sin(clock * 13) * 0.01 + Math.sin(clock * 3.1) * 0.02) : 0;
   // лампы: ближайшие 4 якоря (лампы и окна)
   const cand = [];
-  for (const a of bulbAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < 20) cand.push([d, a, 0]); }
-  for (const a of winAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < 14) cand.push([d + 2, a, 1]); }
+  for (const a of bulbAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z, (a.fy || 0) - P.y); if (d < 20) cand.push([d, a, 0]); }
+  for (const a of winAnchors) { const d = Math.hypot(a.x - P.x, a.z - P.z, (a.y || 0) - P.y); if (d < 14) cand.push([d + 2, a, 1]); }
   cand.sort((u, v) => u[0] - v[0]);
   for (let k = 0; k < LPOOL.length; k++) { const l = LPOOL[k], c = cand[k]; if (!c) { l.intensity = 0; continue; } const a = c[1];
     if (c[2] === 0) { let f = 1; if (a.flick) { f = Math.sin(clock * 23 + a.ph) > -0.6 ? 1 : 0.1; if (Math.sin(clock * 0.7 + a.ph) > 0.85) f *= Math.random() < 0.5 ? 0.2 : 1; a.mesh.material = f > 0.5 ? MH.bulb : MH.bulbOff; }
       l.color.setHex(0xffc27a); l.intensity = 2.6 * f; l.distance = 7.5; l.position.set(a.x, a.y, a.z); }
-    else { l.color.setHex(0xb4c2d0); l.intensity = 4.5; l.distance = 6.5; l.position.set(a.x - a.nx * 0.6, 1.6, a.z - a.nz * 0.6); } }
+    else { l.color.setHex(0xb4c2d0); l.intensity = 4.5; l.distance = 6.5; l.position.set(a.x - a.nx * 0.6, (a.y || 0) + 1.6, a.z - a.nz * 0.6); } }
   // двери анимируются
   for (const d of doorsLive) if (Math.abs(d.ang - d.target) > 0.001) { d.ang += (d.target - d.ang) * Math.min(1, dt * 5); d.pivot.rotation.y = d.base + d.side * d.ang; d.col.off = d.ang > 0.25; }
   // подсказка
   let best = null, bd = 1.7;
-  for (const d of doorsLive) { const dd = Math.hypot(d.x - P.x, d.z - P.z); if (dd < bd) { bd = dd; best = { door: d }; } }
-  for (const w of winAnchors) { const dd = Math.hypot(w.x - P.x, w.z - P.z); if (dd < Math.min(bd, 1.5)) { bd = dd; best = { win: w }; } }
+  for (const d of doorsLive) { if (Math.abs((d.y || 0) - P.y) > 1.2) continue; const dd = Math.hypot(d.x - P.x, d.z - P.z); if (dd < bd) { bd = dd; best = { door: d }; } }
+  for (const w of winAnchors) { if (w.open === false || Math.abs((w.y || 0) - P.y) > 1.2) continue; const dd = Math.hypot(w.x - P.x, w.z - P.z); if (dd < Math.min(bd, 1.5)) { bd = dd; best = { win: w }; } }
   housePrompt.door = best && best.door; housePrompt.win = best && best.win;
   // закрытая дверь сама открывается, если упереться в неё
-  if (housePrompt.door && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
-  const pe = $('prompt'); if (pe) { const t = jumping ? '' : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
+  if (housePrompt.door && !housePrompt.door.knock && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
+  const pe = $('prompt'); if (pe) { const t = jumping ? '' : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.knock ? 'E — постучать' : housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
   if (jumping) jumpStep(dt);
 }
 let jumping = null;
 function houseInteract() {
-  if (!HOUSE || !started || jumping) return;
-  if (housePrompt.win) { const w = housePrompt.win; jumping = { t: 0, w, sx: P.x, sz: P.z }; if (document.pointerLockElement) document.exitPointerLock(); burst(0.4, 'highpass', 900, 0.4, 0.4); return; }
+  if (!INDOOR || !started || jumping) return;
+  if (housePrompt.win) { const w = housePrompt.win; jumping = { t: 0, w, sx: P.x, sz: P.z, y0: P.y }; if (document.pointerLockElement) document.exitPointerLock(); burst(0.4, 'highpass', 900, 0.4, 0.4); return; }
+  if (housePrompt.door && housePrompt.door.knock) { podKnock(housePrompt.door); return; }
   if (housePrompt.door) { const d = housePrompt.door; d.target = d.target > 0.3 ? 0 : 1.55; creak(); }
 }
 function jumpStep(dt) {
   const j = jumping; j.t += dt; const w = j.w;
   const k1 = Math.min(1, j.t / 0.7);
   P.x = lerp(j.sx, w.x + w.nx * 1.4, k1); P.z = lerp(j.sz, w.z + w.nz * 1.4, k1); P.yaw = lerp(P.yaw, Math.atan2(-w.nx, -w.nz), 0.1);
-  P.y = j.t < 0.7 ? Math.sin(k1 * Math.PI) * 0.6 + k1 * 0.3 : 0.9 - 9.8 * (j.t - 0.7) * (j.t - 0.7) * 1.2;
+  P.y = j.y0 + (j.t < 0.7 ? Math.sin(k1 * Math.PI) * 0.6 + k1 * 0.3 : 0.9 - 9.8 * (j.t - 0.7) * (j.t - 0.7) * 1.2);
   P.pitch = lerp(P.pitch, j.t < 0.7 ? 0 : -0.9, 0.05);
   const f = $('fade'); if (j.t > 0.9) { f.style.transition = 'opacity 0.5s'; f.style.background = '#000'; f.style.opacity = 1; }
-  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem('dom_trash', TRASHN); } catch (e) {} location.href = 'vorota.html'; }
+  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem('dom_trash', TRASHN); } catch (e) {} location.href = PODEZD ? 'tropa.html' : 'vorota.html'; }
 }
 let TRASHN = 0; try { TRASHN = +localStorage.getItem('dom_trash') || 0; } catch (e) {}
-if (HOUSE) {
-  P.x = HC / 2; P.z = HC / 2; P.yaw = 0.6;
+if (HOUSE) { P.x = HC / 2; P.z = HC / 2; P.yaw = 0.6; }
+if (INDOOR) {
   addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') houseInteract(); if (e.code === 'KeyF') torchOn = !torchOn; });
   if ($('tE')) $('tE').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); houseInteract(); }, { passive: false });
   if ($('tLight')) $('tLight').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); torchOn = !torchOn; }, { passive: false });

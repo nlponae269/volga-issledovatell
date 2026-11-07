@@ -22,10 +22,10 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), skyMat); sky.f
 { const envScene = new THREE.Scene(); const s2 = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMat.clone()); s2.material.uniforms = skyU; envScene.add(s2);
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a2c })); gnd.position.y = -2; envScene.add(gnd);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0.02).texture; pm.dispose(); }
-const ENV_TEX = scene.environment; if (HOUSE) scene.environment = null;
-const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, HOUSE ? 0.035 : 0.35); scene.add(hemi);
+const ENV_TEX = scene.environment; if (INDOOR) scene.environment = null;
+const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : 0.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
-sun.castShadow = Q.shadows && !HOUSE; if (HOUSE) sun.intensity = 0; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
 
@@ -266,6 +266,7 @@ function buildChunk(cx, cz) {
 }
 let chunkQueue = [];
 function updateChunks(px, pz, force) {
+  if (PODEZD) return podUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];
   for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
   chunkQueue.sort((a, b) => a[2] - b[2]);
