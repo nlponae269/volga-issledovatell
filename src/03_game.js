@@ -247,6 +247,9 @@ function buildChunk(cx, cz) {
     return new THREE.Mesh(g, mat);
   };
   const deco = mk(B, MAT.deco), grass = mk(GB, MAT.grass);
+  terrain.receiveShadow = true;
+  if (deco) { deco.castShadow = true; deco.receiveShadow = true; }
+  if (grass) grass.receiveShadow = true;
   for (const m of [terrain, deco, grass]) if (m) scene.add(m);
   return { cx, cz, terrain, deco, grass, circ, boxes, notes };
 }
@@ -260,7 +263,7 @@ const canvas = $('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 1.75));
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(72, 1, 0.1, 2500);
+const camera = new THREE.PerspectiveCamera(72, 1, 0.15, 1800);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 const fogColor = new THREE.Color(0.7, 0.72, 0.72);
@@ -295,11 +298,56 @@ function makeDetailTex() {
   t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   return t;
 }
-const MAT = {
-  terrain: new THREE.MeshLambertMaterial({ vertexColors: true, map: makeDetailTex() }),
-  deco: new THREE.MeshLambertMaterial({ vertexColors: true }),
-  grass: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+const texLoader = new THREE.TextureLoader();
+function loadTex(src, srgb) {
+  const t = texLoader.load(src); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const TX = { leaves: loadTex(TEXDATA.leaves, true), leavesN: loadTex(TEXDATA.leavesN, false), bark: loadTex(TEXDATA.bark, true), barkN: loadTex(TEXDATA.barkN, false) };
+// земля: сканированная лесная подстилка + карта нормалей; на скалах/снегу/пляже текстура становится серой «фактурой»
+const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: TX.leaves, normalMap: TX.leavesN, normalScale: new THREE.Vector2(1.3, 1.3), roughness: 0.95, metalness: 0 });
+terrainMat.onBeforeCompile = (sh) => {
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP2; varying vec3 vWN2;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP2=(modelMatrix*vec4(transformed,1.0)).xyz; vWN2=normal;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP2; varying vec3 vWN2;')
+    .replace('#include <map_fragment>', `
+      vec4 tC = texture2D(map, vMapUv);
+      vec4 tF = texture2D(map, vMapUv * 0.21 + 0.37);           // второй масштаб убирает повторяемость
+      vec3 tx = mix(tC.rgb, tF.rgb, 0.35);
+      float lum = dot(tx, vec3(0.2126, 0.7152, 0.0722));
+      float leafy = smoothstep(0.8, 2.2, vWP2.y) * (1.0 - smoothstep(60.0, 90.0, vWP2.y)) * smoothstep(0.55, 0.85, normalize(vWN2).y);
+      vec3 gray = vec3(lum / 0.17);
+      vec3 col = tx / vec3(0.25, 0.16, 0.06) * 0.62;
+      diffuseColor.rgb *= mix(gray, mix(gray, col, 0.75), leafy);
+    `);
 };
+// кора/дерево: трипланарная проекция по миру (без UV)
+const decoMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
+decoMat.onBeforeCompile = (sh) => {
+  sh.uniforms.tBark = { value: TX.bark };
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP2; varying vec3 vWN2;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP2=(modelMatrix*vec4(transformed,1.0)).xyz; vWN2=normal;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tBark; varying vec3 vWP2; varying vec3 vWN2;')
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 bw = pow(abs(normalize(vWN2)), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
+      vec3 tb = texture2D(tBark, vWP2.zy * vec2(0.9, 0.45)).rgb * bw.x + texture2D(tBark, vWP2.xz * 0.6).rgb * bw.y + texture2D(tBark, vWP2.xy * vec2(0.9, 0.45)).rgb * bw.z;
+      float l = dot(tb, vec3(0.2126, 0.7152, 0.0722)) / 0.19;
+      diffuseColor.rgb *= mix(1.0, l, 0.85);
+    `);
+};
+const MAT = {
+  terrain: terrainMat,
+  deco: decoMat,
+  grass: new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 }),
+};
+const SHADOWS = !isTouch;
+if (SHADOWS) {
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  const sc = sun.shadow.camera; sc.left = -75; sc.right = 75; sc.top = 75; sc.bottom = -75; sc.near = 1; sc.far = 450;
+  sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
+}
 
 // ---------------- Небо ----------------
 const skyU = { horizon: { value: new THREE.Color() }, zenith: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, night: { value: 0 } };
@@ -685,7 +733,7 @@ function updateHUD() {
   stamEl.style.opacity = P.stam < 0.97 ? 1 : 0;
   stamEl.firstElementChild.style.width = (P.stam * 100) + '%';
   stamEl.classList.toggle('low', P.tired || P.stam < 0.25);
-  vigEl.style.opacity = 0.9 + 0.1 * (1 - P.stam);
+
 }
 // зерно плёнки
 {
@@ -718,9 +766,94 @@ function applyViewDistance() {
   scene.fog.density = den; waterU.uDen.value = den;
 }
 
+// ---------------- Пост-обработка ----------------
+const post = (() => {
+  const VS = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
+  const HF = THREE.HalfFloatType;
+  const main = new THREE.WebGLRenderTarget(4, 4, { type: HF, samples: isTouch ? 0 : 4, depthTexture: new THREE.DepthTexture(4, 4) });
+  const bA = new THREE.WebGLRenderTarget(4, 4, { type: HF }), bB = new THREE.WebGLRenderTarget(4, 4, { type: HF });
+  const qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), qg = new THREE.PlaneGeometry(2, 2);
+  const mk = (fs, u) => { const m = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: fs, depthTest: false, depthWrite: false }); const sc = new THREE.Scene(); const me = new THREE.Mesh(qg, m); me.frustumCulled = false; sc.add(me); return { m, sc }; };
+  const bright = mk(`varying vec2 vUv; uniform sampler2D t;
+    void main(){ vec3 c=texture2D(t,vUv).rgb; float l=dot(c,vec3(0.2126,0.7152,0.0722)); gl_FragColor=vec4(c*smoothstep(0.55,1.4,l),1.0); }`, { t: { value: main.texture } });
+  const blurFS = `varying vec2 vUv; uniform sampler2D t; uniform vec2 dir;
+    void main(){ vec3 c=texture2D(t,vUv).rgb*0.227;
+      c+=(texture2D(t,vUv+dir*1.385).rgb+texture2D(t,vUv-dir*1.385).rgb)*0.316;
+      c+=(texture2D(t,vUv+dir*3.231).rgb+texture2D(t,vUv-dir*3.231).rgb)*0.07;
+      gl_FragColor=vec4(c,1.0); }`;
+  const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
+  const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
+  const U = {
+    tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture },
+    res: { value: new THREE.Vector2(4, 4) }, sunUV: { value: new THREE.Vector2(0.5, 0.5) }, sunVis: { value: 0 }, sunCol: { value: new THREE.Color(1, 0.9, 0.75) },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, fatigue: { value: 0 }, expo: { value: 1.0 },
+  };
+  const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB; uniform vec2 res,sunUV; uniform float sunVis,nearF,farF,time,fatigue,expo; uniform vec3 sunCol;
+    float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
+    float h12(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+    vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }
+    void main(){
+      vec2 uv=vUv, dc=uv-0.5;
+      float ca=0.0012+0.004*fatigue+0.0025*dot(dc,dc);
+      vec3 col=vec3(texture2D(tC,uv+dc*ca).r, texture2D(tC,uv).g, texture2D(tC,uv-dc*ca).b);
+      // ambient occlusion по глубине
+      float rd=texture2D(tD,uv).x, d0=lz(rd);
+      if(rd<0.99993){
+        float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(26.0/d0,0.35,3.5);
+        for(int i=0;i<10;i++){ float fi=float(i); float a=rn+fi*2.39996; vec2 o=vec2(cos(a),sin(a))*(3.0+fi*2.4)*sc/res;
+          float d=lz(texture2D(tD,uv+o).x); float df=d0-d; ao+=smoothstep(0.03,0.6+d0*0.02,df)*(1.0-smoothstep(1.5,4.0+d0*0.05,df)); }
+        col*=1.0-0.55*ao/10.0;
+      }
+      // лучи света сквозь туман и ветви
+      if(sunVis>0.001){
+        vec2 dt=(uv-sunUV)/48.0; vec2 p=uv; float il=0.0, w=1.0;
+        for(int i=0;i<48;i++){ p-=dt; float sky=step(0.99993,texture2D(tD,p).x); vec3 sc=texture2D(tC,p).rgb; il+=sky*dot(sc,vec3(0.33))*w; w*=0.965; }
+        col+=sunCol*il/48.0*sunVis*1.6;
+      }
+      col+=texture2D(tB,uv).rgb*0.55;
+      col=aces(col*expo*1.15);
+      // цветокор: холодные тени, чуть тёплые света, приглушённая насыщенность
+      float L=dot(col,vec3(0.2126,0.7152,0.0722));
+      col=mix(vec3(L),col,0.78);
+      col+=vec3(-0.012,0.004,0.02)*(1.0-L)+vec3(0.02,0.01,-0.015)*L;
+      col=pow(max(col,0.0),vec3(1.0/2.2));
+      // виньетка и зерно
+      float v=smoothstep(0.95,0.25,length(dc*vec2(1.15,1.0)))*(1.0-0.25*fatigue);
+      col*=mix(0.32,1.0,v);
+      col+=(h12(uv*res+fract(time*13.0)*91.0)-0.5)*0.045;
+      gl_FragColor=vec4(col,1.0);
+    }`, U);
+  let w = 4, h = 4;
+  const sv = new THREE.Vector3();
+  return {
+    U,
+    resize(W, H) {
+      const pr = renderer.getPixelRatio(); w = Math.floor(W * pr); h = Math.floor(H * pr);
+      main.setSize(w, h); main.depthTexture.image.width = w; main.depthTexture.image.height = h;
+      const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2); bA.setSize(bw, bh); bB.setSize(bw, bh);
+      blurH.m.uniforms.dir.value.set(1 / bw, 0); blurV.m.uniforms.dir.value.set(0, 1 / bh); U.res.value.set(w, h);
+    },
+    render(t) {
+      U.time.value = t; U.farF.value = camera.far; U.nearF.value = camera.near; U.fatigue.value = clamp(1 - P.stam, 0, 1);
+      // экранная позиция солнца
+      const sd = skyU.sunDir.value; sv.copy(camera.position).addScaledVector(sd, 800).project(camera);
+      const on = sv.z < 1 && Math.abs(sv.x) < 1.6 && Math.abs(sv.y) < 1.6 ? 1 : 0;
+      U.sunUV.value.set(sv.x * 0.5 + 0.5, sv.y * 0.5 + 0.5);
+      const day = smooth(-0.05, 0.25, sd.y);
+      U.sunVis.value = on * day * (1 - smooth(0.9, 1.6, Math.max(Math.abs(sv.x), Math.abs(sv.y))));
+      U.sunCol.value.copy(sun.color);
+      renderer.setRenderTarget(main); renderer.render(scene, camera);
+      renderer.setRenderTarget(bA); renderer.render(bright.sc, qc);
+      renderer.setRenderTarget(bB); renderer.render(blurH.sc, qc);
+      renderer.setRenderTarget(bA); renderer.render(blurV.sc, qc);
+      renderer.setRenderTarget(null); renderer.render(comp.sc, qc);
+    },
+  };
+})();
+
 // ---------------- Главный цикл ----------------
 function resize() {
-  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); post.resize(w, h);
 }
 addEventListener('resize', resize); resize();
 
@@ -739,8 +872,9 @@ function frame(now) {
   // небо/вода следуют за камерой
   sky.position.copy(camera.position); sky.scale.setScalar(900);
   water.position.set(camera.position.x, 0, camera.position.z); waterU.uTime.value = tClock;
-  sun.position.copy(skyU.sunDir.value.y >= -0.05 ? skyU.sunDir.value : skyU.sunDir.value.clone().negate()).multiplyScalar(100).add(camera.position);
-  sun.target.position.copy(camera.position);
+  { const sn = 150 / 2048 * 1; const cx = Math.round(camera.position.x / sn) * sn, cz = Math.round(camera.position.z / sn) * sn;
+    sun.target.position.set(cx, camera.position.y, cz);
+    sun.position.copy(skyU.sunDir.value.y >= -0.05 ? skyU.sunDir.value : skyU.sunDir.value.clone().negate()).multiplyScalar(200).add(sun.target.position); }
   // LOD мелких деталей
   const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = isTouch ? 1.2 : 1.7;
   for (const ch of chunks.values()) if (ch.grass) ch.grass.visible = Math.hypot(ch.cx - pcx, ch.cz - pcz) <= gr;
@@ -782,7 +916,7 @@ function frame(now) {
     updateAudio(dt, tClock);
     dayT = (dayT + dt / 1800) % 1; if (Math.floor(tClock * 3) !== Math.floor((tClock - dt) * 3)) applyTime();
   }
-  renderer.render(scene, camera);
+  post.render(tClock);
 }
 
 // ---------------- Старт ----------------
@@ -818,7 +952,7 @@ document.querySelectorAll('#quality button').forEach((b) => b.addEventListener('
   VIEW_R = +b.dataset.r; applyViewDistance(); refreshQueue(true);
 }));
 $('play').addEventListener('click', () => {
-  started = true; $('start').classList.add('hidden'); $('hud').classList.remove('hidden'); $('grain').classList.remove('hidden');
+  started = true; $('start').classList.add('hidden'); $('hud').classList.remove('hidden');
   initAudio();
   if (!isTouch) { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { }); }
   else { const d = document.documentElement; d.requestFullscreen && d.requestFullscreen().catch(() => { }); }
