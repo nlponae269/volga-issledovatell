@@ -8,7 +8,7 @@ canvas{display:block}
 #toast{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);font-size:20px;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center}
 #cross{position:fixed;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:#fff8}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:26px;color:#d33;text-align:center}
-#start{position:fixed;inset:0;background:#1b1d1ccc;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px}
+#start{position:fixed;inset:0;overflow-y:auto;touch-action:pan-y;background:#1b1d1ccc;display:flex;flex-direction:column;align-items:center;justify-content:safe center;text-align:center;padding:16px}
 #start h1{font-size:48px;margin:0 0 6px;letter-spacing:4px}
 #start p{max-width:520px;opacity:.85;line-height:1.5}
 .b{background:#c9a43a;color:#111;border:0;padding:12px 32px;font-size:18px;border-radius:4px;margin:6px;cursor:pointer}

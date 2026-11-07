@@ -622,7 +622,7 @@ if (isTouch) {
         touch.mx = dx / m; touch.mz = -dy / m;
       } else if (t.identifier === lookId) { look(t.clientX - llx, t.clientY - lly, 0.0055); llx = t.clientX; lly = t.clientY; }
     }
-    e.preventDefault();
+    if (!(e.target.closest && e.target.closest('#start, #note'))) e.preventDefault();
   }, { passive: false });
   const end = (e) => {
     for (const t of e.changedTouches) {
