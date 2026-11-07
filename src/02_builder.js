@@ -185,7 +185,7 @@ function treeDead(B, cols, rng, x, y, z, sc) {
   B.limb(x, y + 0.4, z, mid[0], mid[1], mid[2], R0 * 1.05, R0 * 0.7, bark, 8, false, false);
   B.limb(mid[0], mid[1], mid[2], tx, y + H, tz, R0 * 0.7, R0 * 0.3, bark, 7, false, true);
   B.rough = 0.12;
-  const nb = 4 + ((rng() * 3) | 0);
+  const nb = 3 + ((rng() * 3) | 0);
   for (let k = 0; k < nb; k++) {
     const t = 0.45 + rng() * 0.55, a = rng() * TAU;
     const bx = lerp(x, tx, t), bz = lerp(z, tz, t), by = y + H * t;
@@ -196,7 +196,7 @@ function treeDead(B, cols, rng, x, y, z, sc) {
 }
 // голый куст из тонких прутьев
 function bareBush(B, rng, x, y, z, sc) {
-  const col = jit([0.26, 0.2, 0.15], 0.25, rng), n = 8 + ((rng() * 5) | 0);
+  const col = jit([0.26, 0.2, 0.15], 0.25, rng), n = 6 + ((rng() * 4) | 0);
   for (let k = 0; k < n; k++) {
     const a = rng() * TAU, sp = 0.2 + rng() * 0.7;
     branchTree(B, rng, x + (rng() - 0.5) * 0.3, y, z + (rng() - 0.5) * 0.3, Math.cos(a) * sp, 1, Math.sin(a) * sp, (0.8 + rng() * 0.7) * sc, 0.018, 1, col);

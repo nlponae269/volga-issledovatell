@@ -8,9 +8,9 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#1b1f1c;color:#f1ead8;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none}
-canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block;filter:saturate(.72) contrast(1.1) brightness(.96)}
+canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block;filter:saturate(.72) contrast(1.1) brightness(1.12)}
 #vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 38%,rgba(0,0,0,.55) 78%,rgba(0,0,0,.92) 100%);transition:opacity .5s}
-#grain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:.075;mix-blend-mode:overlay;image-rendering:pixelated}
+#grain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:.04;mix-blend-mode:overlay}
 #stam{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));width:140px;height:3px;margin-left:-70px;background:rgba(255,255,255,.12);opacity:0;transition:opacity .6s;pointer-events:none}
 #stam i{display:block;height:100%;background:rgba(235,225,200,.7)}
 #stam.low i{background:rgba(200,90,70,.85)}
@@ -81,7 +81,7 @@ canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block;filter:s
       <li>📱 Стик слева, взгляд справа</li>
     </ul>
     <p class="sub" style="font-size:13px;opacity:.55;margin:-4px 0 14px">Наушники и тёмная комната. Игра без монстров и без скримеров.</p>
-    <div class="row seg" id="quality"><span>Туман:</span><button data-r="3">Густой</button><button data-r="4" class="on">Обычный</button><button data-r="6">Редкий</button></div>
+    <div class="row seg" id="quality"><span>Туман:</span><button data-r="3" class="on">Густой</button><button data-r="4">Обычный</button><button data-r="5">Редкий</button></div>
     <button id="play" disabled>Загрузка…</button>
     <div id="loadbar"><i></i></div>
   </div>
@@ -491,7 +491,7 @@ function treeDead(B, cols, rng, x, y, z, sc) {
   B.limb(x, y + 0.4, z, mid[0], mid[1], mid[2], R0 * 1.05, R0 * 0.7, bark, 8, false, false);
   B.limb(mid[0], mid[1], mid[2], tx, y + H, tz, R0 * 0.7, R0 * 0.3, bark, 7, false, true);
   B.rough = 0.12;
-  const nb = 4 + ((rng() * 3) | 0);
+  const nb = 3 + ((rng() * 3) | 0);
   for (let k = 0; k < nb; k++) {
     const t = 0.45 + rng() * 0.55, a = rng() * TAU;
     const bx = lerp(x, tx, t), bz = lerp(z, tz, t), by = y + H * t;
@@ -502,7 +502,7 @@ function treeDead(B, cols, rng, x, y, z, sc) {
 }
 // голый куст из тонких прутьев
 function bareBush(B, rng, x, y, z, sc) {
-  const col = jit([0.26, 0.2, 0.15], 0.25, rng), n = 8 + ((rng() * 5) | 0);
+  const col = jit([0.26, 0.2, 0.15], 0.25, rng), n = 6 + ((rng() * 4) | 0);
   for (let k = 0; k < n; k++) {
     const a = rng() * TAU, sp = 0.2 + rng() * 0.7;
     branchTree(B, rng, x + (rng() - 0.5) * 0.3, y, z + (rng() - 0.5) * 0.3, Math.cos(a) * sp, 1, Math.sin(a) * sp, (0.8 + rng() * 0.7) * sc, 0.018, 1, col);
@@ -791,7 +791,7 @@ function emitPost(B, ctx, x, y, z, rng) {
 // ============================================================
 const $ = (id) => document.getElementById(id);
 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-let VIEW_R = isTouch ? 3 : 4;
+let VIEW_R = 3;
 
 // ---------------- Цвета земли ----------------
 const cGreen = [0.31, 0.34, 0.2], cDry = [0.46, 0.42, 0.27], cLitter = [0.33, 0.24, 0.15], cOrange = [0.45, 0.31, 0.17];
@@ -1217,10 +1217,10 @@ function applyTime() {
   const ld = sa >= -0.05 ? sd : sd.clone().negate();
   sun.position.copy(ld).multiplyScalar(100).add(camera.position); sun.target.position.copy(camera.position);
   sun.color.copy(c3(0.95, 0.92, 0.85).lerp(c3(1, 0.6, 0.38), warm).lerp(c3(0.4, 0.5, 0.8), 1 - day));
-  sun.intensity = lerp(0.06, 1.5, day);
+  sun.intensity = lerp(0.06, 1.9, day);
   hemi.color.copy(c3(0.6, 0.64, 0.68).lerp(c3(0.1, 0.13, 0.22), 1 - day).lerp(c3(0.8, 0.6, 0.5), warm * 0.3));
   hemi.groundColor.copy(c3(0.26, 0.22, 0.17).lerp(c3(0.02, 0.02, 0.03), 1 - day));
-  hemi.intensity = lerp(0.1, 1.35, day);
+  hemi.intensity = lerp(0.1, 2.0, day);
   Object.assign(waterU.uSunDir.value, ld); waterU.uSky.value.copy(hz); waterU.uZen.value.copy(zn);
   waterU.uSunCol.value.copy(skyU.sunCol.value);
 }
@@ -1530,7 +1530,7 @@ function frame(now) {
   sun.position.copy(skyU.sunDir.value.y >= -0.05 ? skyU.sunDir.value : skyU.sunDir.value.clone().negate()).multiplyScalar(100).add(camera.position);
   sun.target.position.copy(camera.position);
   // LOD мелких деталей
-  const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = isTouch ? 1.6 : 2.3;
+  const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = isTouch ? 1.2 : 1.7;
   for (const ch of chunks.values()) if (ch.grass) ch.grass.visible = Math.hypot(ch.cx - pcx, ch.cz - pcz) <= gr;
   // костёр
   fireT += dt;

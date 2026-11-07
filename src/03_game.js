@@ -3,7 +3,7 @@
 // ============================================================
 const $ = (id) => document.getElementById(id);
 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-let VIEW_R = isTouch ? 3 : 4;
+let VIEW_R = 3;
 
 // ---------------- Цвета земли ----------------
 const cGreen = [0.31, 0.34, 0.2], cDry = [0.46, 0.42, 0.27], cLitter = [0.33, 0.24, 0.15], cOrange = [0.45, 0.31, 0.17];
@@ -429,10 +429,10 @@ function applyTime() {
   const ld = sa >= -0.05 ? sd : sd.clone().negate();
   sun.position.copy(ld).multiplyScalar(100).add(camera.position); sun.target.position.copy(camera.position);
   sun.color.copy(c3(0.95, 0.92, 0.85).lerp(c3(1, 0.6, 0.38), warm).lerp(c3(0.4, 0.5, 0.8), 1 - day));
-  sun.intensity = lerp(0.06, 1.5, day);
+  sun.intensity = lerp(0.06, 1.9, day);
   hemi.color.copy(c3(0.6, 0.64, 0.68).lerp(c3(0.1, 0.13, 0.22), 1 - day).lerp(c3(0.8, 0.6, 0.5), warm * 0.3));
   hemi.groundColor.copy(c3(0.26, 0.22, 0.17).lerp(c3(0.02, 0.02, 0.03), 1 - day));
-  hemi.intensity = lerp(0.1, 1.35, day);
+  hemi.intensity = lerp(0.1, 2.0, day);
   Object.assign(waterU.uSunDir.value, ld); waterU.uSky.value.copy(hz); waterU.uZen.value.copy(zn);
   waterU.uSunCol.value.copy(skyU.sunCol.value);
 }
@@ -742,7 +742,7 @@ function frame(now) {
   sun.position.copy(skyU.sunDir.value.y >= -0.05 ? skyU.sunDir.value : skyU.sunDir.value.clone().negate()).multiplyScalar(100).add(camera.position);
   sun.target.position.copy(camera.position);
   // LOD мелких деталей
-  const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = isTouch ? 1.6 : 2.3;
+  const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = isTouch ? 1.2 : 1.7;
   for (const ch of chunks.values()) if (ch.grass) ch.grass.visible = Math.hypot(ch.cx - pcx, ch.cz - pcz) <= gr;
   // костёр
   fireT += dt;
