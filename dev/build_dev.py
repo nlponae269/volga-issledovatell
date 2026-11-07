@@ -22,7 +22,8 @@ s = s.replace('<title>', '<title>DEV ', 1).replace('<script>', cheat + '<script>
 (out / 'tishina.html').write_text(s, encoding='utf-8')
 (out / 'index.html').write_text((root / 'index.html').read_text(encoding='utf-8').replace('<title>', '<title>DEV ', 1), encoding='utf-8')
 # --- Тропа и Ворота ---
-for f in ['tropa.html', 'vorota.html', 'dom.html', 'podezd.html']:
+sys.path.insert(0, str(root / 'src')); from worlds import WORLDS
+for f in [w + '.html' for w in WORLDS]:
     s = (root / f).read_text(encoding='utf-8')
     s = patch(s, '? 5.6 : 2.3) * Math.min(1, l);', '? 5.6 : 2.3) * Math.min(1, l) * (window.CHEAT ? CHEAT.mult : 1);', f + ' speed')
     s = patch(s, '    [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;\n    P.vy -= 11 * dt;', '''    if (window.CHEAT && CHEAT.fly) { const cp = Math.cos(P.pitch), v = CHEAT.flySpeed * ((keys.ShiftLeft || keys.ShiftRight || running) ? 3 : 1);
@@ -30,7 +31,7 @@ for f in ['tropa.html', 'vorota.html', 'dom.html', 'podezd.html']:
     else { [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz; }
     if (!(window.CHEAT && CHEAT.fly)) P.vy -= 11 * dt;''', f + ' fly')
     s = patch(s, 'P.vy = 0; P.ground = true; } else P.ground = false;', 'P.vy = 0; P.ground = true; } else if (!(window.CHEAT && CHEAT.fly)) P.ground = false;', f + ' ground')
-    s = patch(s, 'if (dead || GARDEN || INDOOR) return;', 'if (dead || GARDEN || INDOOR || (window.CHEAT && CHEAT.fly && P.y > 2)) return;', f + ' road')
+    s = patch(s, 'if (dead || !ROADW || BUS) return;', 'if (dead || !ROADW || BUS || (window.CHEAT && CHEAT.fly && P.y > 2)) return;', f + ' road')
     s = s.replace('<title>', '<title>DEV ', 1).replace('<script>', cheat + '<script>', 1)
     (out / f).write_text(s, encoding='utf-8')
 print('dev ok')

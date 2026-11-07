@@ -45,6 +45,8 @@ const MH = {
   glassB: std({ color: 0x2b4a2a, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.75 }),
 };
 const WALLC = [lin([0.43, 0.47, 0.3]), lin([0.72, 0.66, 0.52]), lin([0.6, 0.62, 0.5]), lin([0.55, 0.5, 0.42]), lin([0.38, 0.42, 0.36])];
+// --- тема мира-сетки (переопределяется в t9a для школы/поликлиники/универсама) ---
+const GT = { floor: null, ceil: null, wall: null, room: null, light: null, trash: true, edgeDoor: null };
 // --- генерация плана ---
 function cellType(i, j) {
   if (i === 0 && j === 0) return 'room';
@@ -60,8 +62,8 @@ function edgeType(i0, j0, i1, j1, salt) { // стена между двумя к
   const t = ihash(i0 * 3 + i1, j0 * 5 + j1, salt);
   return t < 0.44 ? 'door' : t < 0.6 ? 'arch' : t < 0.68 ? 'none' : 'wall';
 }
-const roomColor = (i, j) => WALLC[(ihash(i, j, 90) * WALLC.length) | 0];
-const roomPaper = (i, j) => ihash(i, j, 91) < 0.25;
+let roomColor = (i, j) => WALLC[(ihash(i, j, 90) * WALLC.length) | 0];
+let roomPaper = (i, j) => ihash(i, j, 91) < 0.25;
 const BULB_GEO = new THREE.SphereGeometry(0.045, 10, 8);
 const housePrompt = { door: null, win: null };
 const doorsLive = [], winAnchors = [], bulbAnchors = [];
@@ -80,7 +82,8 @@ function buildEdge(b, group, axis, i0, j0, i1, j1, type, r) {
   const cA = cellType(i0, j0), cB = cellType(i1, j1);
   const yard = cA === 'yard' || cB === 'yard';
   const colA = cA === 'yard' ? shade(0.9) : roomColor(i0, j0), colB = cB === 'yard' ? shade(0.9) : roomColor(i1, j1);
-  const matA = cA === 'yard' ? M.brick : roomPaper(i0, j0) ? MH.paper : MH.wall, matB = cB === 'yard' ? M.brick : roomPaper(i1, j1) ? MH.paper : MH.wall;
+  let matA = cA === 'yard' ? M.brick : roomPaper(i0, j0) ? MH.paper : MH.wall, matB = cB === 'yard' ? M.brick : roomPaper(i1, j1) ? MH.paper : MH.wall;
+  if (GT.wall) { matA = GT.wall(i0, j0); matB = GT.wall(i1, j1); }
   const c = axis === 'x' ? (j0 + 1) * HC : (i0 + 1) * HC, s0 = axis === 'x' ? i0 * HC : j0 * HC, s1 = s0 + HC;
   const run = (a, e, y0, y1) => wallRun(b, axis, c, a, e, y0, y1, colA, colB, matA, matB);
   if (yard) run(s0, s1, -6.2, -0.02); // фасад вниз до земли двора
@@ -111,11 +114,11 @@ function buildEdge(b, group, axis, i0, j0, i1, j1, type, r) {
     const side = ihash(i1, j1, 8) < 0.5 ? 1 : -1;
     const pivot = new THREE.Group(); const base = axis === 'x' ? 0 : -Math.PI / 2;
     if (axis === 'x') pivot.position.set(a, 0, c); else pivot.position.set(c, 0, a);
-    const leaf = new THREE.Mesh(doorGeo, MH.door); leaf.castShadow = leaf.receiveShadow = true; const hd = new THREE.Mesh(handleGeo, MH.chrome); hd.position.set(0.78, 1.0, 0.05); const hd2 = hd.clone(); hd2.position.z = -0.05; leaf.add(hd, hd2); pivot.add(leaf);
+    const leaf = new THREE.Mesh(doorGeo, GT.doorMat || MH.door); leaf.castShadow = leaf.receiveShadow = true; const hd = new THREE.Mesh(handleGeo, MH.chrome); hd.position.set(0.78, 1.0, 0.05); const hd2 = hd.clone(); hd2.position.z = -0.05; leaf.add(hd, hd2); pivot.add(leaf);
     pivot.rotation.y = base + side * ang0; group.add(pivot);
     const col = { x: axis === 'x' ? m : c, z: axis === 'x' ? c : m, hx: axis === 'x' ? w / 2 : 0.08, hz: axis === 'x' ? 0.08 : w / 2, c: 1, s: 0, off: !closed };
     b.cols.push(col);
-    doorsLive.push({ pivot, base, side, ang: ang0, target: ang0, col, x: col.x, z: col.z, group });
+    const dl = { pivot, base, side, ang: ang0, target: ang0, col, x: col.x, z: col.z, group }; doorsLive.push(dl); if (GT.edgeDoor) GT.edgeDoor(dl, i0, j0, i1, j1, axis, leaf, closed);
   }
 }
 // лестничный проём с перилами (как на фото): хром + тёмные балясины, полотенце и овчина
@@ -178,26 +181,28 @@ function buildHouseChunk(cx, cz) {
   const group = new THREE.Group(), b = new Batch(), x0 = cx * CS, z0 = cz * CS, n = CS / HC;
   for (let a = 0; a < n; a++) for (let c = 0; c < n; c++) {
     const i = Math.round(x0 / HC) + a, j = Math.round(z0 / HC) + c, t = cellType(i, j), r = rng(i * 7919 + j * 104729 + 3), X = i * HC, Z = j * HC;
-    if (t === 'room') { b.box(MH.lino, X + HC / 2, -0.05, Z + HC / 2, HC, 0.1, HC); furnish(b, group, i, j, r);
-      for (let k = 0; k < (r() < 0.45 ? 1 + (r() < 0.3 ? 1 : 0) : 0); k++) addTrash(group, X + 0.5 + r() * (HC - 1), Z + 0.5 + r() * (HC - 1), `t${i},${j},${k}`, r);
-      if (r() < 0.38) { const bx = X + HC / 2 + (r() - 0.5), bz = Z + HC / 2 + (r() - 0.5), on = r() < 0.75; b.lines.push(new V3(bx, HH, bz), new V3(bx, HH - 0.55, bz)); const flick = on && r() < 0.25; let bulb = null; if (flick) { bulb = new THREE.Mesh(BULB_GEO, MH.bulb); bulb.position.set(bx, HH - 0.6, bz); group.add(bulb); } else b.geo(on ? MH.bulb : MH.bulbOff, BULB_GEO, bx, HH - 0.6, bz, 0, 0, 0, 1); if (on) bulbAnchors.push({ x: bx, y: HH - 0.7, z: bz, flick, ph: r() * 100, group, mesh: bulb }); } }
+    if (GT.room && t !== 'room') { b.box(GT.floor || MH.lino, X + HC / 2, -0.05, Z + HC / 2, HC, 0.1, HC); GT.room(b, group, i, j, r, t); if (GT.light) GT.light(b, group, i, j, r, t); }
+    if (t === 'room') { b.box(GT.floor || MH.lino, X + HC / 2, -0.05, Z + HC / 2, HC, 0.1, HC); furnish(b, group, i, j, r);
+      if (GT.trash) for (let k = 0; k < (r() < 0.45 ? 1 + (r() < 0.3 ? 1 : 0) : 0); k++) addTrash(group, X + 0.5 + r() * (HC - 1), Z + 0.5 + r() * (HC - 1), `t${i},${j},${k}`, r);
+      if (GT.light) GT.light(b, group, i, j, r, t); else if (r() < 0.38) { const bx = X + HC / 2 + (r() - 0.5), bz = Z + HC / 2 + (r() - 0.5), on = r() < 0.75; b.lines.push(new V3(bx, HH, bz), new V3(bx, HH - 0.55, bz)); const flick = on && r() < 0.25; let bulb = null; if (flick) { bulb = new THREE.Mesh(BULB_GEO, MH.bulb); bulb.position.set(bx, HH - 0.6, bz); group.add(bulb); } else b.geo(on ? MH.bulb : MH.bulbOff, BULB_GEO, bx, HH - 0.6, bz, 0, 0, 0, 1); if (on) bulbAnchors.push({ x: bx, y: HH - 0.7, z: bz, flick, ph: r() * 100, group, mesh: bulb }); } }
     if (t === 'stair') stairwell(b, group, i, j, r);
-    if (t !== 'yard') b.box(MH.ceil, X + HC / 2, HH + 0.06, Z + HC / 2, HC, 0.12, HC);
+    if (t !== 'yard') b.box(GT.ceil || MH.ceil, X + HC / 2, HH + 0.06, Z + HC / 2, HC, 0.12, HC);
     else { // двор-колодец: немного хлама внизу
       for (let k = 0; k < 3; k++) b.box(M.brick, X + 0.5 + r() * (HC - 1), GROUND_Y + 0.04, Z + 0.5 + r() * (HC - 1), 0.25, 0.07, 0.12, shade(0.9), 0, r() * 3, 0); }
     buildEdge(b, group, 'z', i, j, i + 1, j, edgeType(i, j, i + 1, j, 1), r);
     buildEdge(b, group, 'x', i, j, i, j + 1, edgeType(i, j, i, j + 1, 2), r);
   }
+  const kc = keyCell(); if (kc && kc[0] * HC >= x0 && kc[0] * HC < x0 + CS && kc[1] * HC >= z0 && kc[1] * HC < z0 + CS) placeKey(group, kc[0] * HC + HC / 2 + 0.7, 0, kc[1] * HC + HC / 2 + 0.5);
   b.build(group); scene.add(group);
   return { group, cols: b.cols };
 }
 // --- свет: фонарик + пул ламп ---
-const torch = new THREE.SpotLight(0xfff0d6, INDOOR ? 32 : 0, 24, 0.6, 0.55, 2);
-torch.castShadow = !MOBILE && INDOOR; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005; torch.shadow.camera.near = 0.2;
+const torch = new THREE.SpotLight(0xfff0d6, DARK ? 32 : 0, 24, 0.6, 0.55, 2);
+torch.castShadow = !MOBILE && DARK; torch.shadow.mapSize.set(1024, 1024); torch.shadow.bias = -0.0005; torch.shadow.camera.near = 0.2;
 const torchTarget = new THREE.Object3D(); torchTarget.position.set(0, -0.15, -1); camera.add(torch, torchTarget); torch.position.set(0.15, -0.12, 0.05); torch.target = torchTarget;
-if (INDOOR) scene.add(camera);
-let torchOn = INDOOR;
-const LPOOL = []; if (INDOOR) for (let k = 0; k < 4; k++) { const l = new THREE.PointLight(0xffc27a, 0, 8, 2); scene.add(l); LPOOL.push(l); }
+scene.add(camera);
+let torchOn = DARK;
+const LPOOL = []; if (DARK) for (let k = 0; k < 4; k++) { const l = new THREE.PointLight(0xffc27a, 0, 8, 2); scene.add(l); LPOOL.push(l); }
 function houseUpdate(dt) {
   // чистим якоря выгруженных чанков
   for (const arr of [doorsLive, winAnchors, bulbAnchors]) for (let k = arr.length - 1; k >= 0; k--) if (!arr[k].group.parent) arr.splice(k, 1);
@@ -209,7 +214,7 @@ function houseUpdate(dt) {
   cand.sort((u, v) => u[0] - v[0]);
   for (let k = 0; k < LPOOL.length; k++) { const l = LPOOL[k], c = cand[k]; if (!c) { l.intensity = 0; continue; } const a = c[1];
     if (c[2] === 0) { let f = 1; if (a.flick) { f = Math.sin(clock * 23 + a.ph) > -0.6 ? 1 : 0.1; if (Math.sin(clock * 0.7 + a.ph) > 0.85) f *= Math.random() < 0.5 ? 0.2 : 1; a.mesh.material = f > 0.5 ? MH.bulb : MH.bulbOff; }
-      l.color.setHex(0xffc27a); l.intensity = 2.6 * f; l.distance = 7.5; l.position.set(a.x, a.y, a.z); }
+      l.color.setHex(a.tube ? 0xe8f2ff : a.color || 0xffc27a); l.intensity = (a.int || (a.tube ? 3.2 : 2.6)) * f; l.distance = a.dist || 7.5; l.position.set(a.x, a.y, a.z); }
     else { l.color.setHex(0xb4c2d0); l.intensity = 4.5; l.distance = 6.5; l.position.set(a.x - a.nx * 0.6, (a.y || 0) + 1.6, a.z - a.nz * 0.6); } }
   // двери анимируются
   for (const d of doorsLive) if (Math.abs(d.ang - d.target) > 0.001) { d.ang += (d.target - d.ang) * Math.min(1, dt * 5); d.pivot.rotation.y = d.base + d.side * d.ang; d.col.off = d.ang > 0.25; }
@@ -217,16 +222,19 @@ function houseUpdate(dt) {
   let best = null, bd = 1.7;
   for (const d of doorsLive) { if (Math.abs((d.y || 0) - P.y) > 1.2) continue; const dd = Math.hypot(d.x - P.x, d.z - P.z); if (dd < bd) { bd = dd; best = { door: d }; } }
   for (const w of winAnchors) { if (w.open === false || Math.abs((w.y || 0) - P.y) > 1.2) continue; const dd = Math.hypot(w.x - P.x, w.z - P.z); if (dd < Math.min(bd, 1.5)) { bd = dd; best = { win: w }; } }
-  housePrompt.door = best && best.door; housePrompt.win = best && best.win;
+  for (const it of INTER) { if (it.group && !it.group.parent) continue; if (it.on && !it.on()) continue; if (Math.abs((it.y || 0) - P.y) > (it.dy || 1.6)) continue; const dd = Math.hypot(it.x - P.x, it.z - P.z); if (dd < Math.min(bd, it.r || 1.6)) { bd = dd; best = { it }; } }
+  housePrompt.door = best && best.door; housePrompt.win = best && best.win; housePrompt.it = best && best.it;
   // закрытая дверь сама открывается, если упереться в неё
-  if (housePrompt.door && !housePrompt.door.knock && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
-  const pe = $('prompt'); if (pe) { const t = jumping ? '' : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.knock ? 'E — постучать' : housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
+  if (housePrompt.door && !housePrompt.door.knock && !housePrompt.door.act && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
+  const pe = $('prompt'); if (pe) { const t = jumping || goWorld.busy ? '' : housePrompt.it ? (typeof housePrompt.it.label === 'function' ? housePrompt.it.label() : housePrompt.it.label) : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.label ? housePrompt.door.label : housePrompt.door.knock ? 'E — постучать' : housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
   if (jumping) jumpStep(dt);
 }
 let jumping = null;
 function houseInteract() {
-  if (!INDOOR || !started || jumping) return;
+  if (!started || jumping || goWorld.busy) return;
+  if (housePrompt.it) { housePrompt.it.act(); return; }
   if (housePrompt.win) { const w = housePrompt.win; jumping = { t: 0, w, sx: P.x, sz: P.z, y0: P.y }; if (document.pointerLockElement) document.exitPointerLock(); burst(0.4, 'highpass', 900, 0.4, 0.4); return; }
+  if (housePrompt.door && housePrompt.door.act) { housePrompt.door.act(); return; }
   if (housePrompt.door && housePrompt.door.knock) { podKnock(housePrompt.door); return; }
   if (housePrompt.door) { const d = housePrompt.door; d.target = d.target > 0.3 ? 0 : 1.55; creak(); }
 }
@@ -237,12 +245,12 @@ function jumpStep(dt) {
   P.y = j.y0 + (j.t < 0.7 ? Math.sin(k1 * Math.PI) * 0.6 + k1 * 0.3 : 0.9 - 9.8 * (j.t - 0.7) * (j.t - 0.7) * 1.2);
   P.pitch = lerp(P.pitch, j.t < 0.7 ? 0 : -0.9, 0.05);
   const f = $('fade'); if (j.t > 0.9) { f.style.transition = 'opacity 0.5s'; f.style.background = '#000'; f.style.opacity = 1; }
-  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} location.href = PODEZD ? 'tropa.html' : 'vorota.html'; }
+  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} location.href = (w.to || (PODEZD ? 'tropa' : 'vorota')) + '.html'; }
 }
 let TRASHN = 0; try { TRASHN = +localStorage.getItem(WORLD + '_trash') || 0; } catch (e) {}
 if (HOUSE) { P.x = HC / 2; P.z = HC / 2; P.yaw = 0.6; }
-if (INDOOR) {
-  addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') houseInteract(); if (e.code === 'KeyF') torchOn = !torchOn; });
+{
+  addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') houseInteract(); if (e.code === 'KeyF' && DARK) torchOn = !torchOn; });
   if ($('tE')) $('tE').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); houseInteract(); }, { passive: false });
   if ($('tLight')) $('tLight').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); torchOn = !torchOn; }, { passive: false });
   if ($('f_trash')) $('f_trash').textContent = TRASHN;

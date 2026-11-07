@@ -41,7 +41,7 @@ function makeTruck() {
   g.traverse((o) => { o.castShadow = Q.shadows; }); return { g, len: 16.5, wheels: g.children.filter((c) => c.geometry === wheelGeo) };
 }
 const cars = [];
-for (let i = 0; i < (GARDEN || INDOOR ? 0 : 9); i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
+for (let i = 0; i < (ROADW ? 9 : 0); i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
 function updateCars(dt, px) {
   for (const c of cars) {
     const dir = c.lane === 0 ? -1 : 1; c.x += dir * c.v * dt;
@@ -64,7 +64,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : SNOW ? 0.05 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -94,7 +94,7 @@ const post = (() => {
       float T = exp(-od);
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}
+      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${SNOW ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*0.35*(0.5+0.5*T);
       col = aces(col*expo);
@@ -150,7 +150,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (INDOOR) return 'lino'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -173,7 +173,7 @@ function initAudio() {
 }
 function blip(freqs, dur, type = 'sine', vol = 0.12) { if (!AC) return; freqs.forEach((fq, i) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = fq; const t = AC.currentTime + i * 0.07; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05); }); }
 function burst(dur, ftype, freq, q, vol, pan = 0) { if (!AC) return; const s = AC.createBufferSource(); s.buffer = AC._white; const f = AC.createBiquadFilter(); f.type = ftype; f.frequency.value = freq; f.Q.value = q; const g = AC.createGain(); const t = AC.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); const p = AC.createStereoPanner ? AC.createStereoPanner() : null; if (p) p.pan.value = pan; s.connect(f).connect(g); (p ? g.connect(p) : g).connect(master); if (p) p.connect(master); s.start(t, Math.random() * 3, dur + 0.05); }
-function footstep(surf, run) { const v = run ? 0.5 : 0.32; if (surf === 'grass') { burst(0.16, 'bandpass', 2600 + Math.random() * 900, 0.7, v * 0.55); burst(0.09, 'highpass', 5000, 0.5, v * 0.3); } else if (surf === 'sand') { burst(0.13, 'bandpass', 1100 + Math.random() * 400, 0.9, v * 0.7); burst(0.07, 'highpass', 3500, 0.5, v * 0.2); } else if (surf === 'grav') burst(0.12, 'bandpass', 1800, 0.6, v * 0.8); else burst(0.07, 'bandpass', 900, 1.4, v * 0.9); }
+function footstep(surf, run) { const v = run ? 0.5 : 0.32; if (surf === 'grass') { burst(0.16, 'bandpass', 2600 + Math.random() * 900, 0.7, v * 0.55); burst(0.09, 'highpass', 5000, 0.5, v * 0.3); } else if (surf === 'sand') { burst(0.13, 'bandpass', 1100 + Math.random() * 400, 0.9, v * 0.7); burst(0.07, 'highpass', 3500, 0.5, v * 0.2); } else if (surf === 'snow') { burst(0.16, 'lowpass', 1500 + Math.random() * 500, 0.8, v * 0.9); burst(0.1, 'bandpass', 3500, 1.5, v * 0.15); } else if (surf === 'grav') burst(0.12, 'bandpass', 1800, 0.6, v * 0.8); else burst(0.07, 'bandpass', 900, 1.4, v * 0.9); }
 function crow() { if (!AC) return; const pan = Math.random() * 2 - 1, n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const t = AC.currentTime + i * 0.42, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(340, t + 0.3); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 2.5; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32); const p = AC.createStereoPanner(); p.pan.value = pan; o.connect(f).connect(g).connect(p).connect(master); o.start(t); o.stop(t + 0.4); } }
 function creak() { if (!AC) return; const t = AC.currentTime, pan = Math.random() * 2 - 1, p = AC.createStereoPanner(); p.pan.value = pan; p.connect(master);
   const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); o.type = 'sawtooth'; const f0 = 140 + Math.random() * 80; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 0.62, t + 1.6); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + 2.2);
@@ -188,8 +188,8 @@ function updateAudio(dt, gust) {
   const L = AC.listener, fw = new V3(0, 0, -1).applyQuaternion(camera.quaternion), up = new V3(0, 1, 0).applyQuaternion(camera.quaternion);
   if (L.positionX) { L.positionX.value = P.x; L.positionY.value = camera.position.y; L.positionZ.value = P.z; L.forwardX.value = fw.x; L.forwardY.value = fw.y; L.forwardZ.value = fw.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
   else { L.setPosition(P.x, camera.position.y, P.z); L.setOrientation(fw.x, fw.y, fw.z, up.x, up.y, up.z); }
-  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : 1); rustleG.gain.value = INDOOR ? 0 : 0.004 + gust * 0.02;
-  const rd = Math.abs(P.z - ROAD_C); humG.gain.value = GARDEN ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
+  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : SNOW ? 1.8 : 1); rustleG.gain.value = INDOOR ? 0 : 0.004 + gust * 0.02;
+  const rd = Math.abs(P.z - ROAD_C); humG.gain.value = !ROADW ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
   for (const c of cars) { const s = c.snd; if (!s) continue; const dir = c.lane === 0 ? -1 : 1, cz = LANE_Z[c.lane];
     const dx = P.x - c.x, dz = P.z - cz, d = Math.hypot(dx, dz) || 1, vr = dir * c.v * dx / d; const dop = clamp(343 / (343 - vr), 0.7, 1.4);
     s.s.playbackRate.value = (c.len > 10 ? 0.55 : 0.85) * dop; s.tyre.playbackRate.value = dop; s.f.frequency.value = 500 + 2500 * Math.exp(-d / 25);
@@ -207,7 +207,7 @@ function save() { try { localStorage.setItem('tropa_money', money); } catch (e) 
 let hitCar = null, flash = 0;
 function onRoad(z) { return z > ROAD_C - ROAD_HW + 0.2 && z < ROAD_C + ROAD_HW - 0.2; }
 function killCheck() {
-  if (dead || GARDEN || INDOOR) return;
+  if (dead || !ROADW || BUS) return;
   if (onRoad(P.z)) {
     if (!hitCar) { const lane = P.z < ROAD_C ? 0 : 1, c = cars.filter((q) => q.lane === lane).sort((a, b) => Math.abs(a.x - P.x) - Math.abs(b.x - P.x))[0]; const dir = lane === 0 ? -1 : 1; c.x = P.x - dir * 45; c.v = 30; hitCar = c; horn(); }
     const c = hitCar; if (Math.abs(c.x - P.x) < c.len / 2 + 1.0 && Math.abs(LANE_Z[c.lane] - P.z) < 3) die();
@@ -242,7 +242,7 @@ function frame(now) {
   if (!TEST) requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt; SHARED.uTime.value = clock;
   gust = clamp(0.5 + 0.5 * Math.sin(clock * 0.21) * Math.sin(clock * 0.53 + 1) + 0.25 * Math.sin(clock * 1.7), 0, 1);
-  if (started && !dead && !(INDOOR && jumping)) {
+  if (started && !dead && !(jumping || goWorld.busy)) {
     let fx = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, sx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
     const l = Math.hypot(fx, sx); if (l > 1) { fx /= l; sx /= l; }
     const target = (keys.ShiftLeft || keys.ShiftRight || running ? 5.6 : 2.3) * Math.min(1, l);
@@ -251,22 +251,24 @@ function frame(now) {
     if (l > 0.01) { P.dx = (fwx * fx - fwz * sx) / l; P.dz = (fwz * fx + fwx * sx) / l; }
     let nx = P.x + (P.dx || 0) * P.speed * dt, nz = P.z + (P.dz || 0) * P.speed * dt;
     [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;
-    P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false;
+    P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? stroySurface(P.x, P.z) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false;
     if (P.ground && P.speed > 0.3) { bob += dt * (3.2 + P.speed * 1.3); if (bob - lastStep > Math.PI * 2) { lastStep = bob; footstep(surfaceAt(P.x, P.z), P.speed > 4); } }
     killCheck();
     for (let i = coinsLive.length - 1; i >= 0; i--) { const c = coinsLive[i], t = taken.get(c.id); const vis = t === undefined || clock - t > RESPAWN; if (vis && t !== undefined) taken.delete(c.id); c.obj.visible = vis; if (!vis) continue;
       if (c.type === 0) { c.obj.children[0].rotation.z += dt * 2.2; c.obj.children[0].position.y = 0.35 + Math.sin(clock * 2 + i) * 0.04; }
       if (c.fy !== undefined && Math.abs(c.fy - P.y) > 1.3) continue;
       if (Math.hypot(c.x - P.x, c.z - P.z) < (c.type >= 3 ? 0.9 : 1.1)) { const T = COIN_TYPES[c.type]; taken.set(c.id, clock);
-        if (T.k === 'trash') { TRASHN++; if ($('f_trash')) $('f_trash').textContent = TRASHN; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} toast(`${T.n} <b style="color:#bbb">+1 мусор</b>`); burst(0.1, 'bandpass', 2200, 1, 0.3); }
+        if (T.k === 'key') { addKey(); }
+        else if (T.k === 'item') { itemPicked(c, T); }
+        else if (T.k === 'trash') { TRASHN++; if ($('f_trash')) $('f_trash').textContent = TRASHN; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} toast(`${T.n} <b style="color:#bbb">+1 мусор</b>`); burst(0.1, 'bandpass', 2200, 1, 0.3); }
         else if (T.k) { FR[T.k]++; showFruit(); try { localStorage.setItem('vorota_fruit', JSON.stringify(FR)); } catch (e) {} toast(T.k === 'rasp' ? `Малина <b style="color:#e0566b">+1</b>` : `${T.n} <b style="color:#cfe08a">+1</b>`); burst(0.08, 'bandpass', 1400, 1.2, 0.25); blip([T.k === 'rasp' ? 1568 : 784], 0.18, 'sine', 0.05); }
-        else { money += T.v; coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } } }
+        else { money += T.v; if (coinsEl) coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } } }
   } else if (!started) { P.yaw += dt * 0.02; }
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: 0, z: 0, y: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
   if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else crow(); } }
   autoQuality(dt);
-  if (INDOOR) houseUpdate(dt);
+  houseUpdate(dt); metaUpdate(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);
   ground.position.set(Math.round(P.x / (GS / GSEG)) * (GS / GSEG), GROUND_Y, Math.round(P.z / (GS / GSEG)) * (GS / GSEG));
   placeCamera(); grass.update(camera.position);

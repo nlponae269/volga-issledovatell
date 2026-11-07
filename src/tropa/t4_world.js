@@ -10,7 +10,7 @@ const skyMat = new THREE.ShaderMaterial({
     void main(){ vec3 d = normalize(vD); float y = max(d.y, 0.0);
       vec2 cp = d.xz / (y + 0.12) * 0.09;
       float c = texture2D(tN, cp + vec2(uTime*0.0012, uTime*0.0005)).r*0.6 + texture2D(tN, cp*2.7 - vec2(uTime*0.002, 0.0)).g*0.4;
-      vec3 hor = vec3(0.60, 0.62, 0.64), zen = vec3(0.40, 0.43, 0.47);
+      vec3 hor = ${NIGHT ? 'vec3(0.045,0.05,0.07)' : SNOW ? 'vec3(0.95,0.16,0.62)' : 'vec3(0.60, 0.62, 0.64)'}, zen = ${NIGHT ? 'vec3(0.012,0.016,0.03)' : SNOW ? 'vec3(0.62,0.05,0.4)' : 'vec3(0.40, 0.43, 0.47)'};
       vec3 col = mix(hor, zen, pow(y, 0.6));
       col *= mix(1.08, 0.78, smoothstep(0.35, 0.8, c));
       float s = max(dot(d, sunDir), 0.0); col += vec3(0.20, 0.18, 0.14) * pow(s, 6.0) * 0.6 + vec3(0.25,0.22,0.18)*pow(s, 60.0)*0.5;
@@ -23,9 +23,11 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), skyMat); sky.f
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a2c })); gnd.position.y = -2; envScene.add(gnd);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0.02).texture; pm.dispose(); }
 const ENV_TEX = scene.environment; if (INDOOR) scene.environment = null;
-const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : 0.35); scene.add(hemi);
+if (NIGHT) { scene.environment = null; skyU.night = true; }
+const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGHT ? 0.09 : SNOW ? 0.5 : 0.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
-sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; if (SNOW) { sun.intensity = 0; sun.castShadow = false; hemi.color.setHex(0xff5ac8); hemi.groundColor.setHex(0x6a3a5a); }
+if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
 
@@ -54,13 +56,18 @@ groundMat.onBeforeCompile = (sh) => {
       // тропа
       float dz = abs(wp.y - pathC(wp.x));
       float pw = 1.75 + (nB.b - 0.5)*0.9 + (nC.r - 0.5)*0.35;
-      float pm = 1.0 - smoothstep(pw - 0.45, pw + 0.3, dz);
+      float pm = ${PATH_ON ? '1.0 - smoothstep(pw - 0.45, pw + 0.3, dz)' : '0.0'};
       vec3 sd = texture2D(tSand, wp/2.3).rgb * vec3(1.3,1.24,1.15);
       float lp = smoothstep(0.5, 0.85, nC.b*0.65 + nA.a*0.5) * (0.25 + 0.75*smoothstep(0.3, 1.0, dz/pw));
       vec3 pc = mix(sd, lv*0.95, lp*0.8);
       float wet = smoothstep(0.66, 0.78, texture2D(tNoise, wp*0.06+0.5).a) * (1.0 - smoothstep(0.0, pw*0.9, dz)*0.6);
       pc = mix(pc, pc*vec3(0.6,0.56,0.52), wet*0.8);
+      ${TRAIN ? 'pm = 1.0 - smoothstep(2.2, 2.9, dz); pc = mix(vec3(0.32,0.30,0.28), dirt, 0.35) * (0.65 + 0.7*nC.r);' : ''}
       col = mix(col, pc, pm); gPath = pm;
+      ${BEACH ? 'vec3 bs = texture2D(tSand, wp/2.0).rgb * vec3(1.28,1.22,1.1); bs = mix(bs*vec3(0.62,0.6,0.58), bs, smoothstep(-9.0, -5.0, wp.y)); col = mix(bs, col, smoothstep(26.0, 48.0, wp.y + nB.r*8.0));' : ''}
+      ${FIELD ? 'col = mix(col, vec3(0.58,0.48,0.28)*(0.65 + 0.55*nC.g), 0.8*(1.0-pm));' : ''}
+      ${STROY ? 'col = mix(dirt*0.75, col, 0.25);' : ''}
+      ${SNOW ? 'col = vec3(0.86,0.86,0.9) * (0.88 + 0.16*nC.g) - vec3(0.12)*smoothstep(0.6,0.9,nB.r)*0.5;' : ''}
       float bd = bedM(wp);
       vec3 soil = texture2D(tSand, wp/1.9 + 0.2).rgb * vec3(0.42,0.34,0.27) * (0.8 + 0.4*nC.g);
       soil = mix(soil, lv*0.6, smoothstep(0.55,0.8,nC.b)*0.5);
@@ -112,16 +119,16 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
-        vec3 p = position * vec3(1.0, (0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens), 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
+        vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
         p.x += w; p.z += w*0.5;
         vec3 transformed = vec3(bp.x, groundH(bp), bp.y) + p;
         vTint = nz.g; vHt = uv.y;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTint, vHt;')
       .replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''))
-      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb *= vec3(1.4,1.12,0.5);' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
   };
   const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.position.y = GROUND_Y; scene.add(mesh);
   return { mesh, update(p) { if (mat.userData.sh) mat.userData.sh.uniforms.uC.value.copy(p); } };
@@ -169,6 +176,12 @@ function buildGardenChunk(cx, cz) {
     for (let i = 0; i < nHang; i++) { const a = r() * 6.28, d = 0.5 + r() * R * 0.6, fx = x + Math.cos(a) * d, fz = z + Math.sin(a) * d; addFruit(group, type, fx, groundH(fx, fz) + hy[0] + r() * (hy[1] - hy[0]), fz, `${cx},${cz},${fid++}`); } };
   // забор участка
   for (const side of [-1, 1]) if (side * FENCE >= z0 && side * FENCE < z1) gardenFence(b, r, x0, x1, side, group);
+  // настоящие ворота — только когда собраны все ключи
+  if (allKeys() && FENCE >= z0 && FENCE < z1 && 24 >= x0 && 24 < x1) { const gx = 24, gz = FENCE - 0.1, y = groundH(gx, gz); const gm = envMat({ color: 0x8a6a3a, roughness: 0.3, metalness: 0.8, emissive: 0x3a2a08 }, 1.2);
+    for (const s2 of [-1, 1]) { b.box(M.brick, gx + s2 * 2.1, y + 1.6, gz, 0.5, 3.2, 0.5, shade(1.1)); const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.6, 0.06).translate(-s2 * 0.9, 1.3, 0), gm); leaf.position.set(gx + s2 * 1.85, y, gz); group.add(leaf); }
+    b.pipe(M.metal, new V3(gx - 2.1, y + 3.2, gz), new V3(gx, y + 3.8, gz), 0.06, PAINT.rust); b.pipe(M.metal, new V3(gx, y + 3.8, gz), new V3(gx + 2.1, y + 3.2, gz), 0.06, PAINT.rust);
+    const gl = new THREE.PointLight(0xffe0a0, 6, 14, 2); gl.position.set(gx, y + 2, gz - 1.5); group.add(gl);
+    INTER.push({ x: gx, z: gz - 1.2, r: 2.4, group, label: 'E — открыть ворота', act: ending }); }
   // клетки 24×16: грядки или «хозяйство»
   for (let i = Math.floor(x0 / 24); i < Math.ceil(x1 / 24); i++) for (let j = Math.floor(z0 / 16); j < Math.ceil(z1 / 16); j++) {
     const cxm = i * 24, czm = j * 16, garden = ((((i * 7 + j * 3) % 5) + 5) % 5) < 2, rr = rng(i * 9176 + j * 131 + 7);
@@ -211,8 +224,9 @@ function buildGardenChunk(cx, cz) {
   return { group, cols: b.cols };
 }
 function buildChunk(cx, cz) {
-  if (HOUSE) return buildHouseChunk(cx, cz);
+  if (GRID) return buildHouseChunk(cx, cz);
   if (GARDEN) return buildGardenChunk(cx, cz);
+  if (OUT_BUILD) return OUT_BUILD(cx, cz);
   const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x7a11), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
   const inst = new Map(), occ = [];
   const free = (x, z, rad) => { if (x < x0 || x >= x1 || z < z0 || z >= z1) return false; if (Math.abs(z - pathC(x)) < 2.6 + rad) return false; if (Math.abs(z - ROAD_C) < ROAD_HW + 2.4 + rad) return false; for (const o of occ) if (Math.hypot(o[0] - x, o[1] - z) < o[2] + rad) return false; return true; };
@@ -242,7 +256,7 @@ function buildChunk(cx, cz) {
   if (inZ(-12, 0)) { let prev = null; for (let x = Math.floor(x0 / 34) * 34 - 34; x < x1 + 34; x += 34) { const z = pathC(x) - 5.5; if (x >= x0 && x < x1) { pole(b, rng(x * 7 + 3), x, z); take(x, z, 0.6); }
       if (prev && (prev[0] >= x0 && prev[0] < x1)) { const ya = groundH(prev[0], prev[1]), yb = groundH(x, z); for (const [dz, h] of [[-0.7, 8.93], [0.7, 8.93], [0, 9.32]]) wire(b, prev[0], x, ya + h, yb + h, prev[1] + dz, z + dz, 0.85); } prev = [x, z]; } }
   // фонари, ограждения трассы, столбики
-  if (inZ(-29, -27)) { for (let x = Math.ceil(x0 / 42) * 42; x < x1; x += 42) lamp(b, x, -28.0, -1); roadFence(b, x0, x1, -28.6); for (let x = Math.ceil(x0 / 21) * 21 + 7; x < x1; x += 63) striped(b, x, -27.4); }
+  if (inZ(-29, -27)) { for (let x = Math.ceil(x0 / 42) * 42; x < x1; x += 42) lamp(b, x, -28.0, -1); if (!BUS) roadFence(b, x0, x1, -28.6); for (let x = Math.ceil(x0 / 21) * 21 + 7; x < x1; x += 63) striped(b, x, -27.4); }
   if (inZ(-43, -41)) { for (let x = Math.ceil(x0 / 42) * 42 + 21; x < x1; x += 42) lamp(b, x, -42.0, 1); roadFence(b, x0, x1, -41.4); }
   // ряды тополей (вдоль трассы — как на фото), кусты
   if (inZ(-27, -14)) { const rowZ = -21 + Math.sin(cx * 1.7) * 2; let x = x0 + r() * 4; const dense = ihash(cx, 21) < 0.7;
@@ -259,14 +273,19 @@ function buildChunk(cx, cz) {
   // пни, камни, кирпичи
   for (let i = 0; i < 5; i++) { const x = rx(), z = z0 + r() * CS; if (!free(x, z, 0.5)) continue; const y = groundH(x, z); const t = r();
     if (t < 0.3) b.cyl(M.bark, x, y + 0.15, z, 0.3, 0.26, 0.4, 10, [0.7, 0.62, 0.55]); else if (t < 0.6) b.geo(M.conc, new THREE.DodecahedronGeometry(0.25 + r() * 0.3, 0), x, y + 0.1, z, r(), r(), r(), 1, shade(1.0, [1.02, 0.97, 0.88])); else b.box(M.brick, x, y + 0.04, z, 0.25, 0.07, 0.12, shade(0.95), 0, r() * 3, 0.1); }
+  if (EXTRA_BUILD) EXTRA_BUILD(b, group, r, cx, cz, x0, z0, x1, z1, occ);
+  keyInChunk(group, x0, z0, x1, z1);
   b.build(group);
   for (const [key, ms] of inst) for (const [mat, geo] of PROTO[key].parts) { const im = new THREE.InstancedMesh(geo, mat, ms.length); ms.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = Q.shadows; im.receiveShadow = true; im.computeBoundingSphere(); group.add(im); }
   scene.add(group);
   return { group, cols: b.cols };
 }
 let chunkQueue = [];
+let OUT_BUILD = null, EXTRA_BUILD = null;
+function keyInChunk(group, x0, z0, x1, z1) { const kp = KEY_POS[WORLD]; if (kp && kp[0] >= x0 && kp[0] < x1 && kp[2] >= z0 && kp[2] < z1) placeKey(group, kp[0], groundH(kp[0], kp[2]) + (kp[1] || 0), kp[2]); }
 function updateChunks(px, pz, force) {
   if (PODEZD) return podUpdate(force);
+  if (METRO) return metroUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];
   for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
   chunkQueue.sort((a, b) => a[2] - b[2]);
