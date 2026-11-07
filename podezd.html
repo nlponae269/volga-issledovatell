@@ -1891,7 +1891,7 @@ const ITEM_MESH = {
 const ITEM_NAMES = { penal: 'Пенал', dnevnik: 'Дневник', smenka: 'Сменка', bahily: 'Бахилы' };
 function dropItem(group, kinds, x, z, id) { const k = kinds[(Math.random() * kinds.length) | 0]; const m = ITEM_MESH[k](); m.castShadow = true; m.rotation.y = Math.random() * 6; addItem(group, m, x, 0, z, id, ITEM_NAMES[k]); }
 
-if (GRID && !HOUSE) { P.x = MAG ? 4.0 : HC / 2; P.z = HC / 2; P.yaw = MAG ? 0 : -Math.PI / 2; }
+if (GRID && !HOUSE) { ground.visible = false; grass.mesh.visible = false; P.x = MAG ? 4.0 : HC / 2; P.z = HC / 2; P.yaw = MAG ? 0 : -Math.PI / 2; }
 // ================= ШКОЛА =================
 if (SHK) {
   cellType = (i, j) => { if (mod(j, 3) === 0 || mod(i, 5) === 0) return 'room'; return ihash(i, j, 31) < 0.06 ? 'cloak' : 'class'; };
