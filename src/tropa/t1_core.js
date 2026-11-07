@@ -23,7 +23,18 @@ function vnoise(x, z) { const xi = Math.floor(x), zi = Math.floor(z), xf = x - x
   return lerp(lerp(ihash(xi, zi), ihash(xi + 1, zi), u), lerp(ihash(xi, zi + 1), ihash(xi + 1, zi + 1), u), v); }
 
 // --- общая геометрия мира (дублируется в GLSL ниже) ---
-const ROAD_C = -35, ROAD_HW = 5;            // трасса: z ∈ [-40,-30]
+const WORLD = window.WORLD || 'tropa';          // 'tropa' | 'vorota'
+const GARDEN = WORLD === 'vorota';
+const ROAD_C = GARDEN ? -100000 : -35, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
+const FENCE = 44;                                      // забор участка (мир «Ворота»): z = ±44
+// грядки: клетки 24×16 м, детерминированный узор (одинаковый в JS и GLSL)
+function bedM(x, z) {
+  if (!GARDEN) return 0;
+  const i = Math.floor(x / 24), j = Math.floor(z / 16); if ((((i * 7 + j * 3) % 5) + 5) % 5 >= 2) return 0;
+  const lx = x - i * 24, lz = z - j * 16; if (lx < 2 || lx > 22 || lz < 1.5 || lz > 14.5) return 0;
+  if ((((lz - 1.5) % 2.2) + 2.2) % 2.2 > 1.3) return 0;
+  if (Math.abs(z - pathC(x)) < 4 || Math.abs(z) > FENCE - 3) return 0; return 1;
+}
 function pathC(x) { return 2.2 * Math.sin(x * 0.011) + 0.9 * Math.sin(x * 0.037 + 1.3); }
 function groundH(x, z) {
   let h = 0.22 * Math.sin(x * 0.061 + z * 0.043) + 0.15 * Math.sin(x * 0.137 - z * 0.089 + 2.0) + 0.08 * Math.sin(x * 0.29 + z * 0.31);
@@ -38,6 +49,15 @@ float groundH(vec2 p){
   float dp=abs(p.y-pathC(p.x)); float pf=smoothstep(1.4,3.6,dp); h=h*pf-0.05*(1.0-pf);
   float rd=abs(p.y-(${ROAD_C.toFixed(1)})); h=mix(0.28,h,smoothstep(${(ROAD_HW + 0.6).toFixed(1)},${(ROAD_HW + 4.0).toFixed(1)},rd));
   return h;
+}
+float bedM(vec2 p){
+  ${GARDEN ? `float i=floor(p.x/24.0), j=floor(p.y/16.0);
+  if (mod(i*7.0+j*3.0, 5.0) >= 2.0) return 0.0;
+  float lx=p.x-i*24.0, lz=p.y-j*16.0;
+  if (lx<2.0||lx>22.0||lz<1.5||lz>14.5) return 0.0;
+  if (mod(lz-1.5, 2.2) > 1.3) return 0.0;
+  if (abs(p.y-pathC(p.x))<4.0 || abs(p.y)>${(FENCE - 3).toFixed(1)}) return 0.0;
+  return 1.0;` : 'return 0.0;'}
 }`;
 
 // ---------------- текстуры ----------------
@@ -238,3 +258,6 @@ const M = {
   wire: new THREE.LineBasicMaterial({ color: 0x1d1d1d }),
 };
 M.lattice.map.repeat.set(1 / 2.5, 1 / 1.2);
+M.film = std({ color: 0xdfe6e8, roughness: 0.35, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
+M.fruit = patchFoliage(std({ vertexColors: true, roughness: 0.42 }), false);
+M.berry = std({ vertexColors: true, roughness: 0.55 });

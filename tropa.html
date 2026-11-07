@@ -69,7 +69,18 @@ function vnoise(x, z) { const xi = Math.floor(x), zi = Math.floor(z), xf = x - x
   return lerp(lerp(ihash(xi, zi), ihash(xi + 1, zi), u), lerp(ihash(xi, zi + 1), ihash(xi + 1, zi + 1), u), v); }
 
 // --- общая геометрия мира (дублируется в GLSL ниже) ---
-const ROAD_C = -35, ROAD_HW = 5;            // трасса: z ∈ [-40,-30]
+const WORLD = window.WORLD || 'tropa';          // 'tropa' | 'vorota'
+const GARDEN = WORLD === 'vorota';
+const ROAD_C = GARDEN ? -100000 : -35, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
+const FENCE = 44;                                      // забор участка (мир «Ворота»): z = ±44
+// грядки: клетки 24×16 м, детерминированный узор (одинаковый в JS и GLSL)
+function bedM(x, z) {
+  if (!GARDEN) return 0;
+  const i = Math.floor(x / 24), j = Math.floor(z / 16); if ((((i * 7 + j * 3) % 5) + 5) % 5 >= 2) return 0;
+  const lx = x - i * 24, lz = z - j * 16; if (lx < 2 || lx > 22 || lz < 1.5 || lz > 14.5) return 0;
+  if ((((lz - 1.5) % 2.2) + 2.2) % 2.2 > 1.3) return 0;
+  if (Math.abs(z - pathC(x)) < 4 || Math.abs(z) > FENCE - 3) return 0; return 1;
+}
 function pathC(x) { return 2.2 * Math.sin(x * 0.011) + 0.9 * Math.sin(x * 0.037 + 1.3); }
 function groundH(x, z) {
   let h = 0.22 * Math.sin(x * 0.061 + z * 0.043) + 0.15 * Math.sin(x * 0.137 - z * 0.089 + 2.0) + 0.08 * Math.sin(x * 0.29 + z * 0.31);
@@ -84,6 +95,15 @@ float groundH(vec2 p){
   float dp=abs(p.y-pathC(p.x)); float pf=smoothstep(1.4,3.6,dp); h=h*pf-0.05*(1.0-pf);
   float rd=abs(p.y-(${ROAD_C.toFixed(1)})); h=mix(0.28,h,smoothstep(${(ROAD_HW + 0.6).toFixed(1)},${(ROAD_HW + 4.0).toFixed(1)},rd));
   return h;
+}
+float bedM(vec2 p){
+  ${GARDEN ? `float i=floor(p.x/24.0), j=floor(p.y/16.0);
+  if (mod(i*7.0+j*3.0, 5.0) >= 2.0) return 0.0;
+  float lx=p.x-i*24.0, lz=p.y-j*16.0;
+  if (lx<2.0||lx>22.0||lz<1.5||lz>14.5) return 0.0;
+  if (mod(lz-1.5, 2.2) > 1.3) return 0.0;
+  if (abs(p.y-pathC(p.x))<4.0 || abs(p.y)>${(FENCE - 3).toFixed(1)}) return 0.0;
+  return 1.0;` : 'return 0.0;'}
 }`;
 
 // ---------------- текстуры ----------------
@@ -284,6 +304,9 @@ const M = {
   wire: new THREE.LineBasicMaterial({ color: 0x1d1d1d }),
 };
 M.lattice.map.repeat.set(1 / 2.5, 1 / 1.2);
+M.film = std({ color: 0xdfe6e8, roughness: 0.35, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
+M.fruit = patchFoliage(std({ vertexColors: true, roughness: 0.42 }), false);
+M.berry = std({ vertexColors: true, roughness: 0.55 });
 
 // ===================== ТРОПА: геометрия, прототипы растительности =====================
 const V3 = THREE.Vector3, UP = new V3(0, 1, 0);
@@ -367,8 +390,9 @@ function makePoplar(seed) {
   return { parts: [[M.bark, bark.build()], [M.leafPoplar, leaf.build()]], col: 0.3, h: H };
 }
 // ---------- лиственное полуголое дерево (вяз/ива) ----------
-function makeTree(seed, leafMat, leafAmt) {
-  const r = rng(seed), bark = new Bag(), leaf = new Bag(), bt = [0.75, 0.72, 0.68];
+function makeTree(seed, leafMat, leafAmt, o = {}) {
+  const r = rng(seed), bark = new Bag(), leaf = new Bag(), bt0 = o.bt || [0.75, 0.72, 0.68], wash = o.wash || 0;
+  const bt = wash ? (p) => (p.y < wash + Math.sin(Math.atan2(p.z, p.x) * 4) * 0.05 ? [3.0, 3.0, 2.85] : bt0) : bt0;
   const tips = [];
   function grow(p, d, len, rad, depth) {
     let cur = p.clone(), dd = d.clone(); const segs = depth > 2 ? 3 : 2;
@@ -380,19 +404,36 @@ function makeTree(seed, leafMat, leafAmt) {
     const n = depth > 3 ? 2 + (r() < 0.5 ? 1 : 0) : 2 + (r() < 0.6 ? 1 : 0);
     for (let k = 0; k < n; k++) {
       const ax = new V3().crossVectors(dd, new V3(r() - 0.5, r() - 0.5, r() - 0.5)).normalize(), ang = 0.35 + r() * 0.55;
-      const nd = dd.clone().applyAxisAngle(ax, ang); nd.y = lerp(nd.y, Math.abs(nd.y), 0.5); nd.normalize();
+      const nd = dd.clone().applyAxisAngle(ax, ang * (o.spread || 1)); nd.y = lerp(nd.y, Math.abs(nd.y), o.upk ?? 0.5); nd.normalize();
       grow(cur, nd, len * (0.66 + r() * 0.16), rad * (0.6 + r() * 0.08), depth - 1);
     }
   }
-  grow(new V3(0, 0, 0), new V3((r() - 0.5) * 0.15, 1, (r() - 0.5) * 0.15).normalize(), 2.6 + r() * 1.4, 0.26 + r() * 0.08, 5);
-  limb(bark, new V3(0, -0.3, 0), new V3(0, 0.4, 0), 0.42, 0.27, 8, bt);
+  const R0r = o.rad || (0.26 + r() * 0.08);
+  grow(new V3(0, 0, 0), new V3((r() - 0.5) * 0.15, 1, (r() - 0.5) * 0.15).normalize(), o.len || (2.6 + r() * 1.4), R0r, o.depth || 5);
+  limb(bark, new V3(0, -0.3, 0), new V3(0, 0.4, 0), R0r * 1.5, R0r, 8, bt);
   let top = 0; for (const [p] of tips) top = Math.max(top, p.y);
   const cen = new V3(0, top * 0.62, 0);
   for (const [p, d] of tips) { // тонкие прутья на концах
     limb(bark, p, p.clone().addScaledVector(d, 0.6 + r() * 0.6).add(new V3(0, -0.15, 0)), 0.01, 0.003, 3, bt);
-    if (r() < leafAmt) for (let k = 0; k < 1 + (r() * 3 | 0); k++) card(leaf, p.clone().add(new V3((r() - 0.5) * 0.9, (r() - 0.6) * 0.8, (r() - 0.5) * 0.9)), 0.9 + r() * 0.6, r, shade(0.6 + r() * 0.45), { c: cen, k: 0.7, up: 0.2, ys: 0.7 });
+    if (r() < leafAmt) for (let k = 0; k < (o.cards || 1) + (r() * 3 | 0); k++) card(leaf, p.clone().add(new V3((r() - 0.5) * 0.9, (r() - 0.6) * 0.8, (r() - 0.5) * 0.9)), (o.cs || 1) * (0.9 + r() * 0.6), r, shade(0.6 + r() * 0.45), { c: cen, k: 0.7, up: 0.2, ys: 0.7 });
+  }
+  if (o.fruit) { // плоды прямо в кроне (декор)
+    const fb = new Bag(), sp = new THREE.SphereGeometry(1, 8, 6);
+    for (const [p] of tips) if (r() < o.fruit) { _m.compose(p.clone().add(new V3((r() - 0.5) * 0.6, -0.2 - r() * 0.3, (r() - 0.5) * 0.6)), _q.identity(), new V3(o.fr, o.fr * 1.05, o.fr)); fb.add(sp, _m, o.fc(r)); }
+    const g = fb.build(); if (g) return { parts: [[M.bark, bark.build()], [leafMat, leaf.build()], [M.fruit, g]].filter((x) => x[1]), col: 0.22, h: top };
   }
   return { parts: [[M.bark, bark.build()], [leafMat, leaf.build()]].filter((x) => x[1]), col: 0.28, h: top };
+}
+// ---------- малинник: пучок тонких дуговых стеблей с листьями ----------
+function makeRasp(seed) {
+  const r = rng(seed), bark = new Bag(), leaf = new Bag(), bt = [0.62, 0.45, 0.38], cen = new V3(0, 0.8, 0);
+  for (let i = 0; i < 34; i++) {
+    const a = new V3((r() - 0.5) * 1.6, 0, (r() - 0.5) * 1.2), az = r() * 6.28, el = 0.05 + r() * 0.35, L = 1.1 + r() * 0.8;
+    let p = a, d = new V3(Math.sin(el) * Math.cos(az), Math.cos(el), Math.sin(el) * Math.sin(az));
+    for (let s = 0; s < 4; s++) { d.add(new V3(Math.cos(az) * 0.12, -0.09 * s, Math.sin(az) * 0.12)).normalize(); const nx = p.clone().addScaledVector(d, L / 4); limb(bark, p, nx, 0.009, 0.006, 3, bt);
+      if (s >= 1 && r() < 0.8) card(leaf, nx.clone().add(new V3((r() - 0.5) * 0.2, -0.05, (r() - 0.5) * 0.2)), 0.38 + r() * 0.2, r, shade(0.5 + 0.35 * r()), { c: cen, k: 0.6, up: 0.4 }); p = nx; }
+  }
+  return { parts: [[M.bark, bark.build()], [M.leafOlive, leaf.build()]], col: 0, h: 1.6 };
 }
 // ---------- большой осенний куст (как на фото) ----------
 function makeShrub(seed, leafMat, size) {
@@ -424,7 +465,19 @@ function makeSticks(seed) {
 }
 // Прототипы (строятся один раз, порциями, чтобы не подвешивать загрузку)
 const PROTO = {};
-const PROTO_JOBS = [
+const appleCol = (r) => { const t = r(); return t < 0.6 ? lin([0.62 + r() * 0.15, 0.12 + r() * 0.1, 0.07]) : t < 0.85 ? lin([0.75, 0.55, 0.15]) : lin([0.55, 0.62, 0.2]); };
+const PROTO_JOBS = GARDEN ? [
+  ['apple0', () => makeTree(201, M.leafOlive, 0.85, { len: 1.3, rad: 0.15, depth: 5, spread: 1.35, upk: 0.25, wash: 0.9, cards: 2, cs: 0.75, fruit: 0.45, fr: 0.045, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
+  ['apple1', () => makeTree(223, M.leafOlive, 0.75, { len: 1.1, rad: 0.13, depth: 5, spread: 1.5, upk: 0.2, wash: 0.8, cards: 2, cs: 0.7, fruit: 0.4, fr: 0.042, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
+  ['apple2', () => makeTree(247, M.leafAutumn, 0.6, { len: 1.4, rad: 0.16, depth: 5, spread: 1.3, upk: 0.3, wash: 1.0, cards: 2, cs: 0.75, fruit: 0.3, fr: 0.045, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
+  ['pear0', () => makeTree(263, M.leafAutumn, 0.7, { len: 2.2, rad: 0.17, depth: 5, spread: 0.85, upk: 0.65, wash: 1.0, cards: 2, cs: 0.7, fruit: 0.3, fr: 0.05, fc: (r) => lin([0.68, 0.64, 0.25 + r() * 0.1]), bt: [0.5, 0.47, 0.43] })],
+  ['plum0', () => makeTree(281, M.leafOlive, 0.7, { len: 1.2, rad: 0.1, depth: 4, spread: 1.1, upk: 0.45, cards: 2, cs: 0.6, fruit: 0.35, fr: 0.03, fc: () => lin([0.24, 0.12, 0.3]), bt: [0.45, 0.38, 0.36] })],
+  ['rasp0', () => makeRasp(301)], ['rasp1', () => makeRasp(317)],
+  ['poplar0', () => makePoplar(11)], ['poplar1', () => makePoplar(23)],
+  ['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)],
+  ['shrubY0', () => makeShrub(101, M.leafAutumn, 3.2)], ['shrubG0', () => makeShrub(127, M.leafOlive, 2.8)], ['shrubG1', () => makeShrub(139, M.leafOlive, 2.0)],
+  ['sticks0', () => makeSticks(151)], ['sticks1', () => makeSticks(163)],
+] : [
   ['poplar0', () => makePoplar(11)], ['poplar1', () => makePoplar(23)], ['poplar2', () => makePoplar(37)],
   ['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)], ['elm2', () => makeTree(83, M.leafOlive, 0.65)],
   ['shrubY0', () => makeShrub(101, M.leafAutumn, 3.2)], ['shrubY1', () => makeShrub(113, M.leafAutumn, 2.4)], ['shrubG0', () => makeShrub(127, M.leafOlive, 2.8)], ['shrubG1', () => makeShrub(139, M.leafOlive, 2.0)],
@@ -587,6 +640,85 @@ function yardBits(b, r, x, z) {
 // ограждение трассы (решётка)
 function roadFence(b, x0, x1, z) { for (let x = Math.ceil(x0 / 2.5) * 2.5; x < x1; x += 2.5) { const y = groundH(x + 1.25, z); b.add(M.lattice, new THREE.PlaneGeometry(2.5, 1.2), new THREE.Matrix4().makeTranslation(x + 1.25, y + 0.62, z)); b.box(M.metal, x, y + 0.6, z, 0.07, 1.25, 0.07, PAINT.galv); b.cyl(M.metal, x, y + 1.25, z, 0.05, 0.05, 0.06, 6, PAINT.galv); } }
 
+// ===================== «ВОРОТА»: дачный участок =====================
+const SOIL = lin([0.3, 0.24, 0.18]);
+// рамка грядки из старых досок + остатки ботвы
+function bedFrame(b, r, x0, x1, z0, z1) {
+  const y = (x, z) => groundH(x, z);
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, L = x1 - x0, W = z1 - z0, c = shade(0.7 + r() * 0.3);
+  b.box(M.plank, cx, y(cx, z0) + 0.1, z0, L, 0.2, 0.04, c); b.box(M.plank, cx, y(cx, z1) + 0.1, z1, L, 0.2, 0.04, c);
+  b.box(M.plank, x0, y(x0, cz) + 0.1, cz, 0.04, 0.2, W, c); b.box(M.plank, x1, y(x1, cz) + 0.1, cz, 0.04, 0.2, W, c);
+  const kind = r();
+  if (kind < 0.45) { // сухая ботва
+    for (let i = 0; i < 18; i++) { const px = x0 + 0.3 + r() * (L - 0.6), pz = z0 + 0.2 + r() * (W - 0.4); _e.set((r() - 0.5) * 1.2, r() * 6, (r() - 0.5) * 1.2); _q.setFromEuler(_e); const s = 0.35 + r() * 0.3; b.add(M.leafAutumn, CARD, new THREE.Matrix4().compose(new V3(px, y(px, pz) - 0.05, pz), _q, new V3(s, s, s)), shade(0.55 + r() * 0.3)); }
+  } else if (kind < 0.7) { // колышки от помидоров
+    for (let px = x0 + 0.5; px < x1 - 0.3; px += 0.8 + r() * 0.4) { const h = 0.8 + r() * 0.5; b.box(M.plank, px, y(px, cz) + h / 2, cz + (r() - 0.5) * 0.3, 0.035, h, 0.035, shade(0.8), (r() - 0.5) * 0.15, 0, (r() - 0.5) * 0.15); }
+  } else if (kind < 0.85) { // капуста-кочерыжки
+    for (let px = x0 + 0.5; px < x1 - 0.3; px += 0.7) { const pz = cz + (r() - 0.5) * 0.4; b.geo(M.leafOlive, new THREE.IcosahedronGeometry(0.16, 0), px, y(px, pz) + 0.12, pz, r(), r(), r(), 1, shade(0.55, [0.8, 1, 0.75])); }
+  }
+}
+// парник/теплица из дуг и рваной плёнки
+function greenhouse(b, r, x, z, ry) {
+  const L = 6 + (r() * 3 | 0) * 1.5, R = 1.6;
+  b.push(x, groundH(x, z), z, ry);
+  for (let i = 0; i <= L / 1.5; i++) { const px = -L / 2 + i * 1.5; let prev = null; for (let k = 0; k <= 10; k++) { const a = Math.PI * k / 10, p = new V3(px, Math.sin(a) * R * 1.25, Math.cos(a) * R); if (prev) b.pipe(M.metal, prev, p, 0.02, PAINT.galv); prev = p; } }
+  b.pipe(M.metal, new V3(-L / 2, R * 1.25, 0), new V3(L / 2, R * 1.25, 0), 0.02, PAINT.galv);
+  const seg = 12; for (let k = 0; k < seg; k++) { const a0 = Math.PI * k / seg, a1 = Math.PI * (k + 1) / seg; if (r() < 0.18) continue; const p0 = new V3(0, Math.sin(a0) * R * 1.25, Math.cos(a0) * R), p1 = new V3(0, Math.sin(a1) * R * 1.25, Math.cos(a1) * R); const mid = p0.clone().add(p1).multiplyScalar(0.5), w = p0.distanceTo(p1);
+    const g = new THREE.PlaneGeometry(L * (0.6 + r() * 0.4), w + 0.02); _q.setFromUnitVectors(new V3(0, 1, 0), p1.clone().sub(p0).normalize()); const q2 = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), 0); b.add(M.film, g, new THREE.Matrix4().compose(mid, _q.multiply(q2), new V3(1, 1, 1))); }
+  for (let i = 0; i < 2; i++) b.box(M.plank, 0, 0.1, (i ? 1 : -1) * 0.7, L - 0.4, 0.2, 0.04, shade(0.8));
+  b.collide(0, 0, L / 2, R);
+  b.pop();
+}
+// сарай из досок с шиферной крышей
+function shedWood(b, r, x, z, ry) {
+  const W = 3 + r() * 2, D = 2.5 + r(), H = 2.2;
+  b.push(x, groundH(x, z), z, ry);
+  b.box(M.plank, 0, H / 2, 0, W, H, D, shade(0.75 + r() * 0.3));
+  b.box(M.slate, 0, H + 0.25, 0, W + 0.5, 0.03, D + 0.6, shade(0.7 + r() * 0.3), 0.18);
+  b.box(M.plank, -W / 4, 0.95, D / 2 + 0.03, 0.85, 1.9, 0.05, shade(0.6)); b.box(M.metal, -W / 4 + 0.32, 1.0, D / 2 + 0.07, 0.04, 0.12, 0.04, PAINT.rust);
+  b.box(M.glass, W / 4, 1.5, D / 2 + 0.02, 0.5, 0.4, 0.02); b.box(M.plank, W / 4, 1.5, D / 2 + 0.03, 0.6, 0.05, 0.03, shade(0.6));
+  b.collide(0, 0, W / 2 + 0.1, D / 2 + 0.1);
+  b.pop();
+}
+// дачный туалет
+function outhouse(b, r, x, z, ry) {
+  b.push(x, groundH(x, z), z, ry);
+  b.box(M.plank, 0, 1.05, 0, 1.0, 2.1, 1.1, shade(0.75 + r() * 0.2)); b.box(M.slate, 0, 2.22, -0.05, 1.3, 0.03, 1.4, shade(0.8), -0.12);
+  b.box(M.plank, 0, 1.0, 0.57, 0.8, 1.9, 0.04, shade(0.65)); b.box(M.paint, 0, 1.75, 0.6, 0.12, 0.12, 0.02, PAINT.dark); b.box(M.metal, 0.3, 1.0, 0.61, 0.03, 0.1, 0.03, PAINT.rust);
+  b.collide(0, 0, 0.6, 0.65);
+  b.pop();
+}
+// бочки: синяя пластиковая и ржавая железная
+function barrel(b, r, x, z) { const y = groundH(x, z), rust = r() < 0.5; b.cyl(rust ? M.metal : M.paint, x, y + 0.45, z, 0.3, 0.3, 0.9, 14, rust ? lin([0.4, 0.25, 0.16]) : lin([0.2, 0.36, 0.62])); b.cyl(M.paint, x, y + 0.86, z, 0.27, 0.27, 0.02, 14, lin([0.08, 0.08, 0.09])); b.collide(x, z, 0.3, 0.3); }
+// компостная куча в ящике
+function compost(b, r, x, z) { const y = groundH(x, z); for (let i = 0; i < 4; i++) b.box(M.plank, x, y + 0.15 + i * 0.22, z - 0.8, 1.8, 0.18, 0.04, shade(0.6)); b.box(M.plank, x - 0.9, y + 0.45, z, 0.04, 0.9, 1.6, shade(0.6)); b.box(M.plank, x + 0.9, y + 0.45, z, 0.04, 0.9, 1.6, shade(0.6));
+  for (let i = 0; i < 14; i++) { const px = x + (r() - 0.5) * 1.5, pz = z + (r() - 0.5) * 1.4; _e.set(-1.3 + r() * 0.5, r() * 6, 0); _q.setFromEuler(_e); b.add(M.leafAutumn, CARD, new THREE.Matrix4().compose(new V3(px, y + 0.3 + r() * 0.3, pz), _q, new V3(0.7, 0.7, 0.7)), shade(0.45 + r() * 0.3)); } b.collide(x, z, 0.95, 0.85); }
+// стол со скамейкой, вёдра
+function tableSet(b, r, x, z) { const y = groundH(x, z); b.box(M.plank, x, y + 0.75, z, 1.6, 0.05, 0.8, shade(0.8)); for (const sx of [-0.7, 0.7]) b.box(M.plank, x + sx, y + 0.37, z, 0.06, 0.75, 0.7, shade(0.7));
+  for (const sz of [-0.75, 0.75]) b.box(M.plank, x, y + 0.42, z + sz, 1.5, 0.04, 0.3, shade(0.75)); if (r() < 0.6) b.cyl(M.metal, x + 0.3, y + 0.9, z, 0.13, 0.11, 0.26, 12, PAINT.galv); b.collide(x, z, 0.85, 1.0); }
+function bucket(b, r, x, z) { const y = groundH(x, z); b.cyl(M.metal, x, y + 0.14, z, 0.11, 0.14, 0.28, 12, r() < 0.5 ? PAINT.galv : lin([0.5, 0.15, 0.12]), r() < 0.3 ? 1.4 : 0, 0); }
+// забор участка: старый штакетник или профнастил, бесконечно
+const ARROW_MATS = ['ВОРОТА →', 'К ВОРОТАМ →', 'ВОРОТА ДАЛЬШЕ →', 'ВОРОТА →'].map((t) => new THREE.MeshStandardMaterial({ roughness: 0.9, map: texFrom(mkCanvas(512, 160, (g, w, h) => {
+  g.fillStyle = '#7b7364'; g.fillRect(0, 0, w, h); for (let i = 0; i < 4; i++) { g.fillStyle = `rgba(0,0,0,${0.1 + Math.random() * 0.1})`; g.fillRect(0, i * 40 + 38, w, 3); }
+  for (let k = 0; k < 1500; k++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '40,35,30' : '200,190,170'},${Math.random() * 0.15})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 6); }
+  g.fillStyle = 'rgba(235,232,220,0.92)'; g.font = 'bold 70px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, w / 2, h / 2 + 4);
+  for (let k = 0; k < 60; k++) { g.fillStyle = 'rgba(120,110,95,0.8)'; g.fillRect(Math.random() * w, Math.random() * h, 3 + Math.random() * 10, 2 + Math.random() * 5); }
+})) }));
+function gardenFence(b, r, x0, x1, side, group) {
+  const z = side * FENCE, kind = ihash(Math.floor(x0 / 48), side, 9) < 0.55 ? 'picket' : 'prof';
+  for (let x = Math.ceil(x0 / 2.5) * 2.5; x < x1; x += 2.5) {
+    const y = groundH(x, z), lean = (ihash(x | 0, side) - 0.5) * 0.06;
+    if (kind === 'picket') {
+      b.box(M.plank, x, y + 0.9, z, 0.09, 1.8, 0.09, shade(0.6)); for (const hy of [0.45, 1.35]) b.box(M.plank, x + 1.25, y + hy, z + side * 0.07, 2.5, 0.08, 0.035, shade(0.65));
+      for (let k = 0; k < 9; k++) { if (ihash(x * 10 + k | 0, 3) < 0.05) continue; const px = x + 0.15 + k * 0.27, hh = 1.55 + ihash(px * 100 | 0, 5) * 0.12; b.box(M.plank, px, y + hh / 2 + 0.05, z + side * 0.1, 0.1, hh, 0.02, shade(0.6 + ihash(px * 50 | 0, 7) * 0.35), lean, 0, (ihash(px * 70 | 0, 1) - 0.5) * 0.05); }
+    } else { b.box(M.metal, x, y + 1.0, z, 0.06, 2.0, 0.06, PAINT.rust); b.box(M.prof, x + 1.25, y + 1.0, z + side * 0.04, 2.5, 1.85, 0.03, lin([0.3, 0.42, 0.35]), lean * 0.5); }
+  }
+  b.cols.push({ x: (x0 + x1) / 2, z, hx: (x1 - x0) / 2, hz: 0.4, c: 1, s: 0 });
+  if (ihash(Math.floor(x0 / 48), side, 33) < 0.4) { const sx = x0 + 10 + ihash(Math.floor(x0 / 48), side, 2) * 28, y = groundH(sx, z);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.34), ARROW_MATS[(ihash(Math.floor(x0 / 48), side, 5) * 4) | 0]); sign.position.set(sx, y + 1.25, z - side * 0.14); if (side > 0) sign.rotation.y = Math.PI; else sign.rotation.y = 0;
+    sign.rotation.z = (ihash(sx | 0, 4) - 0.5) * 0.08; group.add(sign); }
+}
+
 // ===================== ТРОПА: сцена, небо, земля, трава, чанки =====================
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 520);
@@ -649,6 +781,10 @@ groundMat.onBeforeCompile = (sh) => {
       float wet = smoothstep(0.66, 0.78, texture2D(tNoise, wp*0.06+0.5).a) * (1.0 - smoothstep(0.0, pw*0.9, dz)*0.6);
       pc = mix(pc, pc*vec3(0.6,0.56,0.52), wet*0.8);
       col = mix(col, pc, pm); gPath = pm;
+      float bd = bedM(wp);
+      vec3 soil = texture2D(tSand, wp/1.9 + 0.2).rgb * vec3(0.42,0.34,0.27) * (0.8 + 0.4*nC.g);
+      soil = mix(soil, lv*0.6, smoothstep(0.55,0.8,nC.b)*0.5);
+      col = mix(col, soil, bd);
       gRough = mix(1.0, mix(0.95, 0.62, wet), pm);
       // трасса и обочины
       float rz = wp.y - (${ROAD_C.toFixed(1)}), ar = abs(rz);
@@ -695,7 +831,7 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
         vec3 p = position * vec3(1.0, (0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens), 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
@@ -711,7 +847,7 @@ const grass = (() => {
 })();
 
 // ---------------- монеты ----------------
-const COIN_TYPES = [{ n: 'Монетка', v: 5 }, { n: 'Горстка монет', v: 50 }, { n: 'Слиток золота', v: 100 }];
+const COIN_TYPES = [{ n: 'Монетка', v: 5 }, { n: 'Горстка монет', v: 50 }, { n: 'Слиток золота', v: 100 }, { n: 'Яблоко', k: 'apple' }, { n: 'Груша', k: 'pear' }, { n: 'Слива', k: 'plum' }, { n: 'Малина', k: 'rasp' }];
 const goldMat = std({ color: 0xf2c25a, roughness: 0.22, metalness: 1, envMapIntensity: 1.6 });
 const coinMat = std({ color: 0xd9b46a, roughness: 0.3, metalness: 1, envMapIntensity: 1.4 });
 const coinGeo = new THREE.LatheGeometry([[0, -0.012], [0.11, -0.012], [0.125, -0.008], [0.125, 0.008], [0.11, 0.012], [0.1, 0.009], [0, 0.009]].map((p) => new THREE.Vector2(p[0], p[1])), 24);
@@ -720,10 +856,16 @@ function coinObj(type, r) {
   const g = new THREE.Group();
   if (type === 0) { const c = new THREE.Mesh(coinGeo, coinMat); c.rotation.x = Math.PI / 2; c.position.y = 0.35; g.add(c); }
   else if (type === 1) { for (let i = 0; i < 14; i++) { const c = new THREE.Mesh(coinGeo, coinMat); const a = r() * 6.28, d = r() * 0.16; c.position.set(Math.cos(a) * d, 0.012 + i * 0.012 * (1 - d * 3), Math.sin(a) * d); c.rotation.set((r() - 0.5) * 0.5, r() * 6, (r() - 0.5) * 0.5); g.add(c); } }
-  else { const b = new THREE.Mesh(barGeo, goldMat); b.rotation.y = r() * 6; g.add(b); }
+  else if (type === 2) { const b = new THREE.Mesh(barGeo, goldMat); b.rotation.y = r() * 6; g.add(b); }
+  else { const f = new THREE.Mesh(FRUIT_GEO[type], FRUIT_MAT[type]); f.rotation.set((r() - 0.5) * 2, r() * 6, (r() - 0.5) * 2); f.position.y = type === 6 ? 0 : 0.035; g.add(f);
+    if (type !== 6) { const st = new THREE.Mesh(stemGeo, stemMat); st.position.y = type === 4 ? 0.1 : 0.075; st.rotation.z = 0.3; f.add(st); } }
   g.traverse((o) => { o.castShadow = Q.shadows; }); return g;
 }
-const taken = new Map(), coinsLive = [], RESPAWN = 90;
+const FRUIT_GEO = { 3: new THREE.SphereGeometry(0.042, 14, 10).scale(1, 0.9, 1), 4: new THREE.LatheGeometry([[0, -0.045], [0.035, -0.04], [0.045, -0.015], [0.04, 0.015], [0.026, 0.045], [0.014, 0.075], [0, 0.085]].map((p) => new THREE.Vector2(p[0], p[1])), 14), 5: new THREE.SphereGeometry(0.03, 12, 9).scale(0.9, 1.1, 0.9), 6: (() => { const b = new Bag(), s = new THREE.IcosahedronGeometry(1, 0); for (let i = 0; i < 26; i++) { const a = i * 2.4, y = (i / 26 - 0.5) * 0.026; const rr = Math.sqrt(Math.max(0, 0.00018 - y * y)) + 0.002; _m.compose(new V3(Math.cos(a) * rr, y, Math.sin(a) * rr), _q.identity(), new V3(0.0055, 0.0055, 0.0055)); b.add(s, _m); } return b.build(); })() };
+const FRUIT_MAT = { 3: std({ color: 0xa8321e, roughness: 0.38 }), 4: std({ color: 0xa8a04a, roughness: 0.6 }), 5: std({ color: 0x3a1f48, roughness: 0.75 }), 6: std({ color: 0x9a1028, roughness: 0.45, emissive: 0x220006 }) };
+const stemGeo = new THREE.CylinderGeometry(0.003, 0.004, 0.03, 4), stemMat = std({ color: 0x4a3a24, roughness: 1 });
+const taken = new Map(), coinsLive = [], RESPAWN = GARDEN ? 150 : 90;
+function addFruit(group, type, x, y, z, id) { const o = coinObj(type, rng(id.length * 31 + (x * 1000 | 0))); o.position.set(x, y, z); group.add(o); coinsLive.push({ id, obj: o, type, x, z, y, group }); }
 function spawnCoins(group, r, x, z, ry, id) {
   const n = 3 + (r() * 4 | 0), c = Math.cos(ry), s = Math.sin(ry);
   for (let i = 0; i < n; i++) { const lx = (r() - 0.5) * 9, lz = 3.6 + r() * 4.0; const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c;
@@ -732,7 +874,63 @@ function spawnCoins(group, r, x, z, ry, id) {
 
 // ---------------- чанки ----------------
 const CS = 48, chunks = new Map(), colliders = new Map();
+function buildGardenChunk(cx, cz) {
+  const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x6a7d), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
+  const inst = new Map(), occ = [];
+  const inside = (z) => Math.abs(z) < FENCE - 1.2;
+  const free = (x, z, rad) => { if (x < x0 || x >= x1 || z < z0 || z >= z1) return false; if (Math.abs(z - pathC(x)) < 2.4 + rad) return false; if (Math.abs(Math.abs(z) - FENCE) < 1.0 + rad) return false;
+    for (const [dx, dz] of [[0, 0], [rad, 0], [-rad, 0], [0, rad], [0, -rad]]) if (bedM(x + dx, z + dz)) return false; for (const o of occ) if (Math.hypot(o[0] - x, o[1] - z) < o[2] + rad) return false; return true; };
+  const take = (x, z, rad) => occ.push([x, z, rad]);
+  const plant = (key, x, z, s = 1, rad) => { rad = rad ?? (PROTO[key].col ? 1.2 : 0.7); if (!free(x, z, rad)) return false; take(x, z, rad); const m = new THREE.Matrix4().compose(new V3(x, groundH(x, z) - 0.05, z), new THREE.Quaternion().setFromAxisAngle(UP, r() * 6.283), new V3(s, s * (0.9 + r() * 0.2), s)); (inst.get(key) || inst.set(key, []).get(key)).push(m); if (PROTO[key].col) b.cols.push({ x, z, hx: PROTO[key].col * s, hz: PROTO[key].col * s, c: 1, s: 0 }); return true; };
+  const pick = (a) => a[(r() * a.length) | 0];
+  let fid = 0; const fruitAround = (type, x, z, nGround, nHang, R, hy) => {
+    for (let i = 0; i < nGround; i++) { const a = r() * 6.28, d = 0.4 + r() * R, fx = x + Math.cos(a) * d, fz = z + Math.sin(a) * d; if (!bedM(fx, fz)) addFruit(group, type, fx, groundH(fx, fz) - 0.01, fz, `${cx},${cz},${fid++}`); }
+    for (let i = 0; i < nHang; i++) { const a = r() * 6.28, d = 0.5 + r() * R * 0.6, fx = x + Math.cos(a) * d, fz = z + Math.sin(a) * d; addFruit(group, type, fx, groundH(fx, fz) + hy[0] + r() * (hy[1] - hy[0]), fz, `${cx},${cz},${fid++}`); } };
+  // забор участка
+  for (const side of [-1, 1]) if (side * FENCE >= z0 && side * FENCE < z1) gardenFence(b, r, x0, x1, side, group);
+  // клетки 24×16: грядки или «хозяйство»
+  for (let i = Math.floor(x0 / 24); i < Math.ceil(x1 / 24); i++) for (let j = Math.floor(z0 / 16); j < Math.ceil(z1 / 16); j++) {
+    const cxm = i * 24, czm = j * 16, garden = ((((i * 7 + j * 3) % 5) + 5) % 5) < 2, rr = rng(i * 9176 + j * 131 + 7);
+    if (Math.abs(czm + 8) > FENCE + 30) continue;
+    if (Math.abs(czm + 8) > FENCE) { // за забором — соседские дома и деревья в тумане
+      const t = rr(); const hx = cxm + 12 + (rr() - 0.5) * 8, hz = czm + 8;
+      if (t < 0.4 && free(hx, hz, 6)) { house(b, rr, hx, hz, czm > 0 ? Math.PI : 0); take(hx, hz, 7); }
+      else if (t < 0.8) plant(pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'apple0']), cxm + rr() * 24, czm + rr() * 16, 0.9 + rr() * 0.3);
+      continue;
+    }
+    if (garden) { // ряды грядок
+      for (let k = 0; k < 6; k++) { const bz0 = czm + 1.5 + k * 2.2, bz1 = bz0 + 1.3; if (!bedM(cxm + 12, bz0 + 0.65)) continue; let a = cxm + 2, e = cxm + 22;
+        // рамку режем по тропе/забору: проверяем концы
+        while (a < e && !bedM(a + 0.1, bz0 + 0.65)) a += 0.5; while (e > a && !bedM(e - 0.1, bz0 + 0.65)) e -= 0.5; if (e - a > 1) bedFrame(b, rr, a, e, bz0, bz1); }
+      if (rr() < 0.5) { const bx = cxm + 1, bz = czm + 0.6; if (free(bx, bz, 0.4)) { barrel(b, rr, bx, bz); take(bx, bz, 0.5); } }
+      if (rr() < 0.4) bucket(b, rr, cxm + 23, czm + 15);
+      continue;
+    }
+    // хозяйство: сад, постройки, малинник (редко)
+    const t = rr(), mx = cxm + 12, mz = czm + 8;
+    if (t < 0.42) { // яблоневый сад
+      for (let k = 0; k < 4; k++) { const tx = cxm + 4 + (k % 2) * 12 + (rr() - 0.5) * 3, tz = czm + 4 + Math.floor(k / 2) * 8 + (rr() - 0.5) * 2; const key = pick(['apple0', 'apple1', 'apple2', 'apple0', 'pear0', 'plum0']);
+        if (plant(key, tx, tz, 0.9 + rr() * 0.25, 1.8)) { const ty = key === 'pear0' ? 4 : key === 'plum0' ? 5 : 3; fruitAround(ty, tx, tz, 2 + (rr() * 5 | 0), 1 + (rr() * 3 | 0), 2.2, ty === 4 ? [2.0, 2.6] : [1.55, 2.2]); } }
+    } else if (t < 0.55) { if (free(mx, mz, 4)) { greenhouse(b, rr, mx, mz, (rr() < 0.5 ? 0 : Math.PI / 2)); take(mx, mz, 4.5); } }
+    else if (t < 0.66) { if (free(mx, mz, 3)) { shedWood(b, rr, mx, mz, (rr() * 4 | 0) * Math.PI / 2); take(mx, mz, 3); } if (free(mx + 6, mz + 3, 1.3)) { compost(b, rr, mx + 6, mz + 3); take(mx + 6, mz + 3, 1.3); } }
+    else if (t < 0.74) { if (free(mx, mz, 1.2)) { outhouse(b, rr, mx, mz, (rr() * 4 | 0) * Math.PI / 2); take(mx, mz, 1.2); } if (free(mx - 6, mz, 1.3)) { tableSet(b, rr, mx - 6, mz); take(mx - 6, mz, 1.3); } }
+    else if (t < 0.8) { if (free(mx, mz, 7)) { house(b, rr, mx, mz, (rr() * 4 | 0) * Math.PI / 2); take(mx, mz, 7); yardBits(b, rr, mx + 3, mz + 6); } }
+    else if (t < 0.86) { // малинник — редкость, 8 ягод
+      const rx = mx + (rr() - 0.5) * 6, rz = mz + (rr() - 0.5) * 4; if (plant(pick(['rasp0', 'rasp1']), rx, rz, 1, 1.4)) for (let k = 0; k < 8; k++) { const a = rr() * 6.28, d = 0.2 + rr() * 0.7; addFruit(group, 6, rx + Math.cos(a) * d * 1.1, groundH(rx, rz) + 0.55 + rr() * 0.6, rz + Math.sin(a) * d * 0.8, `${cx},${cz},r${k},${i},${j}`); } }
+    else { for (let k = 0; k < 3; k++) plant(pick(['shrubY0', 'shrubG0', 'shrubG1', 'sticks0', 'elm1']), cxm + rr() * 24, czm + rr() * 16, 0.8 + rr() * 0.4); }
+    for (let k = 0; k < 2; k++) { const bx = cxm + rr() * 24, bz = czm + rr() * 16; if (rr() < 0.4 && free(bx, bz, 0.4)) { (rr() < 0.5 ? barrel : bucket)(b, rr, bx, bz); take(bx, bz, 0.5); } }
+  }
+  // кусты и прутняки вдоль тропы
+  for (let i = 0; i < 6; i++) { const x = x0 + r() * CS, z = pathC(x) + (r() < 0.5 ? -1 : 1) * (3.3 + r() * 2); if (z >= z0 && z < z1 && inside(z)) plant(pick(['sticks0', 'sticks1', 'shrubG1']), x, z, 0.7 + r() * 0.4); }
+  // доски-мостки на тропе
+  for (let i = 0; i < 3; i++) { const x = x0 + r() * CS, z = pathC(x); if (z >= z0 && z < z1 && r() < 0.5) for (let k = 0; k < 4; k++) b.box(M.plank, x + k * 0.32, groundH(x, z) + 0.02, z + (r() - 0.5) * 0.3, 0.26, 0.03, 1.4, shade(0.6 + r() * 0.3), 0, (r() - 0.5) * 0.1, 0); }
+  b.build(group);
+  for (const [key, ms] of inst) for (const [mat, geo] of PROTO[key].parts) { const im = new THREE.InstancedMesh(geo, mat, ms.length); ms.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = Q.shadows; im.receiveShadow = true; im.computeBoundingSphere(); group.add(im); }
+  scene.add(group);
+  return { group, cols: b.cols };
+}
 function buildChunk(cx, cz) {
+  if (GARDEN) return buildGardenChunk(cx, cz);
   const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x7a11), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
   const inst = new Map(), occ = [];
   const free = (x, z, rad) => { if (x < x0 || x >= x1 || z < z0 || z >= z1) return false; if (Math.abs(z - pathC(x)) < 2.6 + rad) return false; if (Math.abs(z - ROAD_C) < ROAD_HW + 2.4 + rad) return false; for (const o of occ) if (Math.hypot(o[0] - x, o[1] - z) < o[2] + rad) return false; return true; };
@@ -841,7 +1039,7 @@ function makeTruck() {
   g.traverse((o) => { o.castShadow = Q.shadows; }); return { g, len: 16.5, wheels: g.children.filter((c) => c.geometry === wheelGeo) };
 }
 const cars = [];
-for (let i = 0; i < 9; i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
+for (let i = 0; i < (GARDEN ? 0 : 9); i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
 function updateCars(dt, px) {
   for (const c of cars) {
     const dir = c.lane === 0 ? -1 : 1; c.x += dir * c.v * dt;
@@ -945,9 +1143,10 @@ function collide(nx, nz) {
     let lx = dx * c.c - dz * c.s, lz = dx * c.s + dz * c.c; const ex = c.hx + pr - Math.abs(lx), ez = c.hz + pr - Math.abs(lz);
     if (ex > 0 && ez > 0) { if (ex < ez) lx += Math.sign(lx || 1) * ex; else lz += Math.sign(lz || 1) * ez; nx = c.x + lx * c.c + lz * c.s; nz = c.z - lx * c.s + lz * c.c; }
   }
+  if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -972,6 +1171,12 @@ function blip(freqs, dur, type = 'sine', vol = 0.12) { if (!AC) return; freqs.fo
 function burst(dur, ftype, freq, q, vol, pan = 0) { if (!AC) return; const s = AC.createBufferSource(); s.buffer = AC._white; const f = AC.createBiquadFilter(); f.type = ftype; f.frequency.value = freq; f.Q.value = q; const g = AC.createGain(); const t = AC.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); const p = AC.createStereoPanner ? AC.createStereoPanner() : null; if (p) p.pan.value = pan; s.connect(f).connect(g); (p ? g.connect(p) : g).connect(master); if (p) p.connect(master); s.start(t, Math.random() * 3, dur + 0.05); }
 function footstep(surf, run) { const v = run ? 0.5 : 0.32; if (surf === 'grass') { burst(0.16, 'bandpass', 2600 + Math.random() * 900, 0.7, v * 0.55); burst(0.09, 'highpass', 5000, 0.5, v * 0.3); } else if (surf === 'sand') { burst(0.13, 'bandpass', 1100 + Math.random() * 400, 0.9, v * 0.7); burst(0.07, 'highpass', 3500, 0.5, v * 0.2); } else if (surf === 'grav') burst(0.12, 'bandpass', 1800, 0.6, v * 0.8); else burst(0.07, 'bandpass', 900, 1.4, v * 0.9); }
 function crow() { if (!AC) return; const pan = Math.random() * 2 - 1, n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const t = AC.currentTime + i * 0.42, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(340, t + 0.3); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 2.5; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32); const p = AC.createStereoPanner(); p.pan.value = pan; o.connect(f).connect(g).connect(p).connect(master); o.start(t); o.stop(t + 0.4); } }
+function creak() { if (!AC) return; const t = AC.currentTime, pan = Math.random() * 2 - 1, p = AC.createStereoPanner(); p.pan.value = pan; p.connect(master);
+  const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); o.type = 'sawtooth'; const f0 = 140 + Math.random() * 80; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 0.62, t + 1.6); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + 2.2);
+  lfo.frequency.value = 23 + Math.random() * 10; lg.gain.value = 12; lfo.connect(lg).connect(o.frequency); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 4;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.022, t + 0.3); g.gain.linearRampToValueAtTime(0.016, t + 1.8); g.gain.linearRampToValueAtTime(0, t + 2.3);
+  o.connect(f).connect(g).connect(p); o.start(t); lfo.start(t); o.stop(t + 2.4); lfo.stop(t + 2.4);
+  setTimeout(() => burst(0.25, 'lowpass', 400, 0.7, 0.06, pan), 2350); }
 function horn() { blip([350, 440], 1.1, 'sawtooth', 0.09); }
 function crash() { if (!AC) return; burst(0.8, 'lowpass', 1500, 0.5, 1.2); burst(0.4, 'bandpass', 3000, 0.4, 0.8); const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = 6100; const t = AC.currentTime; g.gain.setValueAtTime(0.05, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0005, t + 3.5); o.connect(g).connect(master); o.start(t); o.stop(t + 3.6); }
 function updateAudio(dt, gust) {
@@ -980,7 +1185,7 @@ function updateAudio(dt, gust) {
   if (L.positionX) { L.positionX.value = P.x; L.positionY.value = camera.position.y; L.positionZ.value = P.z; L.forwardX.value = fw.x; L.forwardY.value = fw.y; L.forwardZ.value = fw.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
   else { L.setPosition(P.x, camera.position.y, P.z); L.setOrientation(fw.x, fw.y, fw.z, up.x, up.y, up.z); }
   windG.gain.value = 0.18 + gust * 0.32; rustleG.gain.value = 0.004 + gust * 0.02;
-  const rd = Math.abs(P.z - ROAD_C); humG.gain.value = 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
+  const rd = Math.abs(P.z - ROAD_C); humG.gain.value = GARDEN ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
   for (const c of cars) { const s = c.snd; if (!s) continue; const dir = c.lane === 0 ? -1 : 1, cz = LANE_Z[c.lane];
     const dx = P.x - c.x, dz = P.z - cz, d = Math.hypot(dx, dz) || 1, vr = dir * c.v * dx / d; const dop = clamp(343 / (343 - vr), 0.7, 1.4);
     s.s.playbackRate.value = (c.len > 10 ? 0.55 : 0.85) * dop; s.tyre.playbackRate.value = dop; s.f.frequency.value = 500 + 2500 * Math.exp(-d / 25);
@@ -989,13 +1194,16 @@ function updateAudio(dt, gust) {
 
 // ---------------- HUD / смерть ----------------
 let money = 0; try { money = +localStorage.getItem('tropa_money') || 0; } catch (e) {}
-const coinsEl = $('coins'); coinsEl.textContent = money;
+const coinsEl = $('coins'); if (coinsEl) coinsEl.textContent = money;
+const FR = { apple: 0, pear: 0, plum: 0, rasp: 0 }; try { Object.assign(FR, JSON.parse(localStorage.getItem('vorota_fruit') || '{}')); } catch (e) {}
+function showFruit() { for (const k in FR) { const el = $('f_' + k); if (el) el.textContent = FR[k]; } }
+showFruit();
 let toastT = 0; function toast(t) { $('toast').innerHTML = t; $('toast').style.opacity = 1; toastT = 1.8; }
 function save() { try { localStorage.setItem('tropa_money', money); } catch (e) {} }
 let hitCar = null, flash = 0;
 function onRoad(z) { return z > ROAD_C - ROAD_HW + 0.2 && z < ROAD_C + ROAD_HW - 0.2; }
 function killCheck() {
-  if (dead) return;
+  if (dead || GARDEN) return;
   if (onRoad(P.z)) {
     if (!hitCar) { const lane = P.z < ROAD_C ? 0 : 1, c = cars.filter((q) => q.lane === lane).sort((a, b) => Math.abs(a.x - P.x) - Math.abs(b.x - P.x))[0]; const dir = lane === 0 ? -1 : 1; c.x = P.x - dir * 45; c.v = 30; hitCar = c; horn(); }
     const c = hitCar; if (Math.abs(c.x - P.x) < c.len / 2 + 1.0 && Math.abs(LANE_Z[c.lane] - P.z) < 3) die();
@@ -1044,11 +1252,13 @@ function frame(now) {
     killCheck();
     for (let i = coinsLive.length - 1; i >= 0; i--) { const c = coinsLive[i], t = taken.get(c.id); const vis = t === undefined || clock - t > RESPAWN; if (vis && t !== undefined) taken.delete(c.id); c.obj.visible = vis; if (!vis) continue;
       if (c.type === 0) { c.obj.children[0].rotation.z += dt * 2.2; c.obj.children[0].position.y = 0.35 + Math.sin(clock * 2 + i) * 0.04; }
-      if (Math.hypot(c.x - P.x, c.z - P.z) < 1.1) { const T = COIN_TYPES[c.type]; money += T.v; taken.set(c.id, clock); coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } }
+      if (Math.hypot(c.x - P.x, c.z - P.z) < (c.type >= 3 ? 0.9 : 1.1)) { const T = COIN_TYPES[c.type]; taken.set(c.id, clock);
+        if (T.k) { FR[T.k]++; showFruit(); try { localStorage.setItem('vorota_fruit', JSON.stringify(FR)); } catch (e) {} toast(T.k === 'rasp' ? `Малина <b style="color:#e0566b">+1</b>` : `${T.n} <b style="color:#cfe08a">+1</b>`); burst(0.08, 'bandpass', 1400, 1.2, 0.25); blip([T.k === 'rasp' ? 1568 : 784], 0.18, 'sine', 0.05); }
+        else { money += T.v; coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } } }
   } else if (!started) { P.yaw += dt * 0.02; }
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: 0, z: 0, y: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; crow(); } }
+  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if (GARDEN && Math.random() < 0.45) creak(); else crow(); } }
   autoQuality(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);
   ground.position.set(Math.round(P.x / (GS / GSEG)) * (GS / GSEG), 0, Math.round(P.z / (GS / GSEG)) * (GS / GSEG));

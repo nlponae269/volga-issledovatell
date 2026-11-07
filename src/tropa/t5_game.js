@@ -41,7 +41,7 @@ function makeTruck() {
   g.traverse((o) => { o.castShadow = Q.shadows; }); return { g, len: 16.5, wheels: g.children.filter((c) => c.geometry === wheelGeo) };
 }
 const cars = [];
-for (let i = 0; i < 9; i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
+for (let i = 0; i < (GARDEN ? 0 : 9); i++) { const c = i % 3 === 0 ? makeTruck() : makeCar(); scene.add(c.g); cars.push(Object.assign(c, { lane: i % 2, x: (Math.random() - 0.5) * 400, v: 15 + Math.random() * 9, snd: null })); }
 function updateCars(dt, px) {
   for (const c of cars) {
     const dir = c.lane === 0 ? -1 : 1; c.x += dir * c.v * dt;
@@ -145,9 +145,10 @@ function collide(nx, nz) {
     let lx = dx * c.c - dz * c.s, lz = dx * c.s + dz * c.c; const ex = c.hx + pr - Math.abs(lx), ez = c.hz + pr - Math.abs(lz);
     if (ex > 0 && ez > 0) { if (ex < ez) lx += Math.sign(lx || 1) * ex; else lz += Math.sign(lz || 1) * ez; nx = c.x + lx * c.c + lz * c.s; nz = c.z - lx * c.s + lz * c.c; }
   }
+  if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -172,6 +173,12 @@ function blip(freqs, dur, type = 'sine', vol = 0.12) { if (!AC) return; freqs.fo
 function burst(dur, ftype, freq, q, vol, pan = 0) { if (!AC) return; const s = AC.createBufferSource(); s.buffer = AC._white; const f = AC.createBiquadFilter(); f.type = ftype; f.frequency.value = freq; f.Q.value = q; const g = AC.createGain(); const t = AC.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); const p = AC.createStereoPanner ? AC.createStereoPanner() : null; if (p) p.pan.value = pan; s.connect(f).connect(g); (p ? g.connect(p) : g).connect(master); if (p) p.connect(master); s.start(t, Math.random() * 3, dur + 0.05); }
 function footstep(surf, run) { const v = run ? 0.5 : 0.32; if (surf === 'grass') { burst(0.16, 'bandpass', 2600 + Math.random() * 900, 0.7, v * 0.55); burst(0.09, 'highpass', 5000, 0.5, v * 0.3); } else if (surf === 'sand') { burst(0.13, 'bandpass', 1100 + Math.random() * 400, 0.9, v * 0.7); burst(0.07, 'highpass', 3500, 0.5, v * 0.2); } else if (surf === 'grav') burst(0.12, 'bandpass', 1800, 0.6, v * 0.8); else burst(0.07, 'bandpass', 900, 1.4, v * 0.9); }
 function crow() { if (!AC) return; const pan = Math.random() * 2 - 1, n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const t = AC.currentTime + i * 0.42, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(340, t + 0.3); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 2.5; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32); const p = AC.createStereoPanner(); p.pan.value = pan; o.connect(f).connect(g).connect(p).connect(master); o.start(t); o.stop(t + 0.4); } }
+function creak() { if (!AC) return; const t = AC.currentTime, pan = Math.random() * 2 - 1, p = AC.createStereoPanner(); p.pan.value = pan; p.connect(master);
+  const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); o.type = 'sawtooth'; const f0 = 140 + Math.random() * 80; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 0.62, t + 1.6); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + 2.2);
+  lfo.frequency.value = 23 + Math.random() * 10; lg.gain.value = 12; lfo.connect(lg).connect(o.frequency); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 4;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.022, t + 0.3); g.gain.linearRampToValueAtTime(0.016, t + 1.8); g.gain.linearRampToValueAtTime(0, t + 2.3);
+  o.connect(f).connect(g).connect(p); o.start(t); lfo.start(t); o.stop(t + 2.4); lfo.stop(t + 2.4);
+  setTimeout(() => burst(0.25, 'lowpass', 400, 0.7, 0.06, pan), 2350); }
 function horn() { blip([350, 440], 1.1, 'sawtooth', 0.09); }
 function crash() { if (!AC) return; burst(0.8, 'lowpass', 1500, 0.5, 1.2); burst(0.4, 'bandpass', 3000, 0.4, 0.8); const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = 6100; const t = AC.currentTime; g.gain.setValueAtTime(0.05, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0005, t + 3.5); o.connect(g).connect(master); o.start(t); o.stop(t + 3.6); }
 function updateAudio(dt, gust) {
@@ -180,7 +187,7 @@ function updateAudio(dt, gust) {
   if (L.positionX) { L.positionX.value = P.x; L.positionY.value = camera.position.y; L.positionZ.value = P.z; L.forwardX.value = fw.x; L.forwardY.value = fw.y; L.forwardZ.value = fw.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
   else { L.setPosition(P.x, camera.position.y, P.z); L.setOrientation(fw.x, fw.y, fw.z, up.x, up.y, up.z); }
   windG.gain.value = 0.18 + gust * 0.32; rustleG.gain.value = 0.004 + gust * 0.02;
-  const rd = Math.abs(P.z - ROAD_C); humG.gain.value = 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
+  const rd = Math.abs(P.z - ROAD_C); humG.gain.value = GARDEN ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
   for (const c of cars) { const s = c.snd; if (!s) continue; const dir = c.lane === 0 ? -1 : 1, cz = LANE_Z[c.lane];
     const dx = P.x - c.x, dz = P.z - cz, d = Math.hypot(dx, dz) || 1, vr = dir * c.v * dx / d; const dop = clamp(343 / (343 - vr), 0.7, 1.4);
     s.s.playbackRate.value = (c.len > 10 ? 0.55 : 0.85) * dop; s.tyre.playbackRate.value = dop; s.f.frequency.value = 500 + 2500 * Math.exp(-d / 25);
@@ -189,13 +196,16 @@ function updateAudio(dt, gust) {
 
 // ---------------- HUD / смерть ----------------
 let money = 0; try { money = +localStorage.getItem('tropa_money') || 0; } catch (e) {}
-const coinsEl = $('coins'); coinsEl.textContent = money;
+const coinsEl = $('coins'); if (coinsEl) coinsEl.textContent = money;
+const FR = { apple: 0, pear: 0, plum: 0, rasp: 0 }; try { Object.assign(FR, JSON.parse(localStorage.getItem('vorota_fruit') || '{}')); } catch (e) {}
+function showFruit() { for (const k in FR) { const el = $('f_' + k); if (el) el.textContent = FR[k]; } }
+showFruit();
 let toastT = 0; function toast(t) { $('toast').innerHTML = t; $('toast').style.opacity = 1; toastT = 1.8; }
 function save() { try { localStorage.setItem('tropa_money', money); } catch (e) {} }
 let hitCar = null, flash = 0;
 function onRoad(z) { return z > ROAD_C - ROAD_HW + 0.2 && z < ROAD_C + ROAD_HW - 0.2; }
 function killCheck() {
-  if (dead) return;
+  if (dead || GARDEN) return;
   if (onRoad(P.z)) {
     if (!hitCar) { const lane = P.z < ROAD_C ? 0 : 1, c = cars.filter((q) => q.lane === lane).sort((a, b) => Math.abs(a.x - P.x) - Math.abs(b.x - P.x))[0]; const dir = lane === 0 ? -1 : 1; c.x = P.x - dir * 45; c.v = 30; hitCar = c; horn(); }
     const c = hitCar; if (Math.abs(c.x - P.x) < c.len / 2 + 1.0 && Math.abs(LANE_Z[c.lane] - P.z) < 3) die();
@@ -244,11 +254,13 @@ function frame(now) {
     killCheck();
     for (let i = coinsLive.length - 1; i >= 0; i--) { const c = coinsLive[i], t = taken.get(c.id); const vis = t === undefined || clock - t > RESPAWN; if (vis && t !== undefined) taken.delete(c.id); c.obj.visible = vis; if (!vis) continue;
       if (c.type === 0) { c.obj.children[0].rotation.z += dt * 2.2; c.obj.children[0].position.y = 0.35 + Math.sin(clock * 2 + i) * 0.04; }
-      if (Math.hypot(c.x - P.x, c.z - P.z) < 1.1) { const T = COIN_TYPES[c.type]; money += T.v; taken.set(c.id, clock); coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } }
+      if (Math.hypot(c.x - P.x, c.z - P.z) < (c.type >= 3 ? 0.9 : 1.1)) { const T = COIN_TYPES[c.type]; taken.set(c.id, clock);
+        if (T.k) { FR[T.k]++; showFruit(); try { localStorage.setItem('vorota_fruit', JSON.stringify(FR)); } catch (e) {} toast(T.k === 'rasp' ? `Малина <b style="color:#e0566b">+1</b>` : `${T.n} <b style="color:#cfe08a">+1</b>`); burst(0.08, 'bandpass', 1400, 1.2, 0.25); blip([T.k === 'rasp' ? 1568 : 784], 0.18, 'sine', 0.05); }
+        else { money += T.v; coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } } }
   } else if (!started) { P.yaw += dt * 0.02; }
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: 0, z: 0, y: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; crow(); } }
+  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if (GARDEN && Math.random() < 0.45) creak(); else crow(); } }
   autoQuality(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);
   ground.position.set(Math.round(P.x / (GS / GSEG)) * (GS / GSEG), 0, Math.round(P.z / (GS / GSEG)) * (GS / GSEG));

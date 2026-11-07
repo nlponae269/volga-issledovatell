@@ -80,8 +80,9 @@ function makePoplar(seed) {
   return { parts: [[M.bark, bark.build()], [M.leafPoplar, leaf.build()]], col: 0.3, h: H };
 }
 // ---------- лиственное полуголое дерево (вяз/ива) ----------
-function makeTree(seed, leafMat, leafAmt) {
-  const r = rng(seed), bark = new Bag(), leaf = new Bag(), bt = [0.75, 0.72, 0.68];
+function makeTree(seed, leafMat, leafAmt, o = {}) {
+  const r = rng(seed), bark = new Bag(), leaf = new Bag(), bt0 = o.bt || [0.75, 0.72, 0.68], wash = o.wash || 0;
+  const bt = wash ? (p) => (p.y < wash + Math.sin(Math.atan2(p.z, p.x) * 4) * 0.05 ? [3.0, 3.0, 2.85] : bt0) : bt0;
   const tips = [];
   function grow(p, d, len, rad, depth) {
     let cur = p.clone(), dd = d.clone(); const segs = depth > 2 ? 3 : 2;
@@ -93,19 +94,36 @@ function makeTree(seed, leafMat, leafAmt) {
     const n = depth > 3 ? 2 + (r() < 0.5 ? 1 : 0) : 2 + (r() < 0.6 ? 1 : 0);
     for (let k = 0; k < n; k++) {
       const ax = new V3().crossVectors(dd, new V3(r() - 0.5, r() - 0.5, r() - 0.5)).normalize(), ang = 0.35 + r() * 0.55;
-      const nd = dd.clone().applyAxisAngle(ax, ang); nd.y = lerp(nd.y, Math.abs(nd.y), 0.5); nd.normalize();
+      const nd = dd.clone().applyAxisAngle(ax, ang * (o.spread || 1)); nd.y = lerp(nd.y, Math.abs(nd.y), o.upk ?? 0.5); nd.normalize();
       grow(cur, nd, len * (0.66 + r() * 0.16), rad * (0.6 + r() * 0.08), depth - 1);
     }
   }
-  grow(new V3(0, 0, 0), new V3((r() - 0.5) * 0.15, 1, (r() - 0.5) * 0.15).normalize(), 2.6 + r() * 1.4, 0.26 + r() * 0.08, 5);
-  limb(bark, new V3(0, -0.3, 0), new V3(0, 0.4, 0), 0.42, 0.27, 8, bt);
+  const R0r = o.rad || (0.26 + r() * 0.08);
+  grow(new V3(0, 0, 0), new V3((r() - 0.5) * 0.15, 1, (r() - 0.5) * 0.15).normalize(), o.len || (2.6 + r() * 1.4), R0r, o.depth || 5);
+  limb(bark, new V3(0, -0.3, 0), new V3(0, 0.4, 0), R0r * 1.5, R0r, 8, bt);
   let top = 0; for (const [p] of tips) top = Math.max(top, p.y);
   const cen = new V3(0, top * 0.62, 0);
   for (const [p, d] of tips) { // тонкие прутья на концах
     limb(bark, p, p.clone().addScaledVector(d, 0.6 + r() * 0.6).add(new V3(0, -0.15, 0)), 0.01, 0.003, 3, bt);
-    if (r() < leafAmt) for (let k = 0; k < 1 + (r() * 3 | 0); k++) card(leaf, p.clone().add(new V3((r() - 0.5) * 0.9, (r() - 0.6) * 0.8, (r() - 0.5) * 0.9)), 0.9 + r() * 0.6, r, shade(0.6 + r() * 0.45), { c: cen, k: 0.7, up: 0.2, ys: 0.7 });
+    if (r() < leafAmt) for (let k = 0; k < (o.cards || 1) + (r() * 3 | 0); k++) card(leaf, p.clone().add(new V3((r() - 0.5) * 0.9, (r() - 0.6) * 0.8, (r() - 0.5) * 0.9)), (o.cs || 1) * (0.9 + r() * 0.6), r, shade(0.6 + r() * 0.45), { c: cen, k: 0.7, up: 0.2, ys: 0.7 });
+  }
+  if (o.fruit) { // плоды прямо в кроне (декор)
+    const fb = new Bag(), sp = new THREE.SphereGeometry(1, 8, 6);
+    for (const [p] of tips) if (r() < o.fruit) { _m.compose(p.clone().add(new V3((r() - 0.5) * 0.6, -0.2 - r() * 0.3, (r() - 0.5) * 0.6)), _q.identity(), new V3(o.fr, o.fr * 1.05, o.fr)); fb.add(sp, _m, o.fc(r)); }
+    const g = fb.build(); if (g) return { parts: [[M.bark, bark.build()], [leafMat, leaf.build()], [M.fruit, g]].filter((x) => x[1]), col: 0.22, h: top };
   }
   return { parts: [[M.bark, bark.build()], [leafMat, leaf.build()]].filter((x) => x[1]), col: 0.28, h: top };
+}
+// ---------- малинник: пучок тонких дуговых стеблей с листьями ----------
+function makeRasp(seed) {
+  const r = rng(seed), bark = new Bag(), leaf = new Bag(), bt = [0.62, 0.45, 0.38], cen = new V3(0, 0.8, 0);
+  for (let i = 0; i < 34; i++) {
+    const a = new V3((r() - 0.5) * 1.6, 0, (r() - 0.5) * 1.2), az = r() * 6.28, el = 0.05 + r() * 0.35, L = 1.1 + r() * 0.8;
+    let p = a, d = new V3(Math.sin(el) * Math.cos(az), Math.cos(el), Math.sin(el) * Math.sin(az));
+    for (let s = 0; s < 4; s++) { d.add(new V3(Math.cos(az) * 0.12, -0.09 * s, Math.sin(az) * 0.12)).normalize(); const nx = p.clone().addScaledVector(d, L / 4); limb(bark, p, nx, 0.009, 0.006, 3, bt);
+      if (s >= 1 && r() < 0.8) card(leaf, nx.clone().add(new V3((r() - 0.5) * 0.2, -0.05, (r() - 0.5) * 0.2)), 0.38 + r() * 0.2, r, shade(0.5 + 0.35 * r()), { c: cen, k: 0.6, up: 0.4 }); p = nx; }
+  }
+  return { parts: [[M.bark, bark.build()], [M.leafOlive, leaf.build()]], col: 0, h: 1.6 };
 }
 // ---------- большой осенний куст (как на фото) ----------
 function makeShrub(seed, leafMat, size) {
@@ -137,7 +155,19 @@ function makeSticks(seed) {
 }
 // Прототипы (строятся один раз, порциями, чтобы не подвешивать загрузку)
 const PROTO = {};
-const PROTO_JOBS = [
+const appleCol = (r) => { const t = r(); return t < 0.6 ? lin([0.62 + r() * 0.15, 0.12 + r() * 0.1, 0.07]) : t < 0.85 ? lin([0.75, 0.55, 0.15]) : lin([0.55, 0.62, 0.2]); };
+const PROTO_JOBS = GARDEN ? [
+  ['apple0', () => makeTree(201, M.leafOlive, 0.85, { len: 1.3, rad: 0.15, depth: 5, spread: 1.35, upk: 0.25, wash: 0.9, cards: 2, cs: 0.75, fruit: 0.45, fr: 0.045, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
+  ['apple1', () => makeTree(223, M.leafOlive, 0.75, { len: 1.1, rad: 0.13, depth: 5, spread: 1.5, upk: 0.2, wash: 0.8, cards: 2, cs: 0.7, fruit: 0.4, fr: 0.042, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
+  ['apple2', () => makeTree(247, M.leafAutumn, 0.6, { len: 1.4, rad: 0.16, depth: 5, spread: 1.3, upk: 0.3, wash: 1.0, cards: 2, cs: 0.75, fruit: 0.3, fr: 0.045, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
+  ['pear0', () => makeTree(263, M.leafAutumn, 0.7, { len: 2.2, rad: 0.17, depth: 5, spread: 0.85, upk: 0.65, wash: 1.0, cards: 2, cs: 0.7, fruit: 0.3, fr: 0.05, fc: (r) => lin([0.68, 0.64, 0.25 + r() * 0.1]), bt: [0.5, 0.47, 0.43] })],
+  ['plum0', () => makeTree(281, M.leafOlive, 0.7, { len: 1.2, rad: 0.1, depth: 4, spread: 1.1, upk: 0.45, cards: 2, cs: 0.6, fruit: 0.35, fr: 0.03, fc: () => lin([0.24, 0.12, 0.3]), bt: [0.45, 0.38, 0.36] })],
+  ['rasp0', () => makeRasp(301)], ['rasp1', () => makeRasp(317)],
+  ['poplar0', () => makePoplar(11)], ['poplar1', () => makePoplar(23)],
+  ['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)],
+  ['shrubY0', () => makeShrub(101, M.leafAutumn, 3.2)], ['shrubG0', () => makeShrub(127, M.leafOlive, 2.8)], ['shrubG1', () => makeShrub(139, M.leafOlive, 2.0)],
+  ['sticks0', () => makeSticks(151)], ['sticks1', () => makeSticks(163)],
+] : [
   ['poplar0', () => makePoplar(11)], ['poplar1', () => makePoplar(23)], ['poplar2', () => makePoplar(37)],
   ['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)], ['elm2', () => makeTree(83, M.leafOlive, 0.65)],
   ['shrubY0', () => makeShrub(101, M.leafAutumn, 3.2)], ['shrubY1', () => makeShrub(113, M.leafAutumn, 2.4)], ['shrubG0', () => makeShrub(127, M.leafOlive, 2.8)], ['shrubG1', () => makeShrub(139, M.leafOlive, 2.0)],

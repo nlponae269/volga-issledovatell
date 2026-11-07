@@ -60,6 +60,10 @@ groundMat.onBeforeCompile = (sh) => {
       float wet = smoothstep(0.66, 0.78, texture2D(tNoise, wp*0.06+0.5).a) * (1.0 - smoothstep(0.0, pw*0.9, dz)*0.6);
       pc = mix(pc, pc*vec3(0.6,0.56,0.52), wet*0.8);
       col = mix(col, pc, pm); gPath = pm;
+      float bd = bedM(wp);
+      vec3 soil = texture2D(tSand, wp/1.9 + 0.2).rgb * vec3(0.42,0.34,0.27) * (0.8 + 0.4*nC.g);
+      soil = mix(soil, lv*0.6, smoothstep(0.55,0.8,nC.b)*0.5);
+      col = mix(col, soil, bd);
       gRough = mix(1.0, mix(0.95, 0.62, wet), pm);
       // трасса и обочины
       float rz = wp.y - (${ROAD_C.toFixed(1)}), ar = abs(rz);
@@ -106,7 +110,7 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
         vec3 p = position * vec3(1.0, (0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens), 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
@@ -122,7 +126,7 @@ const grass = (() => {
 })();
 
 // ---------------- монеты ----------------
-const COIN_TYPES = [{ n: 'Монетка', v: 5 }, { n: 'Горстка монет', v: 50 }, { n: 'Слиток золота', v: 100 }];
+const COIN_TYPES = [{ n: 'Монетка', v: 5 }, { n: 'Горстка монет', v: 50 }, { n: 'Слиток золота', v: 100 }, { n: 'Яблоко', k: 'apple' }, { n: 'Груша', k: 'pear' }, { n: 'Слива', k: 'plum' }, { n: 'Малина', k: 'rasp' }];
 const goldMat = std({ color: 0xf2c25a, roughness: 0.22, metalness: 1, envMapIntensity: 1.6 });
 const coinMat = std({ color: 0xd9b46a, roughness: 0.3, metalness: 1, envMapIntensity: 1.4 });
 const coinGeo = new THREE.LatheGeometry([[0, -0.012], [0.11, -0.012], [0.125, -0.008], [0.125, 0.008], [0.11, 0.012], [0.1, 0.009], [0, 0.009]].map((p) => new THREE.Vector2(p[0], p[1])), 24);
@@ -131,10 +135,16 @@ function coinObj(type, r) {
   const g = new THREE.Group();
   if (type === 0) { const c = new THREE.Mesh(coinGeo, coinMat); c.rotation.x = Math.PI / 2; c.position.y = 0.35; g.add(c); }
   else if (type === 1) { for (let i = 0; i < 14; i++) { const c = new THREE.Mesh(coinGeo, coinMat); const a = r() * 6.28, d = r() * 0.16; c.position.set(Math.cos(a) * d, 0.012 + i * 0.012 * (1 - d * 3), Math.sin(a) * d); c.rotation.set((r() - 0.5) * 0.5, r() * 6, (r() - 0.5) * 0.5); g.add(c); } }
-  else { const b = new THREE.Mesh(barGeo, goldMat); b.rotation.y = r() * 6; g.add(b); }
+  else if (type === 2) { const b = new THREE.Mesh(barGeo, goldMat); b.rotation.y = r() * 6; g.add(b); }
+  else { const f = new THREE.Mesh(FRUIT_GEO[type], FRUIT_MAT[type]); f.rotation.set((r() - 0.5) * 2, r() * 6, (r() - 0.5) * 2); f.position.y = type === 6 ? 0 : 0.035; g.add(f);
+    if (type !== 6) { const st = new THREE.Mesh(stemGeo, stemMat); st.position.y = type === 4 ? 0.1 : 0.075; st.rotation.z = 0.3; f.add(st); } }
   g.traverse((o) => { o.castShadow = Q.shadows; }); return g;
 }
-const taken = new Map(), coinsLive = [], RESPAWN = 90;
+const FRUIT_GEO = { 3: new THREE.SphereGeometry(0.042, 14, 10).scale(1, 0.9, 1), 4: new THREE.LatheGeometry([[0, -0.045], [0.035, -0.04], [0.045, -0.015], [0.04, 0.015], [0.026, 0.045], [0.014, 0.075], [0, 0.085]].map((p) => new THREE.Vector2(p[0], p[1])), 14), 5: new THREE.SphereGeometry(0.03, 12, 9).scale(0.9, 1.1, 0.9), 6: (() => { const b = new Bag(), s = new THREE.IcosahedronGeometry(1, 0); for (let i = 0; i < 26; i++) { const a = i * 2.4, y = (i / 26 - 0.5) * 0.026; const rr = Math.sqrt(Math.max(0, 0.00018 - y * y)) + 0.002; _m.compose(new V3(Math.cos(a) * rr, y, Math.sin(a) * rr), _q.identity(), new V3(0.0055, 0.0055, 0.0055)); b.add(s, _m); } return b.build(); })() };
+const FRUIT_MAT = { 3: std({ color: 0xa8321e, roughness: 0.38 }), 4: std({ color: 0xa8a04a, roughness: 0.6 }), 5: std({ color: 0x3a1f48, roughness: 0.75 }), 6: std({ color: 0x9a1028, roughness: 0.45, emissive: 0x220006 }) };
+const stemGeo = new THREE.CylinderGeometry(0.003, 0.004, 0.03, 4), stemMat = std({ color: 0x4a3a24, roughness: 1 });
+const taken = new Map(), coinsLive = [], RESPAWN = GARDEN ? 150 : 90;
+function addFruit(group, type, x, y, z, id) { const o = coinObj(type, rng(id.length * 31 + (x * 1000 | 0))); o.position.set(x, y, z); group.add(o); coinsLive.push({ id, obj: o, type, x, z, y, group }); }
 function spawnCoins(group, r, x, z, ry, id) {
   const n = 3 + (r() * 4 | 0), c = Math.cos(ry), s = Math.sin(ry);
   for (let i = 0; i < n; i++) { const lx = (r() - 0.5) * 9, lz = 3.6 + r() * 4.0; const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c;
@@ -143,7 +153,63 @@ function spawnCoins(group, r, x, z, ry, id) {
 
 // ---------------- чанки ----------------
 const CS = 48, chunks = new Map(), colliders = new Map();
+function buildGardenChunk(cx, cz) {
+  const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x6a7d), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
+  const inst = new Map(), occ = [];
+  const inside = (z) => Math.abs(z) < FENCE - 1.2;
+  const free = (x, z, rad) => { if (x < x0 || x >= x1 || z < z0 || z >= z1) return false; if (Math.abs(z - pathC(x)) < 2.4 + rad) return false; if (Math.abs(Math.abs(z) - FENCE) < 1.0 + rad) return false;
+    for (const [dx, dz] of [[0, 0], [rad, 0], [-rad, 0], [0, rad], [0, -rad]]) if (bedM(x + dx, z + dz)) return false; for (const o of occ) if (Math.hypot(o[0] - x, o[1] - z) < o[2] + rad) return false; return true; };
+  const take = (x, z, rad) => occ.push([x, z, rad]);
+  const plant = (key, x, z, s = 1, rad) => { rad = rad ?? (PROTO[key].col ? 1.2 : 0.7); if (!free(x, z, rad)) return false; take(x, z, rad); const m = new THREE.Matrix4().compose(new V3(x, groundH(x, z) - 0.05, z), new THREE.Quaternion().setFromAxisAngle(UP, r() * 6.283), new V3(s, s * (0.9 + r() * 0.2), s)); (inst.get(key) || inst.set(key, []).get(key)).push(m); if (PROTO[key].col) b.cols.push({ x, z, hx: PROTO[key].col * s, hz: PROTO[key].col * s, c: 1, s: 0 }); return true; };
+  const pick = (a) => a[(r() * a.length) | 0];
+  let fid = 0; const fruitAround = (type, x, z, nGround, nHang, R, hy) => {
+    for (let i = 0; i < nGround; i++) { const a = r() * 6.28, d = 0.4 + r() * R, fx = x + Math.cos(a) * d, fz = z + Math.sin(a) * d; if (!bedM(fx, fz)) addFruit(group, type, fx, groundH(fx, fz) - 0.01, fz, `${cx},${cz},${fid++}`); }
+    for (let i = 0; i < nHang; i++) { const a = r() * 6.28, d = 0.5 + r() * R * 0.6, fx = x + Math.cos(a) * d, fz = z + Math.sin(a) * d; addFruit(group, type, fx, groundH(fx, fz) + hy[0] + r() * (hy[1] - hy[0]), fz, `${cx},${cz},${fid++}`); } };
+  // забор участка
+  for (const side of [-1, 1]) if (side * FENCE >= z0 && side * FENCE < z1) gardenFence(b, r, x0, x1, side, group);
+  // клетки 24×16: грядки или «хозяйство»
+  for (let i = Math.floor(x0 / 24); i < Math.ceil(x1 / 24); i++) for (let j = Math.floor(z0 / 16); j < Math.ceil(z1 / 16); j++) {
+    const cxm = i * 24, czm = j * 16, garden = ((((i * 7 + j * 3) % 5) + 5) % 5) < 2, rr = rng(i * 9176 + j * 131 + 7);
+    if (Math.abs(czm + 8) > FENCE + 30) continue;
+    if (Math.abs(czm + 8) > FENCE) { // за забором — соседские дома и деревья в тумане
+      const t = rr(); const hx = cxm + 12 + (rr() - 0.5) * 8, hz = czm + 8;
+      if (t < 0.4 && free(hx, hz, 6)) { house(b, rr, hx, hz, czm > 0 ? Math.PI : 0); take(hx, hz, 7); }
+      else if (t < 0.8) plant(pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'apple0']), cxm + rr() * 24, czm + rr() * 16, 0.9 + rr() * 0.3);
+      continue;
+    }
+    if (garden) { // ряды грядок
+      for (let k = 0; k < 6; k++) { const bz0 = czm + 1.5 + k * 2.2, bz1 = bz0 + 1.3; if (!bedM(cxm + 12, bz0 + 0.65)) continue; let a = cxm + 2, e = cxm + 22;
+        // рамку режем по тропе/забору: проверяем концы
+        while (a < e && !bedM(a + 0.1, bz0 + 0.65)) a += 0.5; while (e > a && !bedM(e - 0.1, bz0 + 0.65)) e -= 0.5; if (e - a > 1) bedFrame(b, rr, a, e, bz0, bz1); }
+      if (rr() < 0.5) { const bx = cxm + 1, bz = czm + 0.6; if (free(bx, bz, 0.4)) { barrel(b, rr, bx, bz); take(bx, bz, 0.5); } }
+      if (rr() < 0.4) bucket(b, rr, cxm + 23, czm + 15);
+      continue;
+    }
+    // хозяйство: сад, постройки, малинник (редко)
+    const t = rr(), mx = cxm + 12, mz = czm + 8;
+    if (t < 0.42) { // яблоневый сад
+      for (let k = 0; k < 4; k++) { const tx = cxm + 4 + (k % 2) * 12 + (rr() - 0.5) * 3, tz = czm + 4 + Math.floor(k / 2) * 8 + (rr() - 0.5) * 2; const key = pick(['apple0', 'apple1', 'apple2', 'apple0', 'pear0', 'plum0']);
+        if (plant(key, tx, tz, 0.9 + rr() * 0.25, 1.8)) { const ty = key === 'pear0' ? 4 : key === 'plum0' ? 5 : 3; fruitAround(ty, tx, tz, 2 + (rr() * 5 | 0), 1 + (rr() * 3 | 0), 2.2, ty === 4 ? [2.0, 2.6] : [1.55, 2.2]); } }
+    } else if (t < 0.55) { if (free(mx, mz, 4)) { greenhouse(b, rr, mx, mz, (rr() < 0.5 ? 0 : Math.PI / 2)); take(mx, mz, 4.5); } }
+    else if (t < 0.66) { if (free(mx, mz, 3)) { shedWood(b, rr, mx, mz, (rr() * 4 | 0) * Math.PI / 2); take(mx, mz, 3); } if (free(mx + 6, mz + 3, 1.3)) { compost(b, rr, mx + 6, mz + 3); take(mx + 6, mz + 3, 1.3); } }
+    else if (t < 0.74) { if (free(mx, mz, 1.2)) { outhouse(b, rr, mx, mz, (rr() * 4 | 0) * Math.PI / 2); take(mx, mz, 1.2); } if (free(mx - 6, mz, 1.3)) { tableSet(b, rr, mx - 6, mz); take(mx - 6, mz, 1.3); } }
+    else if (t < 0.8) { if (free(mx, mz, 7)) { house(b, rr, mx, mz, (rr() * 4 | 0) * Math.PI / 2); take(mx, mz, 7); yardBits(b, rr, mx + 3, mz + 6); } }
+    else if (t < 0.86) { // малинник — редкость, 8 ягод
+      const rx = mx + (rr() - 0.5) * 6, rz = mz + (rr() - 0.5) * 4; if (plant(pick(['rasp0', 'rasp1']), rx, rz, 1, 1.4)) for (let k = 0; k < 8; k++) { const a = rr() * 6.28, d = 0.2 + rr() * 0.7; addFruit(group, 6, rx + Math.cos(a) * d * 1.1, groundH(rx, rz) + 0.55 + rr() * 0.6, rz + Math.sin(a) * d * 0.8, `${cx},${cz},r${k},${i},${j}`); } }
+    else { for (let k = 0; k < 3; k++) plant(pick(['shrubY0', 'shrubG0', 'shrubG1', 'sticks0', 'elm1']), cxm + rr() * 24, czm + rr() * 16, 0.8 + rr() * 0.4); }
+    for (let k = 0; k < 2; k++) { const bx = cxm + rr() * 24, bz = czm + rr() * 16; if (rr() < 0.4 && free(bx, bz, 0.4)) { (rr() < 0.5 ? barrel : bucket)(b, rr, bx, bz); take(bx, bz, 0.5); } }
+  }
+  // кусты и прутняки вдоль тропы
+  for (let i = 0; i < 6; i++) { const x = x0 + r() * CS, z = pathC(x) + (r() < 0.5 ? -1 : 1) * (3.3 + r() * 2); if (z >= z0 && z < z1 && inside(z)) plant(pick(['sticks0', 'sticks1', 'shrubG1']), x, z, 0.7 + r() * 0.4); }
+  // доски-мостки на тропе
+  for (let i = 0; i < 3; i++) { const x = x0 + r() * CS, z = pathC(x); if (z >= z0 && z < z1 && r() < 0.5) for (let k = 0; k < 4; k++) b.box(M.plank, x + k * 0.32, groundH(x, z) + 0.02, z + (r() - 0.5) * 0.3, 0.26, 0.03, 1.4, shade(0.6 + r() * 0.3), 0, (r() - 0.5) * 0.1, 0); }
+  b.build(group);
+  for (const [key, ms] of inst) for (const [mat, geo] of PROTO[key].parts) { const im = new THREE.InstancedMesh(geo, mat, ms.length); ms.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = Q.shadows; im.receiveShadow = true; im.computeBoundingSphere(); group.add(im); }
+  scene.add(group);
+  return { group, cols: b.cols };
+}
 function buildChunk(cx, cz) {
+  if (GARDEN) return buildGardenChunk(cx, cz);
   const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x7a11), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
   const inst = new Map(), occ = [];
   const free = (x, z, rad) => { if (x < x0 || x >= x1 || z < z0 || z >= z1) return false; if (Math.abs(z - pathC(x)) < 2.6 + rad) return false; if (Math.abs(z - ROAD_C) < ROAD_HW + 2.4 + rad) return false; for (const o of occ) if (Math.hypot(o[0] - x, o[1] - z) < o[2] + rad) return false; return true; };

@@ -153,3 +153,82 @@ function yardBits(b, r, x, z) {
 }
 // ограждение трассы (решётка)
 function roadFence(b, x0, x1, z) { for (let x = Math.ceil(x0 / 2.5) * 2.5; x < x1; x += 2.5) { const y = groundH(x + 1.25, z); b.add(M.lattice, new THREE.PlaneGeometry(2.5, 1.2), new THREE.Matrix4().makeTranslation(x + 1.25, y + 0.62, z)); b.box(M.metal, x, y + 0.6, z, 0.07, 1.25, 0.07, PAINT.galv); b.cyl(M.metal, x, y + 1.25, z, 0.05, 0.05, 0.06, 6, PAINT.galv); } }
+
+// ===================== «ВОРОТА»: дачный участок =====================
+const SOIL = lin([0.3, 0.24, 0.18]);
+// рамка грядки из старых досок + остатки ботвы
+function bedFrame(b, r, x0, x1, z0, z1) {
+  const y = (x, z) => groundH(x, z);
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, L = x1 - x0, W = z1 - z0, c = shade(0.7 + r() * 0.3);
+  b.box(M.plank, cx, y(cx, z0) + 0.1, z0, L, 0.2, 0.04, c); b.box(M.plank, cx, y(cx, z1) + 0.1, z1, L, 0.2, 0.04, c);
+  b.box(M.plank, x0, y(x0, cz) + 0.1, cz, 0.04, 0.2, W, c); b.box(M.plank, x1, y(x1, cz) + 0.1, cz, 0.04, 0.2, W, c);
+  const kind = r();
+  if (kind < 0.45) { // сухая ботва
+    for (let i = 0; i < 18; i++) { const px = x0 + 0.3 + r() * (L - 0.6), pz = z0 + 0.2 + r() * (W - 0.4); _e.set((r() - 0.5) * 1.2, r() * 6, (r() - 0.5) * 1.2); _q.setFromEuler(_e); const s = 0.35 + r() * 0.3; b.add(M.leafAutumn, CARD, new THREE.Matrix4().compose(new V3(px, y(px, pz) - 0.05, pz), _q, new V3(s, s, s)), shade(0.55 + r() * 0.3)); }
+  } else if (kind < 0.7) { // колышки от помидоров
+    for (let px = x0 + 0.5; px < x1 - 0.3; px += 0.8 + r() * 0.4) { const h = 0.8 + r() * 0.5; b.box(M.plank, px, y(px, cz) + h / 2, cz + (r() - 0.5) * 0.3, 0.035, h, 0.035, shade(0.8), (r() - 0.5) * 0.15, 0, (r() - 0.5) * 0.15); }
+  } else if (kind < 0.85) { // капуста-кочерыжки
+    for (let px = x0 + 0.5; px < x1 - 0.3; px += 0.7) { const pz = cz + (r() - 0.5) * 0.4; b.geo(M.leafOlive, new THREE.IcosahedronGeometry(0.16, 0), px, y(px, pz) + 0.12, pz, r(), r(), r(), 1, shade(0.55, [0.8, 1, 0.75])); }
+  }
+}
+// парник/теплица из дуг и рваной плёнки
+function greenhouse(b, r, x, z, ry) {
+  const L = 6 + (r() * 3 | 0) * 1.5, R = 1.6;
+  b.push(x, groundH(x, z), z, ry);
+  for (let i = 0; i <= L / 1.5; i++) { const px = -L / 2 + i * 1.5; let prev = null; for (let k = 0; k <= 10; k++) { const a = Math.PI * k / 10, p = new V3(px, Math.sin(a) * R * 1.25, Math.cos(a) * R); if (prev) b.pipe(M.metal, prev, p, 0.02, PAINT.galv); prev = p; } }
+  b.pipe(M.metal, new V3(-L / 2, R * 1.25, 0), new V3(L / 2, R * 1.25, 0), 0.02, PAINT.galv);
+  const seg = 12; for (let k = 0; k < seg; k++) { const a0 = Math.PI * k / seg, a1 = Math.PI * (k + 1) / seg; if (r() < 0.18) continue; const p0 = new V3(0, Math.sin(a0) * R * 1.25, Math.cos(a0) * R), p1 = new V3(0, Math.sin(a1) * R * 1.25, Math.cos(a1) * R); const mid = p0.clone().add(p1).multiplyScalar(0.5), w = p0.distanceTo(p1);
+    const g = new THREE.PlaneGeometry(L * (0.6 + r() * 0.4), w + 0.02); _q.setFromUnitVectors(new V3(0, 1, 0), p1.clone().sub(p0).normalize()); const q2 = new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), 0); b.add(M.film, g, new THREE.Matrix4().compose(mid, _q.multiply(q2), new V3(1, 1, 1))); }
+  for (let i = 0; i < 2; i++) b.box(M.plank, 0, 0.1, (i ? 1 : -1) * 0.7, L - 0.4, 0.2, 0.04, shade(0.8));
+  b.collide(0, 0, L / 2, R);
+  b.pop();
+}
+// сарай из досок с шиферной крышей
+function shedWood(b, r, x, z, ry) {
+  const W = 3 + r() * 2, D = 2.5 + r(), H = 2.2;
+  b.push(x, groundH(x, z), z, ry);
+  b.box(M.plank, 0, H / 2, 0, W, H, D, shade(0.75 + r() * 0.3));
+  b.box(M.slate, 0, H + 0.25, 0, W + 0.5, 0.03, D + 0.6, shade(0.7 + r() * 0.3), 0.18);
+  b.box(M.plank, -W / 4, 0.95, D / 2 + 0.03, 0.85, 1.9, 0.05, shade(0.6)); b.box(M.metal, -W / 4 + 0.32, 1.0, D / 2 + 0.07, 0.04, 0.12, 0.04, PAINT.rust);
+  b.box(M.glass, W / 4, 1.5, D / 2 + 0.02, 0.5, 0.4, 0.02); b.box(M.plank, W / 4, 1.5, D / 2 + 0.03, 0.6, 0.05, 0.03, shade(0.6));
+  b.collide(0, 0, W / 2 + 0.1, D / 2 + 0.1);
+  b.pop();
+}
+// дачный туалет
+function outhouse(b, r, x, z, ry) {
+  b.push(x, groundH(x, z), z, ry);
+  b.box(M.plank, 0, 1.05, 0, 1.0, 2.1, 1.1, shade(0.75 + r() * 0.2)); b.box(M.slate, 0, 2.22, -0.05, 1.3, 0.03, 1.4, shade(0.8), -0.12);
+  b.box(M.plank, 0, 1.0, 0.57, 0.8, 1.9, 0.04, shade(0.65)); b.box(M.paint, 0, 1.75, 0.6, 0.12, 0.12, 0.02, PAINT.dark); b.box(M.metal, 0.3, 1.0, 0.61, 0.03, 0.1, 0.03, PAINT.rust);
+  b.collide(0, 0, 0.6, 0.65);
+  b.pop();
+}
+// бочки: синяя пластиковая и ржавая железная
+function barrel(b, r, x, z) { const y = groundH(x, z), rust = r() < 0.5; b.cyl(rust ? M.metal : M.paint, x, y + 0.45, z, 0.3, 0.3, 0.9, 14, rust ? lin([0.4, 0.25, 0.16]) : lin([0.2, 0.36, 0.62])); b.cyl(M.paint, x, y + 0.86, z, 0.27, 0.27, 0.02, 14, lin([0.08, 0.08, 0.09])); b.collide(x, z, 0.3, 0.3); }
+// компостная куча в ящике
+function compost(b, r, x, z) { const y = groundH(x, z); for (let i = 0; i < 4; i++) b.box(M.plank, x, y + 0.15 + i * 0.22, z - 0.8, 1.8, 0.18, 0.04, shade(0.6)); b.box(M.plank, x - 0.9, y + 0.45, z, 0.04, 0.9, 1.6, shade(0.6)); b.box(M.plank, x + 0.9, y + 0.45, z, 0.04, 0.9, 1.6, shade(0.6));
+  for (let i = 0; i < 14; i++) { const px = x + (r() - 0.5) * 1.5, pz = z + (r() - 0.5) * 1.4; _e.set(-1.3 + r() * 0.5, r() * 6, 0); _q.setFromEuler(_e); b.add(M.leafAutumn, CARD, new THREE.Matrix4().compose(new V3(px, y + 0.3 + r() * 0.3, pz), _q, new V3(0.7, 0.7, 0.7)), shade(0.45 + r() * 0.3)); } b.collide(x, z, 0.95, 0.85); }
+// стол со скамейкой, вёдра
+function tableSet(b, r, x, z) { const y = groundH(x, z); b.box(M.plank, x, y + 0.75, z, 1.6, 0.05, 0.8, shade(0.8)); for (const sx of [-0.7, 0.7]) b.box(M.plank, x + sx, y + 0.37, z, 0.06, 0.75, 0.7, shade(0.7));
+  for (const sz of [-0.75, 0.75]) b.box(M.plank, x, y + 0.42, z + sz, 1.5, 0.04, 0.3, shade(0.75)); if (r() < 0.6) b.cyl(M.metal, x + 0.3, y + 0.9, z, 0.13, 0.11, 0.26, 12, PAINT.galv); b.collide(x, z, 0.85, 1.0); }
+function bucket(b, r, x, z) { const y = groundH(x, z); b.cyl(M.metal, x, y + 0.14, z, 0.11, 0.14, 0.28, 12, r() < 0.5 ? PAINT.galv : lin([0.5, 0.15, 0.12]), r() < 0.3 ? 1.4 : 0, 0); }
+// забор участка: старый штакетник или профнастил, бесконечно
+const ARROW_MATS = ['ВОРОТА →', 'К ВОРОТАМ →', 'ВОРОТА ДАЛЬШЕ →', 'ВОРОТА →'].map((t) => new THREE.MeshStandardMaterial({ roughness: 0.9, map: texFrom(mkCanvas(512, 160, (g, w, h) => {
+  g.fillStyle = '#7b7364'; g.fillRect(0, 0, w, h); for (let i = 0; i < 4; i++) { g.fillStyle = `rgba(0,0,0,${0.1 + Math.random() * 0.1})`; g.fillRect(0, i * 40 + 38, w, 3); }
+  for (let k = 0; k < 1500; k++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '40,35,30' : '200,190,170'},${Math.random() * 0.15})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 6); }
+  g.fillStyle = 'rgba(235,232,220,0.92)'; g.font = 'bold 70px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, w / 2, h / 2 + 4);
+  for (let k = 0; k < 60; k++) { g.fillStyle = 'rgba(120,110,95,0.8)'; g.fillRect(Math.random() * w, Math.random() * h, 3 + Math.random() * 10, 2 + Math.random() * 5); }
+})) }));
+function gardenFence(b, r, x0, x1, side, group) {
+  const z = side * FENCE, kind = ihash(Math.floor(x0 / 48), side, 9) < 0.55 ? 'picket' : 'prof';
+  for (let x = Math.ceil(x0 / 2.5) * 2.5; x < x1; x += 2.5) {
+    const y = groundH(x, z), lean = (ihash(x | 0, side) - 0.5) * 0.06;
+    if (kind === 'picket') {
+      b.box(M.plank, x, y + 0.9, z, 0.09, 1.8, 0.09, shade(0.6)); for (const hy of [0.45, 1.35]) b.box(M.plank, x + 1.25, y + hy, z + side * 0.07, 2.5, 0.08, 0.035, shade(0.65));
+      for (let k = 0; k < 9; k++) { if (ihash(x * 10 + k | 0, 3) < 0.05) continue; const px = x + 0.15 + k * 0.27, hh = 1.55 + ihash(px * 100 | 0, 5) * 0.12; b.box(M.plank, px, y + hh / 2 + 0.05, z + side * 0.1, 0.1, hh, 0.02, shade(0.6 + ihash(px * 50 | 0, 7) * 0.35), lean, 0, (ihash(px * 70 | 0, 1) - 0.5) * 0.05); }
+    } else { b.box(M.metal, x, y + 1.0, z, 0.06, 2.0, 0.06, PAINT.rust); b.box(M.prof, x + 1.25, y + 1.0, z + side * 0.04, 2.5, 1.85, 0.03, lin([0.3, 0.42, 0.35]), lean * 0.5); }
+  }
+  b.cols.push({ x: (x0 + x1) / 2, z, hx: (x1 - x0) / 2, hz: 0.4, c: 1, s: 0 });
+  if (ihash(Math.floor(x0 / 48), side, 33) < 0.4) { const sx = x0 + 10 + ihash(Math.floor(x0 / 48), side, 2) * 28, y = groundH(sx, z);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.34), ARROW_MATS[(ihash(Math.floor(x0 / 48), side, 5) * 4) | 0]); sign.position.set(sx, y + 1.25, z - side * 0.14); if (side > 0) sign.rotation.y = Math.PI; else sign.rotation.y = 0;
+    sign.rotation.z = (ihash(sx | 0, 4) - 0.5) * 0.08; group.add(sign); }
+}
