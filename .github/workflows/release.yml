@@ -1,0 +1,19 @@
+name: Release trailer
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: "Тишина — трейлер"
+          body: |
+            Трейлер игры «Тишина» (Волга, атмосферный хоррор без монстров).
+            Играть в браузере: https://nlponae269.github.io/volga-issledovatell/
+          files: trailer/tishina-trailer.mp4
