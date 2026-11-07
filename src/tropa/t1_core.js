@@ -5,7 +5,9 @@ const Q = {
   shadows: !MOBILE, ssao: !MOBILE, grass: MOBILE ? 9000 : 34000, R: MOBILE ? 1 : 2,
   pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 1.5), msaa: MOBILE ? 0 : 4, fogSteps: MOBILE ? 5 : 9,
 };
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+const TEST = location.hash.includes('test');
+if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
 renderer.setPixelRatio(Q.pr);
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.shadowMap.enabled = Q.shadows; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -96,11 +98,10 @@ const sandH = mkCanvas(1024, 1024, (g, w, h) => {
 });
 TX.sandN = texFrom(normalFromHeight(sandH, 3.5), false);
 TX.sand = texFrom(mkCanvas(1024, 1024, (g, w, h) => {
-  g.fillStyle = '#b7a687'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#c4b08c'; g.fillRect(0, 0, w, h);
   for (let i = 0; i < 400; i++) { const x = R0() * w, y = R0() * h, s = 30 + R0() * 120; wrapDraw(g, w, h, x, y, s, (X, Y) => { const gr = g.createRadialGradient(X, Y, 0, X, Y, s); const c = ['rgba(150,135,108,', 'rgba(200,188,160,', 'rgba(120,108,88,', 'rgba(176,160,128,'][i % 4]; gr.addColorStop(0, c + '0.5)'); gr.addColorStop(1, c + '0)'); g.fillStyle = gr; g.fillRect(X - s, Y - s, s * 2, s * 2); }); }
-  g.globalCompositeOperation = 'multiply'; g.drawImage(sandH, 0, 0); g.globalCompositeOperation = 'source-over';
-  g.globalAlpha = 0.25; g.drawImage(sandH, 0, 0); g.globalAlpha = 1;
-  for (let i = 0; i < 1400; i++) { const x = R0() * w, y = R0() * h, s = 1.5 + R0() * 5; const v = R0(); g.fillStyle = v < 0.5 ? `rgba(${120 + R0() * 60 | 0},${110 + R0() * 50 | 0},${95 + R0() * 40 | 0},1)` : `rgba(${200 + R0() * 40 | 0},${190 + R0() * 40 | 0},${170 + R0() * 40 | 0},1)`; g.beginPath(); g.ellipse(x, y, s, s * 0.7, R0() * 3, 0, 6.28); g.fill(); }
+  g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.45; g.drawImage(sandH, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < 1400; i++) { const x = R0() * w, y = R0() * h, s = 1.5 + R0() * 5; const v = R0(); g.fillStyle = v < 0.5 ? `rgba(${130 + R0() * 50 | 0},${118 + R0() * 45 | 0},${98 + R0() * 35 | 0},0.7)` : `rgba(${196 + R0() * 25 | 0},${184 + R0() * 25 | 0},${160 + R0() * 25 | 0},0.6)`; g.beginPath(); g.ellipse(x, y, s, s * 0.7, R0() * 3, 0, 6.28); g.fill(); }
 }));
 // асфальт
 const asphH = mkCanvas(512, 512, (g, w, h) => {
@@ -189,8 +190,8 @@ TX.blades = texFrom(mkCanvas(256, 256, (g, w, h) => {
 // решётка пешеходного ограждения (секция 2.5 м)
 TX.lattice = texFrom(mkCanvas(512, 256, (g, w, h) => {
   g.clearRect(0, 0, w, h); g.strokeStyle = '#fff'; g.lineCap = 'square';
-  g.lineWidth = 9; g.strokeRect(4, 8, w - 8, h - 30); g.lineWidth = 4;
-  for (let x = -h; x < w + h; x += 40) { g.beginPath(); g.moveTo(x, 8); g.lineTo(x + (h - 30), h - 22); g.stroke(); g.beginPath(); g.moveTo(x + (h - 30), 8); g.lineTo(x, h - 22); g.stroke(); }
+  g.lineWidth = 8; g.strokeRect(4, 8, w - 8, h - 30); g.lineWidth = 2.5;
+  for (let x = -h; x < w + h; x += 22) { g.beginPath(); g.moveTo(x, 8); g.lineTo(x + (h - 30), h - 22); g.stroke(); g.beginPath(); g.moveTo(x + (h - 30), 8); g.lineTo(x, h - 22); g.stroke(); }
   g.fillStyle = '#fff'; g.fillRect(0, h - 26, 14, 26); g.fillRect(w - 14, h - 26, 14, 26);
 }));
 // сетка-рабица
@@ -232,7 +233,7 @@ const M = {
   metal: std({ vertexColors: true, roughness: 0.42, metalness: 0.85 }),
   glass: std({ color: 0x0c1014, roughness: 0.06, metalness: 0.9, envMapIntensity: 1.4 }),
   rubber: std({ color: 0x1a1a1a, roughness: 0.9 }),
-  lattice: std({ map: TX.lattice, alphaTest: 0.5, side: THREE.DoubleSide, color: 0x8c9093, roughness: 0.45, metalness: 0.75 }),
+  lattice: std({ map: TX.lattice, alphaTest: 0.5, side: THREE.DoubleSide, color: 0xb4b8bb, roughness: 0.4, metalness: 0.7 }),
   chain: rep(std({ map: TX.chain, alphaTest: 0.5, side: THREE.DoubleSide, color: 0x7c7f80, roughness: 0.5, metalness: 0.7 }), 0.45, 0.45),
   wire: new THREE.LineBasicMaterial({ color: 0x1d1d1d }),
 };

@@ -64,9 +64,9 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, dens: { value: 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
-  const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
+  const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
     float h12(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
     vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }
@@ -79,7 +79,7 @@ const post = (() => {
       vec2 uv=vUv, dc=uv-0.5;
       vec3 col=texture2D(tC,uv).rgb;
       float rd=texture2D(tD,uv).x; bool isSky = rd > 0.99999;
-      ${Q.ssao ? `if(!isSky){ float d0=lz(rd); float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(22.0/d0,0.35,3.0);
+      ${!MOBILE ? `if(!isSky && aoOn > 0.5){ float d0=lz(rd); float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(22.0/d0,0.35,3.0);
         for(int i=0;i<10;i++){ float fi=float(i); float a=rn+fi*2.39996; vec2 o=vec2(cos(a),sin(a))*(3.0+fi*2.2)*sc/res;
           float d=lz(texture2D(tD,uv+o).x); float df=d0-d; ao+=smoothstep(0.02,0.5+d0*0.02,df)*(1.0-smoothstep(1.2,3.5+d0*0.05,df)); }
         col*=1.0-0.6*ao/10.0; }` : ''}
@@ -212,8 +212,22 @@ function placeCamera() {
   camera.position.set(P.x + Math.cos(P.yaw) * Math.sin(bob * 0.5) * 0.025 * bobA, gy + P.y + 1.66 + Math.abs(Math.sin(bob * 0.5)) * 0.055 * bobA - 0.02 + Math.sin(clock * 0.9) * 0.006, P.z - Math.sin(P.yaw) * Math.sin(bob * 0.5) * 0.025 * bobA);
   camera.rotation.set(P.pitch + Math.sin(clock * 0.7) * 0.003, P.yaw + Math.sin(clock * 0.45) * 0.002, Math.sin(bob * 0.5) * 0.004 * bobA, 'YXZ');
 }
+// автоподстройка качества под устройство
+const AQ = { t: 0, n: 0, acc: 0, level: 0 };
+function autoQuality(dt) {
+  if (TEST || !started || AQ.level >= 4) return;
+  AQ.t += dt; if (AQ.t < 1.5) return; AQ.acc += dt; AQ.n++;
+  if (AQ.acc < 2.5) return;
+  const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;
+  if (fps > 40) { if (AQ.t > 12) AQ.level = 4; return; }
+  AQ.level++;
+  if (AQ.level === 1 && Q.shadows) { Q.shadows = false; sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
+  else if (AQ.level <= 2) { post.U.aoOn.value = 0; renderer.setPixelRatio(Math.max(0.7, renderer.getPixelRatio() * 0.75)); resize(); }
+  else if (AQ.level === 3) { Q.R = 1; grass.mesh.geometry.instanceCount = Math.floor(Q.grass * 0.5); }
+  else { renderer.setPixelRatio(Math.max(0.6, renderer.getPixelRatio() * 0.8)); resize(); }
+}
 function frame(now) {
-  requestAnimationFrame(frame);
+  if (!TEST) requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt; SHARED.uTime.value = clock;
   gust = clamp(0.5 + 0.5 * Math.sin(clock * 0.21) * Math.sin(clock * 0.53 + 1) + 0.25 * Math.sin(clock * 1.7), 0, 1);
   if (started && !dead) {
@@ -235,6 +249,7 @@ function frame(now) {
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: 0, z: 0, y: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
   if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; crow(); } }
+  autoQuality(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);
   ground.position.set(Math.round(P.x / (GS / GSEG)) * (GS / GSEG), 0, Math.round(P.z / (GS / GSEG)) * (GS / GSEG));
   placeCamera(); grass.update(camera.position);
@@ -254,4 +269,4 @@ function loadStep() {
 $('play').disabled = true; setTimeout(loadStep, 30);
 $('play').onclick = () => { started = true; $('start').style.display = 'none'; if (!AC) initAudio(); if (AC && AC.state === 'suspended') AC.resume(); if (!MOBILE) renderer.domElement.requestPointerLock(); };
 $('back').onclick = () => { location.href = 'index.html'; };
-window.__tropa = { P, tp(x, z, yaw, pitch) { P.x = x; P.z = z; if (yaw !== undefined) P.yaw = yaw; if (pitch !== undefined) P.pitch = pitch; }, start() { $('play').onclick(); }, money: () => money, coins: () => coinsLive.map((c) => [c.x, c.z, c.type]), ready: () => !$('play').disabled, post, Q, flush() { updateChunks(P.x, P.z, true); } };
+window.__tropa = { cars, P, tp(x, z, yaw, pitch) { P.x = x; P.z = z; if (yaw !== undefined) P.yaw = yaw; if (pitch !== undefined) P.pitch = pitch; }, start() { $('play').onclick(); }, money: () => money, coins: () => coinsLive.map((c) => [c.x, c.z, c.type]), ready: () => !$('play').disabled, post, Q, flush() { updateChunks(P.x, P.z, true); }, step(n = 1, dtms = 33) { const t0 = performance.now(); for (let i = 0; i < n; i++) { last = performance.now() - dtms; frame(performance.now()); } renderer.getContext().finish(); return performance.now() - t0; }, stats() { let tv = 0, iv = 0, meshes = 0; scene.traverse((o) => { if (o.isMesh && o.visible) { meshes++; const n = o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; if (o.isInstancedMesh) iv += n * o.count; else tv += n; } }); const pr = {}; for (const k in PROTO) pr[k] = PROTO[k].parts.map((x) => x[1].index.count / 3); return { tris: tv, instTris: iv, meshes, calls: renderer.info.render.calls, mem: renderer.info.memory, heap: performance.memory && performance.memory.usedJSHeapSize / 1e6, pr }; }, info() { renderer.info.autoReset = false; renderer.info.reset(); post.render(clock); return { calls: renderer.info.render.calls, tri: renderer.info.render.triangles, cam: camera.position.toArray().map((v) => +v.toFixed(2)).concat([P.speed, P.dx, P.dz, P.y]) }; }, shot() { return renderer.domElement.toDataURL('image/jpeg', 0.9); } };

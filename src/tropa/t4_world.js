@@ -34,10 +34,10 @@ const groundMat = std({ map: TX.grass, normalMap: TX.leavesN, normalScale: new T
 groundMat.onBeforeCompile = (sh) => {
   Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tNoise: { value: TX.noise } });
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW;\n' + GLSL_WORLD)
-    .replace('#include <beginnormal_vertex>', `vec3 wp0 = (modelMatrix*vec4(position,1.0)).xyz; float h0 = groundH(wp0.xz);
+    .replace('#include <beginnormal_vertex>', `
        vec3 objectNormal = normalize(vec3(h0-groundH(wp0.xz+vec2(0.5,0.0)), 0.5, h0-groundH(wp0.xz+vec2(0.0,0.5))));`)
     .replace('#include <begin_vertex>', 'vec3 transformed = vec3(position.x, h0, position.z); vW = vec3(wp0.x, h0, wp0.z);')
-    .replace('#include <uv_vertex>', '#include <uv_vertex>\n vMapUv = wp0.xz; vNormalMapUv = wp0.xz/2.0;');
+    .replace('#include <uv_vertex>', '#include <uv_vertex>\n vec3 wp0 = (modelMatrix*vec4(position,1.0)).xyz; float h0 = groundH(wp0.xz); vMapUv = wp0.xz; vNormalMapUv = wp0.xz/2.0;');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
     varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tNoise; float gRough = 1.0; float gPath = 0.0;\n` + GLSL_WORLD)
     .replace('#include <map_fragment>', `
@@ -54,11 +54,11 @@ groundMat.onBeforeCompile = (sh) => {
       float dz = abs(wp.y - pathC(wp.x));
       float pw = 1.75 + (nB.b - 0.5)*0.9 + (nC.r - 0.5)*0.35;
       float pm = 1.0 - smoothstep(pw - 0.45, pw + 0.3, dz);
-      vec3 sd = texture2D(tSand, wp/2.3).rgb;
+      vec3 sd = texture2D(tSand, wp/2.3).rgb * vec3(1.3,1.24,1.15);
       float lp = smoothstep(0.5, 0.85, nC.b*0.65 + nA.a*0.5) * (0.25 + 0.75*smoothstep(0.3, 1.0, dz/pw));
       vec3 pc = mix(sd, lv*0.95, lp*0.8);
-      float wet = smoothstep(0.6, 0.74, texture2D(tNoise, wp*0.06+0.5).a) * (1.0 - smoothstep(0.0, pw*0.9, dz)*0.6);
-      pc = mix(pc, pc*vec3(0.55,0.5,0.47), wet);
+      float wet = smoothstep(0.66, 0.78, texture2D(tNoise, wp*0.06+0.5).a) * (1.0 - smoothstep(0.0, pw*0.9, dz)*0.6);
+      pc = mix(pc, pc*vec3(0.6,0.56,0.52), wet*0.8);
       col = mix(col, pc, pm); gPath = pm;
       gRough = mix(1.0, mix(0.95, 0.62, wet), pm);
       // трасса и обочины
@@ -105,10 +105,10 @@ const grass = (() => {
         float pathM = smoothstep(1.3, 2.5 + 0.6*nz.b, dz);
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
-        float dens = smoothstep(0.2, 0.55, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = aI.w * pathM * roadM * fade * (0.35 + 0.9*dens);
+        float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
+        float s = aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
-        vec3 p = position * vec3(1.0, 1.0 + nz.a, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
+        vec3 p = position * vec3(1.0, (0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens), 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
         p.x += w; p.z += w*0.5;
         vec3 transformed = vec3(bp.x, groundH(bp), bp.y) + p;
