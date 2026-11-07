@@ -258,7 +258,7 @@ function frame(now) {
       if (c.type === 0) { c.obj.children[0].rotation.z += dt * 2.2; c.obj.children[0].position.y = 0.35 + Math.sin(clock * 2 + i) * 0.04; }
       if (c.fy !== undefined && Math.abs(c.fy - P.y) > 1.3) continue;
       if (Math.hypot(c.x - P.x, c.z - P.z) < (c.type >= 3 ? 0.9 : 1.1)) { const T = COIN_TYPES[c.type]; taken.set(c.id, clock);
-        if (T.k === 'trash') { TRASHN++; if ($('f_trash')) $('f_trash').textContent = TRASHN; try { localStorage.setItem('dom_trash', TRASHN); } catch (e) {} toast(`${T.n} <b style="color:#bbb">+1 мусор</b>`); burst(0.1, 'bandpass', 2200, 1, 0.3); }
+        if (T.k === 'trash') { TRASHN++; if ($('f_trash')) $('f_trash').textContent = TRASHN; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} toast(`${T.n} <b style="color:#bbb">+1 мусор</b>`); burst(0.1, 'bandpass', 2200, 1, 0.3); }
         else if (T.k) { FR[T.k]++; showFruit(); try { localStorage.setItem('vorota_fruit', JSON.stringify(FR)); } catch (e) {} toast(T.k === 'rasp' ? `Малина <b style="color:#e0566b">+1</b>` : `${T.n} <b style="color:#cfe08a">+1</b>`); burst(0.08, 'bandpass', 1400, 1.2, 0.25); blip([T.k === 'rasp' ? 1568 : 784], 0.18, 'sine', 0.05); }
         else { money += T.v; coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } } }
   } else if (!started) { P.yaw += dt * 0.02; }

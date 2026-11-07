@@ -8,7 +8,7 @@ def patch(s, old, new, name):
     assert s.count(old) == 1, f'{name}: патч не найден ({s.count(old)})'
     return s.replace(old, new)
 # --- Тишина ---
-s = (root / 'index.html').read_text(encoding='utf-8')
+s = (root / 'tishina.html').read_text(encoding='utf-8')
 s = patch(s, 'function updatePlayer(dt) {\n', '''function updatePlayer(dt) {
   if (window.CHEAT && CHEAT.fly) { let fx = 0, fz = 0;
     if (keys.KeyW || keys.ArrowUp) fz += 1; if (keys.KeyS || keys.ArrowDown) fz -= 1; if (keys.KeyD || keys.ArrowRight) fx += 1; if (keys.KeyA || keys.ArrowLeft) fx -= 1; fx += touch.mx; fz += touch.mz;
@@ -19,7 +19,8 @@ s = patch(s, 'function updatePlayer(dt) {\n', '''function updatePlayer(dt) {
 s = patch(s, 'let sp = (run ? 7.0 : 3.9)', 'let sp = (run ? 7.0 : 3.9) * (window.CHEAT ? CHEAT.mult : 1)', 'tishina speed')
 s = patch(s, "  const run = (keys.ShiftLeft", "  if (window.CHEAT) P.stam = 1;\n  const run = (keys.ShiftLeft", 'tishina stamina')
 s = s.replace('<title>', '<title>DEV ', 1).replace('<script>', cheat + '<script>', 1)
-(out / 'index.html').write_text(s, encoding='utf-8')
+(out / 'tishina.html').write_text(s, encoding='utf-8')
+(out / 'index.html').write_text((root / 'index.html').read_text(encoding='utf-8').replace('<title>', '<title>DEV ', 1), encoding='utf-8')
 # --- Тропа и Ворота ---
 for f in ['tropa.html', 'vorota.html', 'dom.html', 'podezd.html']:
     s = (root / f).read_text(encoding='utf-8')
