@@ -128,7 +128,7 @@ const grass = (() => {
         vTint = nz.g; vHt = uv.y;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTint, vHt;')
       .replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''))
-      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb *= vec3(1.4,1.12,0.5);' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.95,1.5,0.62);' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
   };
   const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.position.y = GROUND_Y; scene.add(mesh);
   return { mesh, update(p) { if (mat.userData.sh) mat.userData.sh.uniforms.uC.value.copy(p); } };
