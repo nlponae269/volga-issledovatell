@@ -156,7 +156,7 @@ function makeSticks(seed) {
 // Прототипы (строятся один раз, порциями, чтобы не подвешивать загрузку)
 const PROTO = {};
 const appleCol = (r) => { const t = r(); return t < 0.6 ? lin([0.62 + r() * 0.15, 0.12 + r() * 0.1, 0.07]) : t < 0.85 ? lin([0.75, 0.55, 0.15]) : lin([0.55, 0.62, 0.2]); };
-const PROTO_JOBS = GARDEN ? [
+const PROTO_JOBS = HOUSE ? [] : GARDEN ? [
   ['apple0', () => makeTree(201, M.leafOlive, 0.85, { len: 1.3, rad: 0.15, depth: 5, spread: 1.35, upk: 0.25, wash: 0.9, cards: 2, cs: 0.75, fruit: 0.45, fr: 0.045, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
   ['apple1', () => makeTree(223, M.leafOlive, 0.75, { len: 1.1, rad: 0.13, depth: 5, spread: 1.5, upk: 0.2, wash: 0.8, cards: 2, cs: 0.7, fruit: 0.4, fr: 0.042, fc: appleCol, bt: [0.6, 0.56, 0.5] })],
   ['apple2', () => makeTree(247, M.leafAutumn, 0.6, { len: 1.4, rad: 0.16, depth: 5, spread: 1.3, upk: 0.3, wash: 1.0, cards: 2, cs: 0.75, fruit: 0.3, fr: 0.045, fc: appleCol, bt: [0.6, 0.56, 0.5] })],

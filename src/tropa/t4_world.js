@@ -22,9 +22,10 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), skyMat); sky.f
 { const envScene = new THREE.Scene(); const s2 = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMat.clone()); s2.material.uniforms = skyU; envScene.add(s2);
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a2c })); gnd.position.y = -2; envScene.add(gnd);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0.02).texture; pm.dispose(); }
-const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, 0.35); scene.add(hemi);
+const ENV_TEX = scene.environment; if (HOUSE) scene.environment = null;
+const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, HOUSE ? 0.035 : 0.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
-sun.castShadow = Q.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+sun.castShadow = Q.shadows && !HOUSE; if (HOUSE) sun.intensity = 0; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
 
@@ -81,6 +82,7 @@ groundMat.onBeforeCompile = (sh) => {
       col = mix(col, as, rm);
       gRough = mix(gRough, 0.82 - tr, rm);
       diffuseColor.rgb *= col;
+      ${HOUSE ? 'totalEmissiveRadiance += diffuseColor.rgb * 0.5;' : ''}
     `)
     .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = gRough;');
 };
@@ -119,9 +121,9 @@ const grass = (() => {
         vTint = nz.g; vHt = uv.y;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTint, vHt;')
       .replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''))
-      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);');
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
   };
-  const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.receiveShadow = true; scene.add(mesh);
+  const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.position.y = GROUND_Y; scene.add(mesh);
   return { mesh, update(p) { if (mat.userData.sh) mat.userData.sh.uniforms.uC.value.copy(p); } };
 })();
 
@@ -152,7 +154,7 @@ function spawnCoins(group, r, x, z, ry, id) {
 }
 
 // ---------------- чанки ----------------
-const CS = 48, chunks = new Map(), colliders = new Map();
+const CS = HOUSE ? 24 : 48, chunks = new Map(), colliders = new Map();
 function buildGardenChunk(cx, cz) {
   const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x6a7d), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
   const inst = new Map(), occ = [];
@@ -209,6 +211,7 @@ function buildGardenChunk(cx, cz) {
   return { group, cols: b.cols };
 }
 function buildChunk(cx, cz) {
+  if (HOUSE) return buildHouseChunk(cx, cz);
   if (GARDEN) return buildGardenChunk(cx, cz);
   const group = new THREE.Group(), b = new Batch(), r = rng((cx * 73856093) ^ (cz * 19349663) ^ 0x7a11), x0 = cx * CS, z0 = cz * CS, x1 = x0 + CS, z1 = z0 + CS;
   const inst = new Map(), occ = [];
