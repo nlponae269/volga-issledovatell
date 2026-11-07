@@ -324,6 +324,7 @@ terrainMat.onBeforeCompile = (sh) => {
 };
 // кора/дерево: трипланарная проекция по миру (без UV)
 const decoMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
+decoMat.color.setScalar(0.62);
 decoMat.onBeforeCompile = (sh) => {
   sh.uniforms.tBark = { value: TX.bark };
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP2; varying vec3 vWN2;')
@@ -340,6 +341,10 @@ const MAT = {
   terrain: terrainMat,
   deco: decoMat,
   grass: new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 }),
+};
+MAT.grass.color.setScalar(0.8);
+MAT.grass.onBeforeCompile = (sh) => { // нормаль травы всегда вверх (без чёрной изнанки)
+  sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);');
 };
 const SHADOWS = !isTouch;
 if (SHADOWS) {
