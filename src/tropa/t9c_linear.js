@@ -21,7 +21,7 @@ function metroSeg(n) {
   for (const s of [-1, 1]) { b.box(M.paint, xm, 0.005, s * (PLAT - 0.25), SEG, 0.01, 0.12, lin([0.85, 0.7, 0.1])); b.box(MM.marble, xm, -0.65, s * PLAT, SEG, 1.3, 0.1);
     b.box(MM.dark, xm, -1.35, s * TRK, SEG, 0.1, 4.4); for (const rz of [-0.75, 0.75]) b.box(MM.rail, xm, -1.2, s * TRK + rz, SEG, 0.12, 0.08); for (let k = 0; k < SEG; k += 0.7) b.box(MM.dark, x0 + k, -1.27, s * TRK, 0.25, 0.06, 2.4);
     b.box(MM.marble, xm, 2.0, s * (TRK + 2.4), SEG, 6.8, 0.2); }
-  b.box(MM.dark, xm, 5.6, 0, SEG, 0.3, (TRK + 2.5) * 2);
+  b.box(MM.marble, xm, 5.6, 0, SEG, 0.3, (TRK + 2.5) * 2); for (const s of [-1, 1]) b.box(MM.marble, xm, 5.2, s * 5.4, SEG, 0.6, 1.2);
   // колонны с золотыми капителями
   for (const cx of [x0 + 3.5, x0 + 10.5]) for (const s of [-1, 1]) { const z = s * 2.9; b.box(MM.marble, cx, 2.2, z, 0.9, 4.4, 0.9); b.box(MM.gold, cx, 4.5, z, 1.15, 0.25, 1.15); b.box(MM.marble, cx, 4.9, z, 1.3, 0.6, 1.3); b.cols.push({ x: cx, z, hx: 0.5, hz: 0.5, c: 1, s: 0 }); }
   // скамейки
