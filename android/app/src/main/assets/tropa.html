@@ -1398,9 +1398,9 @@ const handleGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.12, 8).rotateZ(Math
 // стена вдоль оси: axis 'x' — стена по линии z=const, от x0 до x1; 'z' — по линии x=const
 function wallRun(b, axis, c, s0, s1, y0, y1, colA, colB, matA, matB, extA, extB) {
   if (s1 - s0 < 0.01 || y1 - y0 < 0.01) return;
-  const len = s1 - s0, mid = (s0 + s1) / 2, h = y1 - y0, ym = (y0 + y1) / 2;
-  if (axis === 'x') { b.box(matA, mid, ym, c - WT / 2, len, h, WT, colA); b.box(matB, mid, ym, c + WT / 2, len, h, WT, colB); b.cols.push({ x: mid, z: c, hx: len / 2, hz: WT + 0.02, c: 1, s: 0, y0, y1 }); }
-  else { b.box(matA, c - WT / 2, ym, mid, WT, h, len, colA); b.box(matB, c + WT / 2, ym, mid, WT, h, len, colB); b.cols.push({ x: c, z: mid, hx: WT + 0.02, hz: len / 2, c: 1, s: 0, y0, y1 }); }
+  const len = s1 - s0, mid = (s0 + s1) / 2, h = y1 - y0, ym = (y0 + y1) / 2, solid = y0 < 1.7 && y1 > 0.05; // над проёмом и под полом — не мешают проходу
+  if (axis === 'x') { b.box(matA, mid, ym, c - WT / 2, len, h, WT, colA); b.box(matB, mid, ym, c + WT / 2, len, h, WT, colB); if (solid) b.cols.push({ x: mid, z: c, hx: len / 2, hz: WT + 0.02, c: 1, s: 0, y0, y1 }); }
+  else { b.box(matA, c - WT / 2, ym, mid, WT, h, len, colA); b.box(matB, c + WT / 2, ym, mid, WT, h, len, colB); if (solid) b.cols.push({ x: c, z: mid, hx: WT + 0.02, hz: len / 2, c: 1, s: 0, y0, y1 }); }
 }
 function buildEdge(b, group, axis, i0, j0, i1, j1, type, r) {
   // A — клетка с меньшим индексом (по оси -), B — с большим
@@ -1545,6 +1545,8 @@ function houseUpdate(dt) {
   for (const d of doorsLive) { const dd = Math.hypot(d.x - P.x, d.z - P.z); if (dd < bd) { bd = dd; best = { door: d }; } }
   for (const w of winAnchors) { const dd = Math.hypot(w.x - P.x, w.z - P.z); if (dd < Math.min(bd, 1.5)) { bd = dd; best = { win: w }; } }
   housePrompt.door = best && best.door; housePrompt.win = best && best.win;
+  // закрытая дверь сама открывается, если упереться в неё
+  if (housePrompt.door && housePrompt.door.target < 0.3 && bd < 0.85 && P.speed > 0.5 && !housePrompt.door.auto) { housePrompt.door.target = 1.55; housePrompt.door.auto = true; creak(); }
   const pe = $('prompt'); if (pe) { const t = jumping ? '' : housePrompt.win ? 'E — выпрыгнуть в окно' : housePrompt.door ? (housePrompt.door.target > 0.3 ? 'E — закрыть дверь' : 'E — открыть дверь') : ''; if (pe.textContent !== t) pe.textContent = t; pe.style.opacity = t ? 1 : 0; const te = $('tE'); if (te) te.style.display = t ? 'block' : 'none'; }
   if (jumping) jumpStep(dt);
 }
