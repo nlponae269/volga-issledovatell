@@ -72,8 +72,10 @@ class MB {
     }
     for (let i = 0; i < seg; i++) {
       const j = (i + 1) % seg, a0 = A[i], a1 = A[j], b0 = Bv[i], b1 = Bv[j];
-      this.t(a0[0], a0[1], a0[2], b0[0], b0[1], b0[2], b1[0], b1[1], b1[2], col, mx, my, mz);
-      if (r0 > 0.001) this.t(a0[0], a0[1], a0[2], b1[0], b1[1], b1[2], a1[0], a1[1], a1[2], col, mx, my, mz);
+      let cc = col;
+      if (this.rough) { const k = 1 + this.rough * ((((i * 2654435761 + ((ax * 91 + az * 57) | 0)) >>> 0) % 100) / 50 - 1); cc = [col[0] * k, col[1] * k, col[2] * k]; }
+      this.t(a0[0], a0[1], a0[2], b0[0], b0[1], b0[2], b1[0], b1[1], b1[2], cc, mx, my, mz);
+      if (r0 > 0.001) this.t(a0[0], a0[1], a0[2], b1[0], b1[1], b1[2], a1[0], a1[1], a1[2], cc, mx, my, mz);
       if (capA && r0 > 0.02) this.t(ax, ay, az, a1[0], a1[1], a1[2], a0[0], a0[1], a0[2], col, bx, by, bz);
       if (capB && r1 > 0.02) this.t(bx, by, bz, b1[0], b1[1], b1[2], b0[0], b0[1], b0[2], col, ax, ay, az);
     }
@@ -95,9 +97,9 @@ class MB {
 }
 
 // ---------------- Палитры ----------------
-const FOLIAGE = [[0.86, 0.56, 0.12], [0.82, 0.40, 0.10], [0.92, 0.74, 0.18], [0.62, 0.56, 0.15], [0.60, 0.27, 0.10], [0.48, 0.52, 0.16], [0.74, 0.22, 0.10], [0.90, 0.64, 0.14]];
-const BARK = [0.30, 0.24, 0.18], BARK_LIGHT = [0.50, 0.44, 0.36], BIRCH = [0.86, 0.85, 0.80], WOOD_GRAY = [0.46, 0.42, 0.36];
-const SPRUCE = [0.13, 0.30, 0.17];
+const FOLIAGE = [[0.55, 0.42, 0.2], [0.5, 0.33, 0.17], [0.62, 0.53, 0.26], [0.42, 0.38, 0.2], [0.45, 0.25, 0.14], [0.36, 0.34, 0.18]];
+const BARK = [0.17, 0.14, 0.12], BARK_LIGHT = [0.38, 0.34, 0.3], BIRCH = [0.66, 0.65, 0.6], WOOD_GRAY = [0.34, 0.31, 0.28];
+const SPRUCE = [0.08, 0.17, 0.12];
 
 // ---------------- Деревья ----------------
 function treeBroad(B, cols, rng, x, y, z, sc) {
@@ -106,13 +108,13 @@ function treeBroad(B, cols, rng, x, y, z, sc) {
   const tx = x + lean, tz = z + lean * 0.6, cy = y + H * 0.55;
   B.limb(x, y - 0.3, z, tx, cy, tz, 0.26 * sc, 0.14 * sc, bark, 6, false, true);
   const base = FOLIAGE[(rng() * FOLIAGE.length) | 0], alt = FOLIAGE[(rng() * FOLIAGE.length) | 0];
-  const n = 4 + ((rng() * 3) | 0);
+  const n = 2 + ((rng() * 2) | 0);
   for (let k = 0; k < n; k++) {
     const a = rng() * TAU, r = (0.4 + rng() * 1.5) * sc;
     const bx = tx + Math.cos(a) * r, bz = tz + Math.sin(a) * r, by = cy + (0.1 + rng() * 0.9) * sc * 1.4;
     B.limb(tx, cy - 0.5 * sc, tz, bx, by - 0.5 * sc, bz, 0.08 * sc, 0.04 * sc, bark, 4, false, false);
-    const rr = (1.35 + rng() * 0.9) * sc;
-    B.blob(bx, by + 0.4 * sc, bz, rr, rr * 0.78, rr, jit(mixc(base, alt, rng() * 0.6), 0.1, rng), rng, 0.22, 0.14);
+    const rr = (1.0 + rng() * 0.7) * sc;
+    B.blob(bx, by + 0.4 * sc, bz, rr, rr * 0.6, rr, jit(mixc(base, alt, rng() * 0.6), 0.1, rng), rng, 0.22, 0.14);
   }
   cols.push([x, z, 0.38 * sc]);
 }
@@ -124,9 +126,9 @@ function treeBirch(B, cols, rng, x, y, z, sc) {
     const t = 0.15 + rng() * 0.6, bx = lerp(x, tx, t), bz = lerp(z, tz, t), by = y + H * 0.8 * t;
     B.limb(bx, by, bz, bx, by + 0.12, bz, 0.168 * sc * (1 - t * 0.5), 0.168 * sc * (1 - t * 0.5), [0.12, 0.11, 0.1], 6, true, true);
   }
-  const base = rng() < 0.75 ? [0.93, 0.76, 0.18] : [0.80, 0.62, 0.14];
-  for (let k = 0; k < 4; k++) {
-    const a = rng() * TAU, r = rng() * 0.9 * sc, by = y + H * (0.5 + 0.12 * k);
+  const base = rng() < 0.75 ? [0.62, 0.52, 0.22] : [0.5, 0.4, 0.18];
+  for (let k = 0; k < 2; k++) {
+    const a = rng() * TAU, r = rng() * 0.9 * sc, by = y + H * (0.55 + 0.14 * k);
     const rr = (0.95 + rng() * 0.5) * sc;
     B.blob(tx + Math.cos(a) * r, by, tz + Math.sin(a) * r, rr, rr * 1.1, rr, jit(base, 0.1, rng), rng, 0.2, 0.12);
     B.limb(tx, by - 1, tz, tx + Math.cos(a) * r, by - 0.2, tz + Math.sin(a) * r, 0.05 * sc, 0.03 * sc, BIRCH, 4, false, false);
@@ -144,7 +146,7 @@ function treeSpruce(B, cols, rng, x, y, z, sc) {
   }
   cols.push([x, z, 0.3 * sc]);
 }
-function treeDead(B, cols, rng, x, y, z, sc) {
+function treeDeadOld(B, cols, rng, x, y, z, sc) {
   const H = (4.5 + rng() * 3) * sc, lean = (rng() - 0.5) * 0.9;
   const bark = jit(WOOD_GRAY, 0.15, rng);
   const tx = x + lean, tz = z + lean * 0.4;
@@ -158,6 +160,53 @@ function treeDead(B, cols, rng, x, y, z, sc) {
   }
   cols.push([x, z, 0.3 * sc]);
 }
+// ветка с вилками (голое дерево)
+function branchTree(B, rng, x, y, z, dx, dy, dz, len, r, depth, col) {
+  const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l;
+  const ex = x + dx * len, ey = y + dy * len, ez = z + dz * len;
+  B.limb(x, y, z, ex, ey, ez, r, r * 0.55, col, depth > 1 ? 4 : 3, false, false);
+  if (depth <= 0) return;
+  const n = depth > 1 ? 2 : 2 + ((rng() * 2) | 0);
+  for (let k = 0; k < n; k++) {
+    const a = rng() * TAU, sp = 0.5 + rng() * 0.6;
+    const ndx = dx + Math.cos(a) * sp, ndz = dz + Math.sin(a) * sp, ndy = dy * 0.7 + 0.15 + rng() * 0.3;
+    const t = 0.55 + rng() * 0.4;
+    branchTree(B, rng, lerp(x, ex, t), lerp(y, ey, t), lerp(z, ez, t), ndx, ndy, ndz, len * (0.55 + rng() * 0.2), r * 0.6, depth - 1, col);
+  }
+}
+// голое мёртвое дерево — тёмный кривой ствол
+function treeDead(B, cols, rng, x, y, z, sc) {
+  const H = (5.5 + rng() * 4.5) * sc, lean = (rng() - 0.5) * 1.3;
+  const bark = jit(BARK, 0.25, rng);
+  B.rough = 0.28;
+  const mid = [x + lean * 0.5 + (rng() - 0.5) * 0.5, y + H * 0.5, z + (rng() - 0.5) * 0.5], tx = x + lean, tz = z + lean * 0.5;
+  const R0 = (0.34 + rng() * 0.12) * sc;
+  B.limb(x, y - 0.4, z, x, y + 0.5, z, R0 * 1.45, R0 * 1.05, bark, 8, false, false); // корневой наплыв
+  B.limb(x, y + 0.4, z, mid[0], mid[1], mid[2], R0 * 1.05, R0 * 0.7, bark, 8, false, false);
+  B.limb(mid[0], mid[1], mid[2], tx, y + H, tz, R0 * 0.7, R0 * 0.3, bark, 7, false, true);
+  B.rough = 0.12;
+  const nb = 4 + ((rng() * 3) | 0);
+  for (let k = 0; k < nb; k++) {
+    const t = 0.45 + rng() * 0.55, a = rng() * TAU;
+    const bx = lerp(x, tx, t), bz = lerp(z, tz, t), by = y + H * t;
+    branchTree(B, rng, bx, by, bz, Math.cos(a), 0.35 + rng() * 0.7, Math.sin(a), (1.4 + rng() * 1.8) * sc * (1.1 - t * 0.4), 0.11 * sc * (1.2 - t * 0.5), 2, bark);
+  }
+  B.rough = 0;
+  cols.push([x, z, R0 * 1.15]);
+}
+// голый куст из тонких прутьев
+function bareBush(B, rng, x, y, z, sc) {
+  const col = jit([0.26, 0.2, 0.15], 0.25, rng), n = 8 + ((rng() * 5) | 0);
+  for (let k = 0; k < n; k++) {
+    const a = rng() * TAU, sp = 0.2 + rng() * 0.7;
+    branchTree(B, rng, x + (rng() - 0.5) * 0.3, y, z + (rng() - 0.5) * 0.3, Math.cos(a) * sp, 1, Math.sin(a) * sp, (0.8 + rng() * 0.7) * sc, 0.018, 1, col);
+  }
+  if (rng() < 0.4) { // редкие уцелевшие листья
+    const c = jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng);
+    for (let k = 0; k < 3; k++) B.blob(x + (rng() - 0.5) * 0.9, y + 0.7 + rng() * 0.6, z + (rng() - 0.5) * 0.9, 0.22, 0.14, 0.22, c, rng, 0.3, 0.1);
+  }
+}
+
 function treeApple(B, cols, rng, x, y, z, sc) {
   B.limb(x, y - 0.2, z, x, y + 1.7 * sc, z, 0.17 * sc, 0.1 * sc, jit(BARK, 0.1, rng), 6, false, true);
   const base = rng() < 0.5 ? [0.58, 0.58, 0.18] : [0.80, 0.62, 0.15];
@@ -181,7 +230,8 @@ function emitHouse(B, ctx, it) {
   const Lp = (lx, ly, lz) => [it.x + lx * c + lz * s, it.y + ly, it.z - lx * s + lz * c];
   const Lv = (lx, ly, lz) => [lx * c + lz * s, ly, -lx * s + lz * c];
   const { w, d, h } = it;
-  const wall = it.wall, dark = [wall[0] * 0.72, wall[1] * 0.72, wall[2] * 0.72];
+  const gray = (c, k) => { const m = (c[0] + c[1] + c[2]) / 3; return [lerp(c[0], m, 0.55) * k, lerp(c[1], m, 0.55) * k, lerp(c[2], m, 0.55) * k]; };
+  const wall = gray(it.wall, 0.72), dark = [wall[0] * 0.7, wall[1] * 0.7, wall[2] * 0.7]; it = Object.assign({}, it, { roof: gray(it.roof, 0.6), lit: false });
   const part = (lx, ly, lz, sx, sy, sz, col) => { const p = Lp(lx, ly, lz); B.box(p[0], p[1], p[2], sx, sy, sz, it.rot, col); };
   part(0, 0.18, 0, w + 0.35, 0.36, d + 0.35, [0.5, 0.49, 0.46]);          // фундамент
   part(0, 0.36 + (h - 0.36) / 2, 0, w, h - 0.36, d, wall);                  // стены
@@ -199,15 +249,16 @@ function emitHouse(B, ctx, it) {
     B.t(a[0], a[1], a[2], b[0], b[1], b[2], cc[0], cc[1], cc[2], wall, m[0], m[1], m[2]);
   }
   // дверь, окна
-  part(it.doorX, 1.05, d / 2 + 0.03, 0.95, 2.05, 0.1, [0.25, 0.15, 0.09]);
+  part(it.doorX, 1.05, d / 2 + 0.03, 0.95, 2.05, 0.1, [0.01, 0.01, 0.01]); // тёмный проём
+  { const a = 1.15, hx = it.doorX - 0.47, hp = Lp(hx + Math.cos(a) * 0.47, 1.05, d / 2 + Math.sin(a) * 0.47); B.box(hp[0], hp[1], hp[2], 0.94, 2.0, 0.06, it.rot - a, [0.2, 0.14, 0.1]); } // приоткрытая дверь
   part(it.doorX, 0.2, d / 2 + 0.35, 1.3, 0.2, 0.7, [0.55, 0.53, 0.5]);
   for (const wx of [-w * 0.3, w * 0.3]) {
     if (Math.abs(wx - it.doorX) < 1.2) continue;
     part(wx, 1.75, d / 2 + 0.03, 0.98, 0.98, 0.09, [0.9, 0.88, 0.82]);
-    part(wx, 1.75, d / 2 + 0.05, 0.78, 0.78, 0.09, it.lit ? [0.95, 0.78, 0.38] : [0.18, 0.25, 0.32]);
+    part(wx, 1.75, d / 2 + 0.05, 0.78, 0.78, 0.09, it.lit ? [0.95, 0.78, 0.38] : [0.04, 0.05, 0.06]);
   }
   part(w / 2 + 0.03, 1.75, 0, 0.09, 0.9, 0.9, [0.9, 0.88, 0.82]);
-  part(w / 2 + 0.05, 1.75, 0, 0.09, 0.72, 0.72, [0.18, 0.25, 0.32]);
+  part(w / 2 + 0.05, 1.75, 0, 0.09, 0.72, 0.72, [0.04, 0.05, 0.06]);
   // труба
   part(-w * 0.22, h + rh + 0.1, -d * 0.12, 0.55, 1.5, 0.55, [0.5, 0.28, 0.22]);
   ctx.boxes.push({ x: it.x, z: it.z, hx: w / 2 + 0.3, hz: d / 2 + 0.3, c, s });
@@ -217,7 +268,7 @@ function emitChapel(B, ctx, it) {
   const c = Math.cos(it.rot), s = Math.sin(it.rot);
   const Lp = (lx, ly, lz) => [it.x + lx * c + lz * s, it.y + ly, it.z - lx * s + lz * c];
   const part = (lx, ly, lz, sx, sy, sz, col) => { const p = Lp(lx, ly, lz); B.box(p[0], p[1], p[2], sx, sy, sz, it.rot, col); };
-  const white = [0.9, 0.89, 0.84], rng = ctx.rng;
+  const white = [0.6, 0.59, 0.55], rng = ctx.rng;
   part(0, 2.6, 0, 6, 5.2, 4.6, white);
   part(0, 0.15, 0, 6.3, 0.3, 4.9, [0.5, 0.49, 0.46]);
   const rh = 1.6, ex = 3.3, ez = 2.6, len = Math.hypot(rh, ez), sa = rh / len, ca = ez / len;
@@ -225,12 +276,12 @@ function emitChapel(B, ctx, it) {
   for (const sg of [1, -1]) B.obox(Lp(0, 5.2 + rh / 2, sg * ez / 2), Lv(1, 0, 0), Lv(0, ca, sg * sa), Lv(0, -sa, sg * ca), ex, 0.08, len / 2 + 0.1, [0.25, 0.42, 0.3]);
   part(0, 6.2, -1.4, 2.0, 2.6, 2.0, white);               // колокольня
   const dm = Lp(0, 8.4, -1.4);
-  B.blob(dm[0], dm[1], dm[2], 1.25, 1.7, 1.25, [0.95, 0.74, 0.18], rng, 0.04, 0.05);
-  B.limb(dm[0], dm[1] + 1.4, dm[2], dm[0], dm[1] + 2.9, dm[2], 0.05, 0.05, [0.95, 0.74, 0.18], 4, true, true);
-  B.limb(dm[0] - 0.4, dm[1] + 2.35, dm[2], dm[0] + 0.4, dm[1] + 2.35, dm[2], 0.04, 0.04, [0.95, 0.74, 0.18], 4, true, true);
+  B.blob(dm[0], dm[1], dm[2], 1.25, 1.7, 1.25, [0.5, 0.42, 0.2], rng, 0.04, 0.05);
+  B.limb(dm[0], dm[1] + 1.4, dm[2], dm[0], dm[1] + 2.9, dm[2], 0.05, 0.05, [0.5, 0.42, 0.2], 4, true, true);
+  B.limb(dm[0] - 0.4, dm[1] + 2.35, dm[2], dm[0] + 0.4, dm[1] + 2.35, dm[2], 0.04, 0.04, [0.5, 0.42, 0.2], 4, true, true);
   part(0, 1.1, 2.33, 1.2, 2.2, 0.15, [0.30, 0.18, 0.1]);
-  part(-1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.2, 0.25, 0.32]);
-  part(1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.2, 0.25, 0.32]);
+  part(-1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.03, 0.04, 0.05]);
+  part(1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.03, 0.04, 0.05]);
   ctx.boxes.push({ x: it.x, z: it.z, hx: 3.3, hz: 2.6, c, s });
 }
 
@@ -266,14 +317,16 @@ function emitFence(B, ctx, it) {
   const { x0, z0, x1, z1, y } = it, L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / 2));
   for (let k = 0; k <= n; k++) {
     const t = k / n, px = lerp(x0, x1, t), pz = lerp(z0, z1, t);
-    B.limb(px, y - 0.1, pz, px, y + 1.25, pz, 0.07, 0.06, jit(wd, 0.2, rng), 4, false, true);
-    if (k < n) {
+    if (rng() < 0.2) continue;
+    B.limb(px, y - 0.1, pz, px + (rng() - 0.5) * 0.25, y + 1.25 - rng() * 0.5, pz, 0.07, 0.06, jit(wd, 0.2, rng), 4, false, true);
+    if (k < n && rng() < 0.7) {
       const qx = lerp(x0, x1, (k + 1) / n), qz = lerp(z0, z1, (k + 1) / n);
       for (const hy of [0.45, 0.95]) B.limb(px, y + hy, pz, qx, y + hy + (rng() - 0.5) * 0.06, qz, 0.045, 0.045, jit(wd, 0.2, rng), 4, false, false);
     }
   }
 }
-function emitTree(B, ctx, it) { const f = { broad: treeBroad, birch: treeBirch, spruce: treeSpruce, dead: treeDead, apple: treeApple }[it.type]; f(B, ctx.circ, ctx.rng, it.x, it.y, it.z, it.sc || 1); }
+function emitPaperItem(B, ctx, it) { paper(B, ctx, it.x, it.y, it.z, it.rot || 0, it.id); }
+function emitTree(B, ctx, it) { const f = { broad: treeBroad, birch: treeBirch, spruce: treeSpruce, dead: treeDead, apple: treeDead }[it.type]; f(B, ctx.circ, ctx.rng, it.x, it.y, it.z, it.sc || 1); }
 
 // ---------------- Раскладка деревни ----------------
 function layoutOf(v) {
@@ -311,12 +364,15 @@ function layoutOf(v) {
         items.push({ kind: 'fence', x: (b.x + c1.x) / 2, z: (b.z + c1.z) / 2, x0: b.x, z0: b.z, x1: c1.x, z1: c1.z, y: v.h });
       }
     }
-    if (rng() < 0.75) { const p = back((rng() - 0.5) * h.w * 0.8, -h.d / 2 - 3.2 - rng() * 1.5); if (inside(p, 35)) items.push({ kind: 'tree', type: 'apple', x: p.x, z: p.z, y: v.h, sc: 0.9 + rng() * 0.3 }); }
+    if (rng() < 0.75) { const p = back((rng() - 0.5) * h.w * 0.8, -h.d / 2 - 3.2 - rng() * 1.5); if (inside(p, 35)) items.push({ kind: 'tree', type: 'dead', x: p.x, z: p.z, y: v.h, sc: 0.9 + rng() * 0.3 }); }
   }
   for (let k = 0; k < 3; k++) {
     const p = place((rng() - 0.5) * 50, (rng() < 0.5 ? -1 : 1) * (22 + rng() * 5));
     if (inside(p, 33)) items.push({ kind: 'hay', x: p.x, z: p.z, y: v.h });
   }
+  { const nid = 3 + (Math.abs(v.id) % 3), h0 = houses[0];
+    if (h0) { const c = Math.cos(h0.rot), sn = Math.sin(h0.rot), lz = h0.d / 2 + 1.4, lx = h0.doorX + 0.6;
+      items.push({ kind: 'paper', x: h0.x + lx * c + lz * sn, z: h0.z - lx * sn + lz * c, y: v.h, rot: h0.rot, id: nid }); } }
   for (const it of items) it.vid = v.id;
   v.layout = items;
   return items;
@@ -344,6 +400,7 @@ function makeCamp() {
     }
     ctx.circ.push([C.x, C.z, 1.0]);
   });
+  add(C.x + 5.2, C.z + 7.4, (B, ctx) => emitTent(B, ctx, C.x + 5.2, gy(C.x + 5.2, C.z + 7.4), C.z + 7.4, 3.6, [0.6, 0.33, 0.12], 1));
   const Tx = C.x - 4.6, Tz = C.z + 5.6, Try = 0.5;
   add(Tx, Tz, (B, ctx) => { // стол
     const y = gy(Tx, Tz), c = Math.cos(Try), s = Math.sin(Try), rng = ctx.rng;
@@ -389,3 +446,36 @@ function makeCamp() {
   return items;
 }
 const CAMP_ITEMS = makeCamp();
+
+// ---------------- Записки, палатки, находки ----------------
+function paper(B, ctx, x, y, z, rot, id) {
+  B.box(x, y + 0.012, z, 0.3, 0.02, 0.21, rot, [0.82, 0.8, 0.7]);
+  B.box(x + 0.02, y + 0.025, z, 0.2, 0.004, 0.012, rot, [0.25, 0.25, 0.3]);
+  ctx.notes.push({ x, y: y + 0.05, z, id });
+}
+function emitTent(B, ctx, x, y, z, rot, col, note) {
+  const c = Math.cos(rot), s = Math.sin(rot);
+  const Lp = (lx, ly, lz) => [x + lx * c + lz * s, y + ly, z - lx * s + lz * c];
+  const Lv = (lx, ly, lz) => [lx * c + lz * s, ly, -lx * s + lz * c];
+  const ex = 1.15, ez = 1.05, rh = 1.2, len = Math.hypot(rh, ez), sa = rh / len, ca = ez / len;
+  for (const sg of [1, -1]) B.obox(Lp(0, rh / 2, sg * ez / 2), Lv(1, 0, 0), Lv(0, ca, sg * sa), Lv(0, -sa, sg * ca), ex, 0.015, len / 2, col);
+  const f = (sx) => { const a = Lp(sx, 0, ez), b = Lp(sx, 0, -ez), t = Lp(sx, rh, 0), m = Lp(0, 0.4, 0); B.t(a[0], a[1], a[2], b[0], b[1], b[2], t[0], t[1], t[2], col, m[0], m[1], m[2]); };
+  f(-ex);
+  const a = Lp(ex, 0, ez), b = Lp(ex, 0, -ez), t = Lp(ex, rh, 0), m = Lp(0, 0.4, 0); // вход — тёмный
+  B.t(a[0], a[1], a[2], b[0], b[1], b[2], t[0], t[1], t[2], [0.02, 0.02, 0.02], m[0], m[1], m[2]);
+  const fl = Lp(0, 0.02, 0); B.box(fl[0], fl[1], fl[2], ex * 2, 0.03, ez * 2, rot, [0.12, 0.13, 0.1]);
+  const sl = Lp(0, 0.1, 0); B.box(sl[0], sl[1], sl[2], 1.9, 0.12, 0.7, rot, [0.22, 0.28, 0.35]); // спальник
+  ctx.boxes.push({ x, z, hx: ex + 0.1, hz: ez + 0.1, c, s });
+  if (note) { const p = Lp(ex + 0.9, 0, 0.2); paper(B, ctx, p[0], heightAt(p[0], p[2]), p[2], rot + 0.4, note); }
+}
+function emitCairn(B, ctx, x, y, z, rng) {
+  let r = 0.55;
+  for (let k = 0; k < 5; k++) { B.blob(x + (rng() - 0.5) * 0.1, y + 0.12 + k * 0.2, z + (rng() - 0.5) * 0.1, r, 0.13, r * 0.9, jit([0.42, 0.41, 0.39], 0.12, rng), rng, 0.15, 0.1); r *= 0.78; }
+  ctx.circ.push([x, z, 0.5]);
+}
+function emitPost(B, ctx, x, y, z, rng) {
+  B.limb(x, y - 0.2, z, x + 0.05, y + 2.3, z, 0.06, 0.05, [0.3, 0.24, 0.18], 5, false, true);
+  B.limb(x, y + 1.85, z, x + 0.6, y + 1.7, z + 0.2, 0.018, 0.018, [0.3, 0.24, 0.18], 4, false, false);
+  B.box(x + 0.35, y + 1.55, z + 0.1, 0.28, 0.5, 0.01, 0.3, [0.55, 0.25, 0.12]); // выцветшая лента
+  ctx.circ.push([x, z, 0.2]);
+}

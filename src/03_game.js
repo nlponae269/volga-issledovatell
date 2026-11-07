@@ -6,9 +6,9 @@ const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 let VIEW_R = isTouch ? 3 : 4;
 
 // ---------------- Цвета земли ----------------
-const cGreen = [0.36, 0.44, 0.17], cDry = [0.62, 0.55, 0.26], cLitter = [0.50, 0.31, 0.14], cOrange = [0.72, 0.42, 0.12];
-const cGravel = [0.58, 0.54, 0.46], cWet = [0.36, 0.33, 0.27], cSand = [0.68, 0.62, 0.48], cRock = [0.50, 0.48, 0.45];
-const cSnow = [0.93, 0.95, 0.98], cDirt = [0.44, 0.34, 0.22], cDeep = [0.17, 0.2, 0.18], cDebris = [0.45, 0.36, 0.24];
+const cGreen = [0.31, 0.34, 0.2], cDry = [0.46, 0.42, 0.27], cLitter = [0.33, 0.24, 0.15], cOrange = [0.45, 0.31, 0.17];
+const cGravel = [0.42, 0.4, 0.37], cWet = [0.24, 0.23, 0.2], cSand = [0.48, 0.45, 0.37], cRock = [0.36, 0.35, 0.34];
+const cSnow = [0.74, 0.76, 0.78], cDirt = [0.3, 0.25, 0.19], cDeep = [0.1, 0.12, 0.11], cDebris = [0.3, 0.25, 0.19];
 
 function terrainColor(x, z, h, grad, o) {
   const n1 = fbm(x * 0.09, z * 0.09, 2, 61), n2 = fbm(x * 0.025 + 3, z * 0.025, 2, 62), n3 = vnoise(x * 0.8, z * 0.8, 63);
@@ -23,9 +23,9 @@ function terrainColor(x, z, h, grad, o) {
     c = mixc(c, b, beach);
   }
   if (h < -0.1) c = mixc(c, mixc(cWet, cDeep, smooth(-0.3, -7, h)), smooth(0.1, -0.35, h));
-  const rock = Math.max(smooth(0.62, 1.1, grad), smooth(62, 96, h + 10 * n2));
+  const rock = Math.max(smooth(0.55, 1.0, grad), smooth(55, 88, h + 10 * n2));
   if (rock > 0) c = mixc(c, mixc(cRock, [0.40, 0.38, 0.36], smooth(-0.3, 0.5, n3)), rock);
-  const snow = smooth(104, 130, h + 9 * n2 - grad * 14);
+  const snow = smooth(125, 160, h + 9 * n2 - grad * 14);
   if (snow > 0) c = mixc(c, cSnow, snow);
   const vs = villagesNear(x, z, 50);
   for (let i = 0; i < vs.length; i++) {
@@ -82,7 +82,7 @@ function buildChunk(cx, cz) {
     nor[k * 3] = -gx * il; nor[k * 3 + 1] = il; nor[k * 3 + 2] = -gz * il;
     terrainColor(x, z, h, Math.hypot(gx, gz), TMP);
     col[k * 3] = lin(TMP[0]); col[k * 3 + 1] = lin(TMP[1]); col[k * 3 + 2] = lin(TMP[2]);
-    uv[k * 2] = x / 3.2; uv[k * 2 + 1] = z / 3.2;
+    uv[k * 2] = x / 4.5; uv[k * 2 + 1] = z / 4.5;
   }
   const idx = new Uint16Array(SEG * SEG * 6);
   let q = 0;
@@ -102,7 +102,8 @@ function buildChunk(cx, cz) {
   // ---- декор ----
   const rng = mulberry32((hash2(cx, cz, 777) * 4294967296) >>> 0);
   const B = new MB(), GB = new MB(), circ = [], boxes = [];
-  const ctx = { rng, circ, boxes };
+  const notes = [];
+  const ctx = { rng, circ, boxes, notes };
   const R = (a, b) => a + (b - a) * rng();
 
   // структуры (лагерь, деревни)
@@ -115,8 +116,21 @@ function buildChunk(cx, cz) {
     else if (it.kind === 'wood') emitWood(B, ctx, it);
     else if (it.kind === 'fence') emitFence(B, ctx, it);
     else if (it.kind === 'tree') emitTree(B, ctx, it);
+    else if (it.kind === 'paper') emitPaperItem(B, ctx, it);
   }
 
+  // одиночные находки в глуши: брошенные палатки, туры, вешки
+  if (hash2(cx, cz, 555) < 0.3) {
+    for (let tries = 0; tries < 6; tries++) {
+      const x = x0 + 8 + rng() * (CH - 16), z = z0 + 8 + rng() * (CH - 16), h = gridH(x, z);
+      if (h < 3 || h > 110 || gridGrad(x, z) > 0.4 || blocked(x, z)) continue;
+      const kind = rng();
+      if (kind < 0.45) emitTent(B, ctx, x, h, z, rng() * TAU, jit(rng() < 0.5 ? [0.5, 0.3, 0.12] : [0.2, 0.28, 0.36], 0.15, rng), rng() < 0.6 ? 1 + ((rng() * 9) | 0) : 0);
+      else if (kind < 0.75) { emitCairn(B, ctx, x, h, z, rng); if (rng() < 0.3) paper(B, ctx, x + 0.9, gridH(x + 0.9, z), z, rng() * 3, 1 + ((rng() * 9) | 0)); }
+      else emitPost(B, ctx, x, h, z, rng);
+      break;
+    }
+  }
   // деревья
   const TC = 6.4;
   for (let gj = 0; gj < 10; gj++) for (let gi = 0; gi < 10; gi++) {
@@ -130,9 +144,9 @@ function buildChunk(cx, cz) {
     if (gridGrad(x, z) > 1.0) continue;
     const sc = 0.85 + rng() * 0.5;
     const hi = smooth(45, 85, h);
-    if (tp < 0.06 + hi * 0.3) treeDead(B, circ, rng, x, h, z, sc);
-    else if (tp < 0.18 + hi * 0.8) treeSpruce(B, circ, rng, x, h, z, sc);
-    else if (tp < 0.5) treeBirch(B, circ, rng, x, h, z, sc);
+    if (tp < 0.58) treeDead(B, circ, rng, x, h, z, sc);
+    else if (tp < 0.7 + hi * 0.25) treeSpruce(B, circ, rng, x, h, z, sc);
+    else if (tp < 0.86) treeBirch(B, circ, rng, x, h, z, sc);
     else treeBroad(B, circ, rng, x, h, z, sc);
   }
   // кусты и камни
@@ -140,9 +154,8 @@ function buildChunk(cx, cz) {
     const x = x0 + (gi + rng()) * 3.2, z = z0 + (gj + rng()) * 3.2, h = gridH(x, z), r1 = rng(), r2 = rng();
     if (blocked(x, z) || h < 1.6) continue;
     const f = forestAt(x, z, h), g = gridGrad(x, z);
-    if (r1 < 0.05 + f * 0.1 && h < 80) {
-      const base = FOLIAGE[(rng() * FOLIAGE.length) | 0];
-      for (let b = 0; b < 2; b++) B.blob(x + R(-0.5, 0.5), h + 0.35, z + R(-0.5, 0.5), R(0.5, 0.9), R(0.4, 0.6), R(0.5, 0.9), jit(base, 0.12, rng), rng, 0.25, 0.14);
+    if (r1 < 0.07 + f * 0.2 && h < 80) {
+      bareBush(B, rng, x, h, z, R(0.8, 1.5));
     } else if (r2 < 0.02 + smooth(0.5, 1.1, g) * 0.15 + smooth(60, 100, h) * 0.08) {
       const s = R(0.5, 1.8), gr = R(0.42, 0.56);
       B.blob(x, h + s * 0.25, z, s, s * 0.7, s * R(0.8, 1.2), [gr, gr * 0.97, gr * 0.93], rng, 0.28, 0.12);
@@ -197,9 +210,9 @@ function buildChunk(cx, cz) {
     const f = forestAt(x, z, h), g = gridGrad(x, z);
     if (g > 1.1) continue;
     const meadow = 1 - f;
-    if (r1 < 0.8 + meadow * 0.15 && h > 0.9) { // пучок травы
+    if (r1 < 0.5 + meadow * 0.2 && h > 0.9) { // пучок травы
       const nb = 5 + ((r2 * 4) | 0), gold = rng() < 0.5;
-      const bc = gold ? [0.66, 0.58, 0.26] : [0.40, 0.48, 0.18], tc = gold ? [0.88, 0.78, 0.42] : [0.62, 0.62, 0.26];
+      const bc = gold ? [0.4, 0.35, 0.2] : [0.28, 0.32, 0.17], tc = gold ? [0.64, 0.58, 0.36] : [0.46, 0.46, 0.26];
       for (let b = 0; b < nb; b++) {
         const bx = x + R(-0.3, 0.3), bz = z + R(-0.3, 0.3), H = R(0.25, 0.7) * (0.7 + meadow * 0.5), a = rng() * TAU, w = R(0.04, 0.07);
         const ca = Math.cos(a), sa = Math.sin(a), lean = R(0.05, 0.3);
@@ -207,9 +220,9 @@ function buildChunk(cx, cz) {
       }
     }
     if (r3 < 0.5 + f * 0.4 && h > 0.5) { // опавшие листья
-      const c = rng() < 0.5 ? jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng) : jit([0.5, 0.33, 0.14], 0.2, rng);
+      const c = rng() < 0.5 ? jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng) : jit([0.34, 0.25, 0.15], 0.25, rng);
       GB.quadUp(x + R(-0.5, 0.5), h + 0.025, z + R(-0.5, 0.5), R(0.07, 0.15), rng() * TAU, c);
-      if (rng() < 0.5) GB.quadUp(x + R(-0.5, 0.5), h + 0.025, z + R(-0.5, 0.5), R(0.07, 0.15), rng() * TAU, jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng));
+      if (rng() < 0.8) GB.quadUp(x + R(-0.5, 0.5), h + 0.025, z + R(-0.5, 0.5), R(0.07, 0.15), rng() * TAU, jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng));
     }
     if (f > 0.35 && rng() < 0.012) { // грибы
       const px = x, pz = z;
@@ -235,7 +248,7 @@ function buildChunk(cx, cz) {
   };
   const deco = mk(B, MAT.deco), grass = mk(GB, MAT.grass);
   for (const m of [terrain, deco, grass]) if (m) scene.add(m);
-  return { cx, cz, terrain, deco, grass, circ, boxes };
+  return { cx, cz, terrain, deco, grass, circ, boxes, notes };
 }
 
 function disposeChunk(ch) {
@@ -251,7 +264,7 @@ const camera = new THREE.PerspectiveCamera(72, 1, 0.1, 2500);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 const fogColor = new THREE.Color(0.7, 0.72, 0.72);
-scene.fog = new THREE.Fog(fogColor, 20, 250);
+scene.fog = new THREE.FogExp2(fogColor, 0.01);
 scene.background = fogColor;
 
 const hemi = new THREE.HemisphereLight(0xdfe6ee, 0x6b5a3a, 2.2);
@@ -260,18 +273,23 @@ scene.add(hemi, sun, sun.target);
 
 // детальная текстура земли (листья/трава)
 function makeDetailTex() {
-  const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S;
   const g = cv.getContext('2d'), r = mulberry32(99);
-  g.fillStyle = '#e4e0d6'; g.fillRect(0, 0, S, S);
-  const cols = ['#ffd9a0', '#e8b070', '#cf8a45', '#b9a36a', '#9c7a45', '#f3e6bd', '#8d8a62', '#c9a05a'];
-  const draw = (x, y) => {
+  g.fillStyle = '#c9c3b4'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 5000; i++) { g.globalAlpha = 0.12; g.fillStyle = r() < 0.5 ? '#3d3426' : '#e8e0cc'; g.fillRect(r() * S, r() * S, 1 + r() * 2, 1 + r() * 2); }
+  const cols = ['#8a6f45', '#6e5436', '#a38a5a', '#5c4a30', '#9b9272', '#7b6a45', '#b3a06f', '#4e4030', '#6d6a4a', '#8d5f34'];
+  const leaf = (x, y) => {
     g.save(); g.translate(x, y); g.rotate(r() * 6.28);
-    g.globalAlpha = 0.25 + r() * 0.3; g.fillStyle = cols[(r() * cols.length) | 0];
-    g.beginPath(); g.ellipse(0, 0, 2 + r() * 5, 1 + r() * 2.5, 0, 0, 6.28); g.fill(); g.restore();
+    const L = 5 + r() * 10, W = L * (0.35 + r() * 0.2);
+    g.globalAlpha = 0.5 + r() * 0.4; g.fillStyle = cols[(r() * cols.length) | 0];
+    g.beginPath(); g.moveTo(-L, 0); g.quadraticCurveTo(0, -W, L, 0); g.quadraticCurveTo(0, W, -L, 0); g.fill();
+    g.globalAlpha *= 0.55; g.strokeStyle = '#2e251a'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-L, 0); g.lineTo(L * 0.9, 0); g.stroke();
+    g.restore();
   };
-  for (let i = 0; i < 900; i++) { const x = r() * S, y = r() * S; draw(x, y); if (x < 8) draw(x + S, y); if (y < 8) draw(x, y + S); }
-  g.globalAlpha = 0.25; g.strokeStyle = '#7a6a48'; g.lineWidth = 1;
-  for (let i = 0; i < 260; i++) { const x = r() * S, y = r() * S, a = r() * 6.28, l = 3 + r() * 9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  for (let i = 0; i < 1700; i++) { const x = r() * S, y = r() * S; leaf(x, y); if (x < 16) leaf(x + S, y); if (y < 16) leaf(x, y + S); if (x < 16 && y < 16) leaf(x + S, y + S); }
+  g.strokeStyle = '#2f261c'; g.lineCap = 'round';
+  for (let i = 0; i < 160; i++) { const x = r() * S, y = r() * S, a = r() * 6.28, l = 10 + r() * 34; g.globalAlpha = 0.35 + r() * 0.3; g.lineWidth = 0.8 + r() * 1.2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  g.fillStyle = '#6b7050'; for (let i = 0; i < 50; i++) { g.globalAlpha = 0.25; g.beginPath(); g.ellipse(r() * S, r() * S, 2 + r() * 6, 1 + r() * 3, r() * 6, 0, 6.28); g.fill(); }
   const t = new THREE.CanvasTexture(cv);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -302,11 +320,11 @@ sky.frustumCulled = false; sky.renderOrder = -10;
 scene.add(sky);
 
 // ---------------- Вода ----------------
-const waterU = { uTime: { value: 0 }, uFog: { value: fogColor }, uNear: { value: 20 }, uFar: { value: 250 }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSky: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() } };
+const waterU = { uTime: { value: 0 }, uFog: { value: fogColor }, uDen: { value: 0.01 }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSky: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() } };
 const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
   uniforms: waterU, transparent: true, depthWrite: false,
   vertexShader: 'varying vec3 vW; void main(){ vec4 w=modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
-  fragmentShader: `varying vec3 vW; uniform float uTime,uNear,uFar; uniform vec3 uFog,uSunDir,uSky,uZen,uSunCol;
+  fragmentShader: `varying vec3 vW; uniform float uTime,uDen; uniform vec3 uFog,uSunDir,uSky,uZen,uSunCol;
     void main(){
       vec2 p=vW.xz; float t=uTime;
       vec2 g=vec2(0.0);
@@ -320,13 +338,13 @@ const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000).rotateX(-Math.P
       float fr=pow(1.0-max(dot(n,V),0.0),3.0);
       vec3 r=reflect(-V,n);
       vec3 skyc=mix(uSky,uZen,pow(clamp(r.y,0.0,1.0),0.5));
-      vec3 deep=vec3(0.05,0.11,0.13)*(0.4+0.8*length(uSky));
+      vec3 deep=vec3(0.035,0.055,0.055)*(0.4+0.8*length(uSky));
       vec3 col=mix(deep,skyc,0.22+0.78*fr);
       float sp=pow(max(dot(r,uSunDir),0.0),90.0);
-      col+=uSunCol*sp*1.4;
-      float f=smoothstep(uNear,uFar,dist);
+      col+=uSunCol*sp*0.5;
+      float f=1.0-exp(-pow(dist*uDen,2.0));
       col=mix(col,uFog,f);
-      float a=mix(0.8+0.2*fr,1.0,f);
+      float a=mix(0.9+0.1*fr,1.0,f);
       gl_FragColor=vec4(col,a); gl_FragColor=linearToOutputTexel(gl_FragColor); }`,
 }));
 water.renderOrder = 5; water.frustumCulled = false;
@@ -335,6 +353,7 @@ scene.add(water);
 // ---------------- Костёр ----------------
 const fire = new THREE.Group();
 fire.position.set(CAMP.x, CAMP.y + 0.5, CAMP.z);
+fire.scale.setScalar(0.6);
 const flameMat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
 const flames = [];
 for (const [r, h, c, o] of [[0.42, 1.05, 0xff4a10, 0.7], [0.3, 0.9, 0xff8a1c, 0.75], [0.17, 0.62, 0xffe070, 0.85]]) {
@@ -390,40 +409,39 @@ const leaves = new THREE.Points(lfGeo, new THREE.PointsMaterial({ size: 0.17, ve
 leaves.frustumCulled = false; scene.add(leaves);
 
 // фонарик
-const torch = new THREE.SpotLight(0xffe8b8, 0, 45, 0.55, 0.5, 1.4);
+const torch = new THREE.SpotLight(0xffe6b0, 0, 48, 0.42, 0.65, 1.3);
 torch.position.set(0.2, -0.1, 0); camera.add(torch);
 const torchT = new THREE.Object3D(); torchT.position.set(0, 0, -5); camera.add(torchT); torch.target = torchT;
 
 // ---------------- Время суток ----------------
-let dayT = 0.34, torchOn = false;
+let dayT = 0.58, torchOn = false;
 const c3 = (r, g, b) => new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
 function applyTime() {
   const a = (dayT - 0.25) * TAU, sa = Math.sin(a), ca = Math.cos(a);
-  const day = smooth(-0.1, 0.25, sa);
-  const warm = Math.exp(-sa * sa * 22) * (1 - Math.abs(sa) * 0.5);
-  const hz = c3(0.74, 0.76, 0.77).lerp(c3(0.04, 0.05, 0.09), 1 - day).lerp(c3(0.95, 0.58, 0.34), warm * 0.8);
-  const zn = c3(0.50, 0.60, 0.72).lerp(c3(0.01, 0.015, 0.04), 1 - day).lerp(c3(0.55, 0.45, 0.55), warm * 0.35);
+  const day = smooth(-0.12, 0.3, sa);
+  const warm = Math.exp(-sa * sa * 30) * 0.6;
+  const hz = c3(0.54, 0.56, 0.56).lerp(c3(0.012, 0.016, 0.024), 1 - day).lerp(c3(0.6, 0.44, 0.34), warm * 0.55);
+  const zn = c3(0.34, 0.38, 0.42).lerp(c3(0.004, 0.006, 0.016), 1 - day);
   skyU.horizon.value.copy(hz); skyU.zenith.value.copy(zn); fogColor.copy(hz);
   const sd = new THREE.Vector3(ca * 0.85, sa, ca * 0.5 + 0.2).normalize();
   skyU.sunDir.value.copy(sd); skyU.night.value = 1 - day;
-  skyU.sunCol.value.setRGB(1.0, 0.78, 0.5).multiplyScalar(day * (0.3 + warm));
+  skyU.sunCol.value.setRGB(1.0, 0.78, 0.5).multiplyScalar(day * (0.08 + warm * 0.4));
   const ld = sa >= -0.05 ? sd : sd.clone().negate();
   sun.position.copy(ld).multiplyScalar(100).add(camera.position); sun.target.position.copy(camera.position);
-  sun.color.copy(c3(1, 0.94, 0.82).lerp(c3(1, 0.62, 0.35), warm).lerp(c3(0.45, 0.55, 0.9), 1 - day));
-  sun.intensity = lerp(0.55, 2.6, day);
-  hemi.color.copy(c3(0.86, 0.9, 0.95).lerp(c3(0.35, 0.42, 0.65), 1 - day).lerp(c3(1, 0.75, 0.6), warm * 0.4));
-  hemi.groundColor.copy(c3(0.42, 0.36, 0.24).lerp(c3(0.1, 0.1, 0.14), 1 - day));
-  hemi.intensity = lerp(0.8, 2.1, day);
-  fireLight.intensity = lerp(55, 26, day);
+  sun.color.copy(c3(0.95, 0.92, 0.85).lerp(c3(1, 0.6, 0.38), warm).lerp(c3(0.4, 0.5, 0.8), 1 - day));
+  sun.intensity = lerp(0.06, 1.5, day);
+  hemi.color.copy(c3(0.6, 0.64, 0.68).lerp(c3(0.1, 0.13, 0.22), 1 - day).lerp(c3(0.8, 0.6, 0.5), warm * 0.3));
+  hemi.groundColor.copy(c3(0.26, 0.22, 0.17).lerp(c3(0.02, 0.02, 0.03), 1 - day));
+  hemi.intensity = lerp(0.1, 1.35, day);
   Object.assign(waterU.uSunDir.value, ld); waterU.uSky.value.copy(hz); waterU.uZen.value.copy(zn);
   waterU.uSunCol.value.copy(skyU.sunCol.value);
-  MAT.terrain.needsUpdate = false;
 }
 
 // ---------------- Игрок ----------------
 const P = { x: SPAWN.x, y: 0, z: SPAWN.z, vx: 0, vy: 0, vz: 0, yaw: -Math.atan2(0.97, 0.26) - Math.PI / 2 + Math.PI / 2, pitch: -0.04, ground: false, swim: false, bob: 0 };
 // forward = (-sin yaw, -cos yaw): направим на +x с лёгким уклоном вглубь суши
 P.yaw = Math.atan2(-0.97, -0.26);
+P.slope = 0; P.stam = 1; P.tired = false;
 P.y = Math.max(heightAt(P.x, P.z), -1.25);
 const EYE = 1.68, PR = 0.36;
 const keys = {};
@@ -457,8 +475,10 @@ function updatePlayer(dt) {
   if (keys.KeyD || keys.ArrowRight) fx += 1; if (keys.KeyA || keys.ArrowLeft) fx -= 1;
   fx += touch.mx; fz += touch.mz;
   const l = Math.hypot(fx, fz); if (l > 1) { fx /= l; fz /= l; }
-  const run = keys.ShiftLeft || keys.ShiftRight || touch.run;
-  let sp = (run ? 7.6 : 4.2) * (P.swim ? 0.5 : 1);
+  if (P.stam < 0.03) P.tired = true; else if (P.stam > 0.3) P.tired = false;
+  const run = (keys.ShiftLeft || keys.ShiftRight || touch.run) && l > 0.1 && !P.tired;
+  let sp = (run ? 7.0 : 3.9) * (P.swim ? 0.5 : 1) * (P.tired ? 0.62 : 1);
+  sp *= 1 - 0.55 * smooth(0.25, 1.0, Math.max(0, P.slope));
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const tvx = (-sy * fz + cy * fx) * sp, tvz = (-cy * fz - sy * fx) * sp;
   const k = 1 - Math.exp(-(P.ground || P.swim ? 12 : 2.5) * dt);
@@ -466,7 +486,9 @@ function updatePlayer(dt) {
   const gOld = heightAt(P.x, P.z);
   let nx = P.x + P.vx * dt, nz = P.z + P.vz * dt;
   const gNew = heightAt(nx, nz), step = Math.hypot(nx - P.x, nz - P.z);
-  if (step > 1e-5 && P.ground && (gNew - gOld) / step > 1.15) { // слишком крутой склон
+  if (step > 1e-5) P.slope += ((gNew - gOld) / step - P.slope) * Math.min(1, dt * 6);
+  else P.slope += (0 - P.slope) * Math.min(1, dt * 3);
+  if (step > 1e-5 && P.ground && (gNew - gOld) / step > 1.15) { // слишком крутой склон — стена
     const gx = heightAt(nx, P.z), gz = heightAt(P.x, nz);
     if ((gx - gOld) / Math.max(1e-4, Math.abs(nx - P.x)) <= 1.15) { nz = P.z; }
     else if ((gz - gOld) / Math.max(1e-4, Math.abs(nz - P.z)) <= 1.15) { nx = P.x; }
@@ -476,15 +498,20 @@ function updatePlayer(dt) {
   collide();
   const g = Math.max(heightAt(P.x, P.z), -1.25);
   P.swim = heightAt(P.x, P.z) < -1.2;
-  if ((keys.Space || touch.jump) && (P.ground || P.swim) && started) { P.vy = P.swim ? 3.2 : 5.6; P.ground = false; }
+  if ((keys.Space || touch.jump) && (P.ground || P.swim) && started && !P.tired) { P.vy = P.swim ? 3.2 : 5.4; P.ground = false; P.stam = Math.max(0, P.stam - 0.05); }
   P.vy -= 17 * dt; if (P.swim && P.y < -1.2) P.vy *= 0.9;
   P.y += P.vy * dt;
   if (P.y <= g) { if (P.vy < -6 && !P.swim) playStep('land'); P.y = g; P.vy = 0; P.ground = true; } else if (P.y - g > 0.08) P.ground = false;
   const speed = Math.hypot(P.vx, P.vz);
-  if (P.ground && speed > 0.5) {
-    P.bob += dt * speed * 1.55;
-    if (Math.sin(P.bob) < -0.98 || (lastStepT += dt) > 0.9 / (speed / 4)) { /* step handled below */ }
-  }
+  if (P.ground && speed > 0.5) P.bob += dt * speed * 1.55;
+  // выносливость: бег и подъёмы выматывают
+  const moving = speed > 0.5;
+  let drain = 0;
+  if (run && moving) drain += 0.13;
+  if (moving) drain += 0.17 * smooth(0.3, 1.0, P.slope);
+  if (P.swim) drain += 0.05;
+  if (drain > 0) P.stam = Math.max(0, P.stam - drain * dt);
+  else P.stam = Math.min(1, P.stam + (moving ? 0.06 : 0.16) * dt);
   stepTimer(dt, speed);
 }
 let stepAcc = 0;
@@ -556,12 +583,11 @@ if (isTouch) {
   hold('tRun', (b) => { touch.run = !touch.run; b.classList.toggle('on', touch.run); });
   hold('tLight', (b) => { toggleTorch(); b.classList.toggle('on', torchOn); });
 }
-function toggleTorch() { torchOn = !torchOn; torch.intensity = torchOn ? 90 : 0; toast(torchOn ? '🔦 Фонарик включён' : 'Фонарик выключен'); }
-function nextTime() { dayT = (dayT + 0.125) % 1; applyTime(); const h = Math.floor(dayT * 24); toast('🕒 ' + String(h).padStart(2, '0') + ':00'); }
-$('bTime').onclick = () => nextTime();
+function toggleTorch() { torchOn = !torchOn; torch.intensity = torchOn ? 170 : 0; }
+function nextTime() { dayT = (dayT + 0.125) % 1; applyTime(); }
 $('bSound').onclick = () => toggleSound();
 $('bFull').onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen && d.requestFullscreen()); };
-['bTime', 'bSound', 'bFull'].forEach((id) => $(id).addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }));
+['bSound', 'bFull'].forEach((id) => $(id).addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }));
 
 // ---------------- Звук (процедурный) ----------------
 let AC = null, master = null, windG = null, waterG = null, fireG = null, muted = false, noiseBuf = null;
@@ -588,7 +614,7 @@ function burst(freq, q, type, dur, vol) {
   s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 2, dur + 0.05);
 }
 function playStep(kind) {
-  if (kind === 'leaves') { burst(2600, 0.8, 'bandpass', 0.16, 0.5); burst(900, 0.6, 'bandpass', 0.1, 0.3); }
+  if (kind === 'leaves') { burst(2800, 0.8, 'bandpass', 0.2, 0.75); burst(1100, 0.6, 'bandpass', 0.13, 0.45); burst(5000, 1.2, 'highpass', 0.08, 0.25); }
   else if (kind === 'gravel') { burst(3800, 1.2, 'highpass', 0.1, 0.4); burst(1800, 1, 'bandpass', 0.08, 0.3); }
   else if (kind === 'water') { burst(700, 0.7, 'lowpass', 0.4, 0.8); burst(2200, 1, 'bandpass', 0.2, 0.25); }
   else if (kind === 'snow') burst(1500, 0.6, 'bandpass', 0.18, 0.45);
@@ -601,13 +627,14 @@ function chirp() {
   for (let i = 0; i < n; i++) { const tt = t + i * 0.11; o.frequency.setValueAtTime(f0 * (1 + Math.random() * 0.3), tt); o.frequency.exponentialRampToValueAtTime(f0 * 1.4, tt + 0.07); g.gain.linearRampToValueAtTime(0.05, tt + 0.015); g.gain.linearRampToValueAtTime(0, tt + 0.09); }
   o.connect(g); g.connect(master); o.start(t); o.stop(t + n * 0.11 + 0.1);
 }
-let waterNear = 0, nextChirp = 4, wnTimer = 0;
+let waterNear = 0, breathT = 0, wnTimer = 0;
+function breathe(v) { burst(1400, 0.5, 'bandpass', 0.45, 0.15 + 0.3 * v); setTimeout(() => burst(900, 0.5, 'bandpass', 0.5, 0.12 + 0.25 * v), 480); }
 function updateAudio(dt, tm) {
   if (!AC) return;
   const day = smooth(-0.1, 0.25, Math.sin((dayT - 0.25) * TAU));
   const gust = 0.5 + 0.5 * Math.sin(tm * 0.31) * Math.sin(tm * 0.13 + 1);
   const hgt = heightAt(P.x, P.z), alt = smooth(5, 90, hgt);
-  windG.g.gain.setTargetAtTime(muted ? 0 : (0.12 + 0.3 * gust + alt * 0.25) * 0.8, AC.currentTime, 0.3);
+  windG.g.gain.setTargetAtTime(muted ? 0 : (0.05 + 0.2 * gust + alt * 0.3) * 0.8, AC.currentTime, 0.3);
   windG.f.frequency.setTargetAtTime(380 + 500 * gust + alt * 500, AC.currentTime, 0.3);
   wnTimer -= dt;
   if (wnTimer < 0) { // доля воды вокруг
@@ -619,61 +646,51 @@ function updateAudio(dt, tm) {
   const fd = Math.hypot(P.x - CAMP.x, P.z - CAMP.z), fv = Math.pow(clamp(1 - fd / 36, 0, 1), 2);
   fireG.g.gain.setTargetAtTime(muted ? 0 : fv * 0.6, AC.currentTime, 0.2);
   if (fv > 0.02 && Math.random() < dt * (10 + 30 * fv)) burst(3500, 1.5, 'highpass', 0.03, 0.35 * fv + 0.02);
-  nextChirp -= dt;
-  if (nextChirp < 0) { nextChirp = 3 + Math.random() * 8; if (day > 0.5 && hgt > 1 && hgt < 80 && forestAt(P.x, P.z, hgt) > 0.15) chirp(); }
+  if (P.stam < 0.4 || P.tired) { breathT -= dt; if (breathT < 0) { breathT = 1.2 + P.stam * 1.6; breathe(1 - P.stam); } }
 }
 function toggleSound() { muted = !muted; initAudio(); if (master) master.gain.value = muted ? 0 : 0.9; $('bSound').textContent = muted ? '🔇' : '🔊'; toast(muted ? 'Звук выключен' : 'Звук включён'); }
 
 // ---------------- Интерфейс ----------------
 let toastT = 0;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
-const mini = $('miniC'), mg = mini.getContext('2d'), MN = 64, MS = 8; // 64 px * 8 м = 512 м
-let miniImg = mg.createImageData(MN, MN), miniJob = null, miniShown = null, miniCenter = [1e9, 1e9];
-function miniStart() { miniJob = { cx: Math.round(P.x / 8) * 8, cz: Math.round(P.z / 8) * 8, i: 0, img: new ImageData(MN, MN) }; }
-function miniStep() {
-  const j = miniJob; if (!j) return;
-  const end = Math.min(MN * MN, j.i + 400);
-  for (; j.i < end; j.i++) {
-    const px = j.i % MN, py = (j.i / MN) | 0, x = j.cx + (px - MN / 2) * MS, z = j.cz + (py - MN / 2) * MS, h = heightAt(x, z);
-    let c;
-    if (h < -0.2) { const d = smooth(0, -12, h); c = [lerp(70, 28, d), lerp(120, 66, d), lerp(150, 96, d)]; }
-    else if (h < 1.4) c = [176, 164, 130];
-    else if (h > 118) c = [240, 242, 246];
-    else if (h > 70) c = [128, 124, 118];
-    else { const f = forestAt(x, z, h); c = f > 0.35 ? [110, 92, 40] : [138, 132, 62]; const s = clamp(h / 70, 0, 1); c = [c[0] * (0.85 + s * 0.25), c[1] * (0.85 + s * 0.25), c[2] * (0.85 + s * 0.25)]; }
-    j.img.data[j.i * 4] = c[0]; j.img.data[j.i * 4 + 1] = c[1]; j.img.data[j.i * 4 + 2] = c[2]; j.img.data[j.i * 4 + 3] = 255;
+const stamEl = $('stam'), vigEl = $('vig'), promptEl = $('prompt'), noteEl = $('note');
+let noteOpen = false, nearNote = null, readNotes = new Set(), noteT = 0;
+function findNote() {
+  const cx = Math.floor(P.x / CH), cz = Math.floor(P.z / CH);
+  const fx = -Math.sin(P.yaw) * Math.cos(P.pitch), fy = Math.sin(P.pitch), fz = -Math.cos(P.yaw) * Math.cos(P.pitch);
+  let best = null, bd = 1e9;
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    const ch = chunks.get(ckey(cx + dx, cz + dz)); if (!ch) continue;
+    for (const n of ch.notes) {
+      const vx = n.x - P.x, vy = n.y - (P.y + EYE), vz = n.z - P.z, d = Math.hypot(vx, vy, vz);
+      if (d > 3.0) continue;
+      const dot = (vx * fx + vy * fy + vz * fz) / d;
+      if ((dot > 0.55 || d < 1.2) && d < bd) { bd = d; best = n; }
+    }
   }
-  if (j.i >= MN * MN) { miniShown = j; miniCenter = [j.cx, j.cz]; miniJob = null; }
+  return best;
 }
-function miniDraw() {
-  mg.clearRect(0, 0, MN, MN);
-  if (!miniShown) return;
-  const oc = miniDraw.oc || (miniDraw.oc = document.createElement('canvas')); oc.width = oc.height = MN;
-  oc.getContext('2d').putImageData(miniShown.img, 0, 0);
-  const ox = (miniShown.cx - P.x) / MS, oz = (miniShown.cz - P.z) / MS;
-  mg.drawImage(oc, ox, oz);
-  const m2w = (x, z) => [MN / 2 + (x - P.x) / MS, MN / 2 + (z - P.z) / MS];
-  let p = m2w(CAMP.x, CAMP.z); mg.fillStyle = '#ff9a2a'; mg.beginPath(); mg.arc(p[0], p[1], 2, 0, TAU); mg.fill();
-  const cx0 = Math.floor((P.x - 260) / VCELL), cx1 = Math.floor((P.x + 260) / VCELL), cz0 = Math.floor((P.z - 260) / VCELL), cz1 = Math.floor((P.z + 260) / VCELL);
-  for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) { const v = villageCell(cx, cz); if (v) { p = m2w(v.x, v.z); mg.fillStyle = '#e8412c'; mg.fillRect(p[0] - 2, p[1] - 2, 4, 4); } }
-  mg.save(); mg.translate(MN / 2, MN / 2); mg.rotate(-P.yaw); mg.fillStyle = '#fff'; mg.strokeStyle = '#000'; mg.lineWidth = 0.6;
-  mg.beginPath(); mg.moveTo(0, -3.6); mg.lineTo(2.4, 2.6); mg.lineTo(0, 1.2); mg.lineTo(-2.4, 2.6); mg.closePath(); mg.fill(); mg.stroke(); mg.restore();
+function openNote(n) {
+  noteOpen = true; readNotes.add(n.id);
+  $('noteText').textContent = NOTES[(n.id - 1) % NOTES.length];
+  $('noteMeta').textContent = 'найдено записок: ' + readNotes.size + ' из ' + NOTES.length;
+  noteEl.classList.remove('hidden');
 }
-const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+function closeNote() { noteOpen = false; noteEl.classList.add('hidden'); }
+function interact() { if (noteOpen) closeNote(); else if (nearNote) openNote(nearNote); }
+addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') interact(); if (e.code === 'Escape' && noteOpen) closeNote(); });
+noteEl.addEventListener('click', closeNote);
+$('tE') && $('tE').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); interact(); }, { passive: false });
 function updateHUD() {
-  const h = heightAt(P.x, P.z), name = biomeName(P.x, P.z, h);
-  $('place').textContent = name;
-  const fd = Math.round(Math.hypot(P.x - CAMP.x, P.z - CAMP.z));
-  const brg = Math.atan2(-Math.sin(P.yaw) * -1, 0); // не используется
-  let ang = (-P.yaw) * 180 / Math.PI; // 0 = на -z (север)
-  ang = ((ang % 360) + 360) % 360;
-  const hr = Math.floor(dayT * 24), mn = Math.floor((dayT * 24 % 1) * 60);
-  $('coords').innerHTML = 'Высота: <b>' + Math.max(0, Math.round(h)) + ' м</b> · От костра: <b>' + fd + ' м</b><br>🕒 <b>' + String(hr).padStart(2, '0') + ':' + String(mn).padStart(2, '0') + '</b> · Деревень найдено: <b>' + foundVillages + '</b>';
-  $('compass').textContent = DIRS[Math.round(ang / 45) % 8] + ' · ' + Math.round(ang) + '°';
+  stamEl.style.opacity = P.stam < 0.97 ? 1 : 0;
+  stamEl.firstElementChild.style.width = (P.stam * 100) + '%';
+  stamEl.classList.toggle('low', P.tired || P.stam < 0.25);
+  vigEl.style.opacity = 0.9 + 0.1 * (1 - P.stam);
 }
-let foundVillages = 0;
-function checkVillage() {
-  for (const v of villagesNear(P.x, P.z, 55)) if (!v.found && Math.hypot(P.x - v.x, P.z - v.z) < 48) { v.found = true; foundVillages++; toast('🏘️ Вы нашли деревню «' + v.name + '»'); }
+// зерно плёнки
+{
+  const gr = $('grain'), gx = gr.getContext('2d'), img = gx.createImageData(180, 100);
+  setInterval(() => { const d = img.data; for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } gx.putImageData(img, 0, 0); }, 100);
 }
 
 // ---------------- Потоковая загрузка чанков ----------------
@@ -697,8 +714,8 @@ function pump(budget, minOne) {
   }
 }
 function applyViewDistance() {
-  const far = (VIEW_R - 0.5) * CH;
-  scene.fog.near = 18; scene.fog.far = far; waterU.uNear.value = 18; waterU.uFar.value = far;
+  const far = (VIEW_R - 0.7) * CH * 0.75, den = 1.73 / far;
+  scene.fog.density = den; waterU.uDen.value = den;
 }
 
 // ---------------- Главный цикл ----------------
@@ -707,16 +724,17 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
-let tPrev = performance.now(), tClock = 0, hudT = 0, miniT = 0, fireT = 0;
+let tPrev = performance.now(), tClock = 0, hudT = 0, fireT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - tPrev) / 1000); tPrev = now; tClock += dt;
-  if (started) { updatePlayer(dt); refreshQueue(false); pump(7, true); checkVillage(); }
+  if (started) { updatePlayer(dt); refreshQueue(false); pump(7, true); }
   else pump(14, true);
   // камера
   const bob = P.ground && !P.swim ? Math.sin(P.bob * 2) * 0.035 * clamp(Math.hypot(P.vx, P.vz) / 4, 0, 1.4) : 0;
   const swimBob = P.swim ? Math.sin(tClock * 1.6) * 0.04 : 0;
-  camera.position.set(P.x, P.y + EYE + bob + swimBob, P.z);
+  const tired = P.tired || P.stam < 0.25 ? Math.sin(tClock * 2.2) * 0.012 : 0;
+  camera.position.set(P.x, P.y + EYE + bob + swimBob + tired, P.z);
   camera.rotation.set(P.pitch, P.yaw, 0);
   // небо/вода следуют за камерой
   sky.position.copy(camera.position); sky.scale.setScalar(900);
@@ -734,7 +752,7 @@ function frame(now) {
     m.rotation.y += dt * 1.5; m.rotation.z = 0.08 * Math.sin(fireT * 4 + u.ph); m.rotation.x = 0.08 * Math.cos(fireT * 3.1 + u.ph);
   }
   glow.material.opacity = 0.8 + 0.2 * Math.sin(fireT * 11);
-  fireLight.intensity = (lerp(55, 26, smooth(-0.1, 0.25, Math.sin((dayT - 0.25) * TAU)))) * (0.85 + 0.15 * Math.sin(fireT * 13) * Math.sin(fireT * 7.7) + (Math.random() - 0.5) * 0.12);
+  fireLight.intensity = (lerp(34, 16, smooth(-0.1, 0.25, Math.sin((dayT - 0.25) * TAU)))) * (0.85 + 0.15 * Math.sin(fireT * 13) * Math.sin(fireT * 7.7) + (Math.random() - 0.5) * 0.12);
   for (let i = 0; i < SP_N; i++) {
     spLife[i] -= dt * 0.45;
     if (spLife[i] <= 0) { spLife[i] = 0.6 + Math.random() * 0.8; const a = Math.random() * TAU, r = Math.random() * 0.35; spPos[i * 3] = CAMP.x + Math.cos(a) * r; spPos[i * 3 + 1] = fire.position.y + 0.5; spPos[i * 3 + 2] = CAMP.z + Math.sin(a) * r; spVel[i] = [(Math.random() - 0.5) * 0.7 + 0.25, 1.2 + Math.random() * 1.8, (Math.random() - 0.5) * 0.7]; }
@@ -745,7 +763,7 @@ function frame(now) {
   for (const s of smokes) {
     const u = s.userData; u.t += dt * 0.12; if (u.t > 1) u.t -= 1;
     const t = u.t; s.position.set(CAMP.x + 0.3 * t * 6 + Math.sin(t * 9 + u.t * 4) * 0.3, fire.position.y + 1.2 + t * 9, CAMP.z + Math.cos(t * 7) * 0.3);
-    s.scale.setScalar(0.8 + t * 4.5); s.material.opacity = Math.sin(t * Math.PI) * 0.28;
+    s.scale.setScalar(0.8 + t * 4.5); s.material.opacity = Math.sin(t * Math.PI) * 0.16;
   }
   // листья
   for (let i = 0; i < LF_N; i++) {
@@ -760,10 +778,9 @@ function frame(now) {
   // ui
   hudT -= dt; if (hudT < 0) { hudT = 0.25; if (started) updateHUD(); }
   if (started) {
-    miniT -= dt; if (!miniJob && (miniT < 0 || Math.hypot(P.x - miniCenter[0], P.z - miniCenter[1]) > 120)) { miniT = 6; miniStart(); }
-    miniStep(); miniDraw();
+    noteT -= dt; if (noteT < 0) { noteT = 0.12; nearNote = noteOpen ? nearNote : findNote(); if (!noteOpen) nearNote = findNote(); promptEl.classList.toggle('hidden', !nearNote || noteOpen); const te = $('tE'); if (te) te.classList.toggle('hidden', !nearNote && !noteOpen); }
     updateAudio(dt, tClock);
-    dayT = (dayT + dt / 900) % 1; if (Math.floor(tClock * 3) !== Math.floor((tClock - dt) * 3)) applyTime();
+    dayT = (dayT + dt / 1800) % 1; if (Math.floor(tClock * 3) !== Math.floor((tClock - dt) * 3)) applyTime();
   }
   renderer.render(scene, camera);
 }
@@ -781,7 +798,7 @@ function boot() {
     const before = queue.length; pump(12, true);
     done += Math.max(0, before - queue.length);
     bar.style.width = Math.min(100, (done / Math.max(1, need)) * 100) + '%';
-    if (queue.filter((q) => q[2] <= 2.3).length === 0) { const b = $('play'); b.disabled = false; b.textContent = 'Играть ▶'; bar.style.width = '100%'; return; }
+    if (queue.filter((q) => q[2] <= 2.3).length === 0) { const b = $('play'); b.disabled = false; b.textContent = 'Войти'; bar.style.width = '100%'; return; }
     setTimeout(tick, 0);
   };
   tick();
@@ -792,16 +809,16 @@ document.querySelectorAll('#quality button').forEach((b) => b.addEventListener('
   VIEW_R = +b.dataset.r; applyViewDistance(); refreshQueue(true);
 }));
 $('play').addEventListener('click', () => {
-  started = true; $('start').classList.add('hidden'); $('hud').classList.remove('hidden');
+  started = true; $('start').classList.add('hidden'); $('hud').classList.remove('hidden'); $('grain').classList.remove('hidden');
   initAudio();
   if (!isTouch) { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { }); }
   else { const d = document.documentElement; d.requestFullscreen && d.requestFullscreen().catch(() => { }); }
-  toast('🔥 Вы на берегу Волги. Костёр рядом — иди по склону вверх, там деревня');
+  toast('Здесь никого нет.'); setTimeout(() => $('help').style.opacity = 0, 18000);
   refreshQueue(true);
 });
 
 window.__game = {
-  P, scene, camera, chunks, heightAt, villageCell, villagesNear, CAMP,
+  P, scene, camera, chunks, NOTES, openNote, findNote, heightAt, villageCell, villagesNear, CAMP,
   teleport(x, z, yaw, pitch) { P.x = x; P.z = z; P.y = Math.max(heightAt(x, z), -1.25); if (yaw !== undefined) P.yaw = yaw; if (pitch !== undefined) P.pitch = pitch; refreshQueue(true); },
   setTime(t) { dayT = t; applyTime(); },
   flush() { pump(1e9, true); },

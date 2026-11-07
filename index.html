@@ -4,23 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#1b1f1c">
-<title>Волга — Исследователь</title>
+<title>Тишина — Волга</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#1b1f1c;color:#f1ead8;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none}
-canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block}
+canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block;filter:saturate(.72) contrast(1.1) brightness(.96)}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 38%,rgba(0,0,0,.55) 78%,rgba(0,0,0,.92) 100%);transition:opacity .5s}
+#grain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:.075;mix-blend-mode:overlay;image-rendering:pixelated}
+#stam{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));width:140px;height:3px;margin-left:-70px;background:rgba(255,255,255,.12);opacity:0;transition:opacity .6s;pointer-events:none}
+#stam i{display:block;height:100%;background:rgba(235,225,200,.7)}
+#stam.low i{background:rgba(200,90,70,.85)}
+#prompt{position:fixed;left:50%;top:60%;transform:translateX(-50%);padding:6px 16px;border:1px solid rgba(255,255,255,.3);border-radius:4px;background:rgba(0,0,0,.45);font-size:15px;letter-spacing:.5px;pointer-events:none}
+#note{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:5;padding:16px}
+#note .paper{max-width:480px;background:#cbc3ad;color:#2b261c;padding:30px 32px 22px;border-radius:2px;box-shadow:0 10px 50px #000;font-family:Georgia,'Times New Roman',serif;font-size:19px;line-height:1.55;transform:rotate(-.7deg);background-image:radial-gradient(rgba(60,45,20,.18) 1px,transparent 1px);background-size:5px 5px}
+#note small{display:block;margin-top:16px;font:12px system-ui;color:#6b6350;text-align:right}
 .hidden{display:none!important}
 #hud{position:fixed;inset:0;pointer-events:none}
 #cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.65);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
-#info{position:absolute;left:max(12px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));font-size:13px;line-height:1.45;text-shadow:0 1px 3px #000,0 0 6px #000;background:rgba(15,18,16,.38);padding:8px 11px;border-radius:10px;backdrop-filter:blur(3px)}
-#info b{font-weight:600;color:#ffd58a}
-#place{font-size:15px;font-weight:600;color:#ffe3ad}
-#mini{position:absolute;right:max(12px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:118px;height:118px;border-radius:50%;border:2px solid rgba(255,235,190,.55);background:#222;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.5)}
-#mini canvas{width:100%;height:100%;display:block}
-#compass{position:absolute;right:max(12px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 124px);width:118px;text-align:center;font-size:12px;text-shadow:0 1px 3px #000}
-#toast{position:absolute;left:50%;top:18%;transform:translateX(-50%);padding:10px 22px;border-radius:30px;background:rgba(20,24,20,.72);border:1px solid rgba(255,220,150,.5);font-size:18px;font-weight:600;color:#ffe3ad;text-shadow:0 1px 3px #000;opacity:0;transition:opacity .6s;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast{position:absolute;left:50%;top:18%;transform:translateX(-50%);padding:8px 20px;background:rgba(0,0,0,.35);font-size:17px;letter-spacing:1px;color:#d8d2c2;text-shadow:0 1px 3px #000;opacity:0;transition:opacity 1.2s;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
 #toast.show{opacity:1}
-#help{position:absolute;left:max(12px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom));font-size:12px;opacity:.75;text-shadow:0 1px 3px #000;line-height:1.5}
+#help{transition:opacity 3s;position:absolute;left:max(12px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom));font-size:12px;opacity:.75;text-shadow:0 1px 3px #000;line-height:1.5}
 #btns{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));display:flex;gap:8px;pointer-events:auto}
 #btns button,.tbtn{pointer-events:auto;border:1px solid rgba(255,235,190,.45);background:rgba(20,24,20,.55);color:#fff1d2;border-radius:12px;font-size:18px;min-width:44px;height:44px;padding:0 10px;backdrop-filter:blur(3px)}
 #touch{position:absolute;inset:0;pointer-events:none}
@@ -29,53 +32,57 @@ canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block}
 #tbtns{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 56px);display:flex;flex-direction:column;gap:10px;align-items:flex-end}
 .tbtn{width:60px;height:60px;border-radius:50%;font-size:22px}
 .tbtn.on{background:rgba(255,190,90,.55)}
-#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,rgba(70,60,40,.55),rgba(14,16,14,.92));padding:16px;z-index:10}
-.card{max-width:560px;width:100%;background:rgba(24,27,23,.82);border:1px solid rgba(255,220,150,.25);border-radius:18px;padding:26px 26px 22px;text-align:center;box-shadow:0 12px 50px rgba(0,0,0,.6);max-height:96vh;overflow:auto}
-.card h1{margin:0 0 4px;font-size:34px;letter-spacing:.5px;color:#ffd58a}
+#start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,rgba(40,40,36,.7),rgba(6,7,6,.97));padding:16px;z-index:10}
+.card{max-width:560px;width:100%;background:rgba(12,13,12,.75);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:26px 26px 22px;text-align:center;box-shadow:0 12px 50px rgba(0,0,0,.6);max-height:96vh;overflow:auto}
+.card h1{margin:0 0 4px;font-size:34px;letter-spacing:.5px;color:#d8d2c2}
 .card p.sub{margin:0 0 16px;opacity:.8;font-size:15px}
 .card ul{list-style:none;margin:0 0 16px;padding:0;text-align:left;font-size:14px;line-height:1.7;display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
 .card kbd{background:#3a3a33;border:1px solid #66665a;border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12px;color:#ffe9bd}
 .row{display:flex;gap:8px;justify-content:center;align-items:center;margin:0 0 16px;font-size:14px;flex-wrap:wrap}
 .seg button{background:#2c2f28;border:1px solid #5a5a4a;color:#eee;padding:7px 14px;font-size:14px;border-radius:8px}
-.seg button.on{background:#c98a2b;border-color:#ffd58a;color:#1b1408;font-weight:700}
-#play{background:linear-gradient(#f0a640,#c97a1a);color:#1c1204;border:none;border-radius:12px;font-size:20px;font-weight:800;padding:13px 44px;box-shadow:0 4px 0 #7a4a0c,0 8px 20px rgba(0,0,0,.5)}
+.seg button.on{background:#4a4a40;border-color:#9a9482;color:#fff}
+#play{background:transparent;color:#d8d2c2;border:1px solid rgba(255,255,255,.35);border-radius:2px;font-size:18px;letter-spacing:4px;padding:13px 44px;text-transform:uppercase}
+#play:hover:not(:disabled){background:rgba(255,255,255,.08)}
 #play:disabled{opacity:.6}
 #loadbar{height:6px;background:#333;border-radius:4px;margin:14px 0 0;overflow:hidden}
-#loadbar i{display:block;height:100%;width:0;background:#f0a640;transition:width .2s}
+#loadbar i{display:block;height:100%;width:0;background:#9a9482;transition:width .2s}
 @media (max-width:560px){.card ul{grid-template-columns:1fr}.card h1{font-size:28px}}
 </style>
 </head>
 <body>
 <canvas id="view"></canvas>
+<div id="vig"></div>
+<canvas id="grain" class="hidden" width="180" height="100"></canvas>
 <div id="hud" class="hidden">
   <div id="cross"></div>
-  <div id="info"><div id="place">—</div><div id="coords"></div></div>
-  <div id="mini"><canvas id="miniC" width="64" height="64"></canvas></div>
-  <div id="compass"></div>
   <div id="toast"></div>
-  <div id="help">WASD — ходить · Shift — бег · Пробел — прыжок · F — фонарь · T — время · M — звук</div>
-  <div id="btns"><button id="bSound" title="Звук">🔊</button><button id="bTime" title="Сменить время суток">🕒</button><button id="bFull" title="На весь экран">⛶</button></div>
+  <div id="stam"><i></i></div>
+  <div id="prompt" class="hidden">E — осмотреть</div>
+  <div id="help">WASD — идти · Shift — бег · Пробел — прыжок · F — фонарь · E — осмотреть · M — звук</div>
+  <div id="btns"><button id="bSound" title="Звук">🔊</button><button id="bFull" title="На весь экран">⛶</button></div>
   <div id="touch" class="hidden">
     <div id="stickBase"><div id="stickKnob"></div></div>
-    <div id="tbtns"><button class="tbtn" id="tJump">⤒</button><button class="tbtn" id="tRun">🏃</button><button class="tbtn" id="tLight">🔦</button></div>
+    <div id="tbtns"><button class="tbtn hidden" id="tE">E</button><button class="tbtn" id="tJump">⤒</button><button class="tbtn" id="tRun">🏃</button><button class="tbtn" id="tLight">🔦</button></div>
   </div>
 </div>
+<div id="note" class="hidden"><div class="paper"><p id="noteText" style="margin:0"></p><small id="noteMeta"></small></div></div>
 <div id="start">
   <div class="card">
-    <h1>🍂 Волга: Исследователь</h1>
-    <p class="sub">Осенний берег, костёр, лес и бесконечный мир впереди. Иди вверх по склону — там может быть деревня.</p>
+    <h1>Тишина</h1>
+    <p class="sub">Волга. Осень. Костёр горит, но рядом никого нет.<br>Постарайся найти дорогу. Лучше — до темноты.</p>
     <ul>
-      <li><kbd>W A S D</kbd> ходьба</li>
-      <li><kbd>Shift</kbd> бег</li>
+      <li><kbd>W A S D</kbd> идти</li>
+      <li><kbd>Shift</kbd> бежать</li>
       <li><kbd>Пробел</kbd> прыжок</li>
-      <li><kbd>Мышь</kbd> осмотр</li>
-      <li><kbd>F</kbd> фонарик</li>
-      <li><kbd>T</kbd> время суток</li>
+      <li><kbd>Мышь</kbd> осмотреться</li>
+      <li><kbd>F</kbd> фонарь</li>
+      <li><kbd>E</kbd> осмотреть находку</li>
       <li><kbd>M</kbd> звук вкл/выкл</li>
-      <li>📱 Телефон: стик слева, взгляд — справа</li>
+      <li>📱 Стик слева, взгляд справа</li>
     </ul>
-    <div class="row seg" id="quality"><span>Дальность прорисовки:</span><button data-r="3">Низкая</button><button data-r="4" class="on">Средняя</button><button data-r="6">Высокая</button></div>
-    <button id="play" disabled>Загрузка мира…</button>
+    <p class="sub" style="font-size:13px;opacity:.55;margin:-4px 0 14px">Наушники и тёмная комната. Игра без монстров и без скримеров.</p>
+    <div class="row seg" id="quality"><span>Туман:</span><button data-r="3">Густой</button><button data-r="4" class="on">Обычный</button><button data-r="6">Редкий</button></div>
+    <button id="play" disabled>Загрузка…</button>
     <div id="loadbar"><i></i></div>
   </div>
 </div>
@@ -143,11 +150,15 @@ function authoredH(x, z) {
   let h;
   if (zs < 0) h = -16 * (1 - Math.exp(zs / 24));
   else {
-    const zc = Math.min(zs, 420);
-    h = 0.095 * zc + 0.00021 * zc * zc;
-    const amp = 1.0 + Math.min(zs, 300) * 0.045;
+    const zc = Math.min(zs, 460);
+    h = 0.15 * zc + 0.00062 * zc * zc;
+    const amp = 1.2 + Math.min(zs, 300) * 0.07;
     h += fbm(x * 0.013, z * 0.013, 4, 5) * amp * smooth(4, 40, zs);
-    h += 10 * fbm(x * 0.004 + 7, z * 0.004, 3, 6) * smooth(10, 120, zs);
+    h += 22 * fbm(x * 0.0045 + 7, z * 0.0045, 3, 6) * smooth(10, 120, zs);
+    // стены долины по бокам
+    h += 70 * smooth(140, 430, Math.abs(x) + 20 * fbm(z * 0.01, x * 0.003, 2, 8)) * smooth(0, 70, zs);
+    // уступы-скалы
+    h += 10 * smooth(0.12, 0.22, fbm(x * 0.009 + 5, z * 0.009, 2, 73)) * smooth(60, 160, zs);
   }
   h += 0.35 * fbm(x * 0.17, z * 0.17, 2, 7);
   return h;
@@ -156,15 +167,19 @@ function authoredH(x, z) {
 // бесконечный "обычный" рельеф: холмы, горы, реки, озёра
 function genericH(x, z) {
   const c = fbm(x * 0.0025, z * 0.0025, 4, 31);
-  const hills = fbm(x * 0.011, z * 0.011, 4, 32) * 10;
-  const mm = smooth(0.02, 0.34, fbm(x * 0.0016 + 50, z * 0.0016 - 30, 3, 33));
-  let ridge = 1 - Math.abs(fbm(x * 0.0065, z * 0.0065, 4, 34));
+  const hills = fbm(x * 0.012, z * 0.012, 4, 32) * 14;
+  const mm = smooth(-0.12, 0.2, fbm(x * 0.0018 + 50, z * 0.0018 - 30, 3, 33));
+  let ridge = 1 - Math.abs(fbm(x * 0.0058, z * 0.0058, 4, 34));
   ridge = ridge * ridge;
-  let h = c * 28 + 6 + hills + mm * (ridge * 150 + 18);
+  let h = c * 26 + 14 + hills + mm * (ridge * 185 + 30);
+  // скальные уступы: крутые стенки, которые надо обходить
+  const lg = fbm(x * 0.011 + 9, z * 0.011 - 2, 2, 71);
+  h += 10 * smooth(0.0, 0.09, lg) * (0.3 + mm);
+  h += 6 * smooth(0.02, 0.11, fbm(x * 0.017, z * 0.017 + 4, 2, 72)) * mm;
   // реки
   const r = Math.abs(fbm(x * 0.0032 + 11, z * 0.0032 - 5, 3, 41));
-  h -= (1 - smooth(0.0, 0.055, r)) * 15 * (1 - mm);
-  h += 0.3 * fbm(x * 0.17, z * 0.17, 2, 7);
+  h -= (1 - smooth(0.0, 0.05, r)) * 15 * (1 - mm);
+  h += 0.4 * fbm(x * 0.17, z * 0.17, 2, 7);
   return h;
 }
 
@@ -196,7 +211,7 @@ function villageCell(cx, cz) {
     if (forced) { x = 46; z = 205; }
     else { x = (cx + 0.18 + 0.64 * r2) * VCELL; z = (cz + 0.18 + 0.64 * r3) * VCELL; }
     const h = heightBase(x, z);
-    let ok = forced || (h > 3 && h < 52 && Math.hypot(x, z) > 150);
+    let ok = forced || (h > 3 && h < 70 && Math.hypot(x, z) > 150);
     if (ok && !forced) {
       let mn = h, mx = h;
       for (let k = 0; k < 8; k++) {
@@ -205,7 +220,7 @@ function villageCell(cx, cz) {
         if (hh < 1.5) ok = false;
         mn = Math.min(mn, hh); mx = Math.max(mx, hh);
       }
-      if (mx - mn > 18) ok = false;
+      if (mx - mn > 26) ok = false;
     }
     if (ok) {
       v = {
@@ -250,14 +265,14 @@ const SPAWN = { x: 0, z: shoreZ(0) + 3.2 };
 
 // плотность леса 0..1
 function forestAt(x, z, h) {
-  if (h < 0.9 || h > 105) return 0;
+  if (h < 0.9 || h > 100) return 0;
   const f = fbm(x * 0.006 + 9, z * 0.006 - 4, 3, 51);
   let d = smooth(-0.15, 0.2, f);
   const zs = z - shoreZ(x);
   const wA = 1 - smooth(220, 520, Math.hypot(x, z - 60));
   d = Math.max(d, wA * 0.6 * smooth(3, 12, zs) * (1 - smooth(150, 215, zs)));
   d *= smooth(-0.65, -0.1, fbm(x * 0.021, z * 0.021, 2, 52));
-  d *= 1 - smooth(70, 105, h);
+  d *= 1 - smooth(60, 100, h);
   return d;
 }
 
@@ -274,6 +289,20 @@ function biomeName(x, z, h) {
   if (f > 0.2) return 'Редколесье';
   return h > 28 ? 'Холмы' : 'Осенний луг';
 }
+
+// ---------------- Записки ----------------
+const NOTES = [
+  'Конец октября. Встали лагерем на берегу, ниже последней деревни. Дима с утра пошёл вверх по склону — посмотреть, что за гребнем. Обещал вернуться к обеду. Костёр я не гашу.',
+  'Вечер. Дима не вернулся. Кричал до хрипоты. Эхо возвращается как-то странно — с опозданием, и не оттуда, куда я кричу. Утром пойду по его следам.',
+  'Нашёл его следы. Они идут вверх по склону и просто обрываются на ровном месте. Ни обрыва, ни снега. Листья вокруг лежат нетронутыми.',
+  'В деревне наверху никого. Двери открыты, на столах посуда, чайник ещё тёплый. Я просидел там час. Никто не пришёл.',
+  'Только сейчас заметил: здесь нет птиц. Давно уже нет. Слышно только мои шаги и ветер. Раньше я думал, что тишина — это когда тихо. Оказалось, это когда слушаешь.',
+  'Делаю зарубки на деревьях. Через час вышел к дереву с зарубкой. К своей. Но я шёл только прямо.',
+  'Туман третий день не уходит. Стрелка компаса не стоит на месте. Реку с гребня не видно. Сколько я прошёл — не знаю. Хожу, потому что стоять на месте хуже.',
+  'Если ты это читаешь — не ищи нас. Вернись к воде и иди вдоль берега. Не поднимайся выше. Мы ничего не видели. Мы просто не смогли найти дорогу назад.',
+  'Не помню, какое сегодня число. Костёр у реки, наверное, давно погас. Хотя я почему-то уверен: он ещё горит. Я оставил его — и он горит. Он не должен был гореть так долго.',
+  'На камне кто-то нацарапал: «ВНИЗ». Рядом ещё одна надпись, но её почти стёрло. Я долго не мог разобрать. Там написано: «ТЫ УЖЕ ЗДЕСЬ БЫЛ».',
+];
 
 // ============================================================
 //  ЧАСТЬ 2. Генератор геометрии, деревья, дома, лагерь
@@ -349,8 +378,10 @@ class MB {
     }
     for (let i = 0; i < seg; i++) {
       const j = (i + 1) % seg, a0 = A[i], a1 = A[j], b0 = Bv[i], b1 = Bv[j];
-      this.t(a0[0], a0[1], a0[2], b0[0], b0[1], b0[2], b1[0], b1[1], b1[2], col, mx, my, mz);
-      if (r0 > 0.001) this.t(a0[0], a0[1], a0[2], b1[0], b1[1], b1[2], a1[0], a1[1], a1[2], col, mx, my, mz);
+      let cc = col;
+      if (this.rough) { const k = 1 + this.rough * ((((i * 2654435761 + ((ax * 91 + az * 57) | 0)) >>> 0) % 100) / 50 - 1); cc = [col[0] * k, col[1] * k, col[2] * k]; }
+      this.t(a0[0], a0[1], a0[2], b0[0], b0[1], b0[2], b1[0], b1[1], b1[2], cc, mx, my, mz);
+      if (r0 > 0.001) this.t(a0[0], a0[1], a0[2], b1[0], b1[1], b1[2], a1[0], a1[1], a1[2], cc, mx, my, mz);
       if (capA && r0 > 0.02) this.t(ax, ay, az, a1[0], a1[1], a1[2], a0[0], a0[1], a0[2], col, bx, by, bz);
       if (capB && r1 > 0.02) this.t(bx, by, bz, b1[0], b1[1], b1[2], b0[0], b0[1], b0[2], col, ax, ay, az);
     }
@@ -372,9 +403,9 @@ class MB {
 }
 
 // ---------------- Палитры ----------------
-const FOLIAGE = [[0.86, 0.56, 0.12], [0.82, 0.40, 0.10], [0.92, 0.74, 0.18], [0.62, 0.56, 0.15], [0.60, 0.27, 0.10], [0.48, 0.52, 0.16], [0.74, 0.22, 0.10], [0.90, 0.64, 0.14]];
-const BARK = [0.30, 0.24, 0.18], BARK_LIGHT = [0.50, 0.44, 0.36], BIRCH = [0.86, 0.85, 0.80], WOOD_GRAY = [0.46, 0.42, 0.36];
-const SPRUCE = [0.13, 0.30, 0.17];
+const FOLIAGE = [[0.55, 0.42, 0.2], [0.5, 0.33, 0.17], [0.62, 0.53, 0.26], [0.42, 0.38, 0.2], [0.45, 0.25, 0.14], [0.36, 0.34, 0.18]];
+const BARK = [0.17, 0.14, 0.12], BARK_LIGHT = [0.38, 0.34, 0.3], BIRCH = [0.66, 0.65, 0.6], WOOD_GRAY = [0.34, 0.31, 0.28];
+const SPRUCE = [0.08, 0.17, 0.12];
 
 // ---------------- Деревья ----------------
 function treeBroad(B, cols, rng, x, y, z, sc) {
@@ -383,13 +414,13 @@ function treeBroad(B, cols, rng, x, y, z, sc) {
   const tx = x + lean, tz = z + lean * 0.6, cy = y + H * 0.55;
   B.limb(x, y - 0.3, z, tx, cy, tz, 0.26 * sc, 0.14 * sc, bark, 6, false, true);
   const base = FOLIAGE[(rng() * FOLIAGE.length) | 0], alt = FOLIAGE[(rng() * FOLIAGE.length) | 0];
-  const n = 4 + ((rng() * 3) | 0);
+  const n = 2 + ((rng() * 2) | 0);
   for (let k = 0; k < n; k++) {
     const a = rng() * TAU, r = (0.4 + rng() * 1.5) * sc;
     const bx = tx + Math.cos(a) * r, bz = tz + Math.sin(a) * r, by = cy + (0.1 + rng() * 0.9) * sc * 1.4;
     B.limb(tx, cy - 0.5 * sc, tz, bx, by - 0.5 * sc, bz, 0.08 * sc, 0.04 * sc, bark, 4, false, false);
-    const rr = (1.35 + rng() * 0.9) * sc;
-    B.blob(bx, by + 0.4 * sc, bz, rr, rr * 0.78, rr, jit(mixc(base, alt, rng() * 0.6), 0.1, rng), rng, 0.22, 0.14);
+    const rr = (1.0 + rng() * 0.7) * sc;
+    B.blob(bx, by + 0.4 * sc, bz, rr, rr * 0.6, rr, jit(mixc(base, alt, rng() * 0.6), 0.1, rng), rng, 0.22, 0.14);
   }
   cols.push([x, z, 0.38 * sc]);
 }
@@ -401,9 +432,9 @@ function treeBirch(B, cols, rng, x, y, z, sc) {
     const t = 0.15 + rng() * 0.6, bx = lerp(x, tx, t), bz = lerp(z, tz, t), by = y + H * 0.8 * t;
     B.limb(bx, by, bz, bx, by + 0.12, bz, 0.168 * sc * (1 - t * 0.5), 0.168 * sc * (1 - t * 0.5), [0.12, 0.11, 0.1], 6, true, true);
   }
-  const base = rng() < 0.75 ? [0.93, 0.76, 0.18] : [0.80, 0.62, 0.14];
-  for (let k = 0; k < 4; k++) {
-    const a = rng() * TAU, r = rng() * 0.9 * sc, by = y + H * (0.5 + 0.12 * k);
+  const base = rng() < 0.75 ? [0.62, 0.52, 0.22] : [0.5, 0.4, 0.18];
+  for (let k = 0; k < 2; k++) {
+    const a = rng() * TAU, r = rng() * 0.9 * sc, by = y + H * (0.55 + 0.14 * k);
     const rr = (0.95 + rng() * 0.5) * sc;
     B.blob(tx + Math.cos(a) * r, by, tz + Math.sin(a) * r, rr, rr * 1.1, rr, jit(base, 0.1, rng), rng, 0.2, 0.12);
     B.limb(tx, by - 1, tz, tx + Math.cos(a) * r, by - 0.2, tz + Math.sin(a) * r, 0.05 * sc, 0.03 * sc, BIRCH, 4, false, false);
@@ -421,7 +452,7 @@ function treeSpruce(B, cols, rng, x, y, z, sc) {
   }
   cols.push([x, z, 0.3 * sc]);
 }
-function treeDead(B, cols, rng, x, y, z, sc) {
+function treeDeadOld(B, cols, rng, x, y, z, sc) {
   const H = (4.5 + rng() * 3) * sc, lean = (rng() - 0.5) * 0.9;
   const bark = jit(WOOD_GRAY, 0.15, rng);
   const tx = x + lean, tz = z + lean * 0.4;
@@ -435,6 +466,53 @@ function treeDead(B, cols, rng, x, y, z, sc) {
   }
   cols.push([x, z, 0.3 * sc]);
 }
+// ветка с вилками (голое дерево)
+function branchTree(B, rng, x, y, z, dx, dy, dz, len, r, depth, col) {
+  const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l;
+  const ex = x + dx * len, ey = y + dy * len, ez = z + dz * len;
+  B.limb(x, y, z, ex, ey, ez, r, r * 0.55, col, depth > 1 ? 4 : 3, false, false);
+  if (depth <= 0) return;
+  const n = depth > 1 ? 2 : 2 + ((rng() * 2) | 0);
+  for (let k = 0; k < n; k++) {
+    const a = rng() * TAU, sp = 0.5 + rng() * 0.6;
+    const ndx = dx + Math.cos(a) * sp, ndz = dz + Math.sin(a) * sp, ndy = dy * 0.7 + 0.15 + rng() * 0.3;
+    const t = 0.55 + rng() * 0.4;
+    branchTree(B, rng, lerp(x, ex, t), lerp(y, ey, t), lerp(z, ez, t), ndx, ndy, ndz, len * (0.55 + rng() * 0.2), r * 0.6, depth - 1, col);
+  }
+}
+// голое мёртвое дерево — тёмный кривой ствол
+function treeDead(B, cols, rng, x, y, z, sc) {
+  const H = (5.5 + rng() * 4.5) * sc, lean = (rng() - 0.5) * 1.3;
+  const bark = jit(BARK, 0.25, rng);
+  B.rough = 0.28;
+  const mid = [x + lean * 0.5 + (rng() - 0.5) * 0.5, y + H * 0.5, z + (rng() - 0.5) * 0.5], tx = x + lean, tz = z + lean * 0.5;
+  const R0 = (0.34 + rng() * 0.12) * sc;
+  B.limb(x, y - 0.4, z, x, y + 0.5, z, R0 * 1.45, R0 * 1.05, bark, 8, false, false); // корневой наплыв
+  B.limb(x, y + 0.4, z, mid[0], mid[1], mid[2], R0 * 1.05, R0 * 0.7, bark, 8, false, false);
+  B.limb(mid[0], mid[1], mid[2], tx, y + H, tz, R0 * 0.7, R0 * 0.3, bark, 7, false, true);
+  B.rough = 0.12;
+  const nb = 4 + ((rng() * 3) | 0);
+  for (let k = 0; k < nb; k++) {
+    const t = 0.45 + rng() * 0.55, a = rng() * TAU;
+    const bx = lerp(x, tx, t), bz = lerp(z, tz, t), by = y + H * t;
+    branchTree(B, rng, bx, by, bz, Math.cos(a), 0.35 + rng() * 0.7, Math.sin(a), (1.4 + rng() * 1.8) * sc * (1.1 - t * 0.4), 0.11 * sc * (1.2 - t * 0.5), 2, bark);
+  }
+  B.rough = 0;
+  cols.push([x, z, R0 * 1.15]);
+}
+// голый куст из тонких прутьев
+function bareBush(B, rng, x, y, z, sc) {
+  const col = jit([0.26, 0.2, 0.15], 0.25, rng), n = 8 + ((rng() * 5) | 0);
+  for (let k = 0; k < n; k++) {
+    const a = rng() * TAU, sp = 0.2 + rng() * 0.7;
+    branchTree(B, rng, x + (rng() - 0.5) * 0.3, y, z + (rng() - 0.5) * 0.3, Math.cos(a) * sp, 1, Math.sin(a) * sp, (0.8 + rng() * 0.7) * sc, 0.018, 1, col);
+  }
+  if (rng() < 0.4) { // редкие уцелевшие листья
+    const c = jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng);
+    for (let k = 0; k < 3; k++) B.blob(x + (rng() - 0.5) * 0.9, y + 0.7 + rng() * 0.6, z + (rng() - 0.5) * 0.9, 0.22, 0.14, 0.22, c, rng, 0.3, 0.1);
+  }
+}
+
 function treeApple(B, cols, rng, x, y, z, sc) {
   B.limb(x, y - 0.2, z, x, y + 1.7 * sc, z, 0.17 * sc, 0.1 * sc, jit(BARK, 0.1, rng), 6, false, true);
   const base = rng() < 0.5 ? [0.58, 0.58, 0.18] : [0.80, 0.62, 0.15];
@@ -458,7 +536,8 @@ function emitHouse(B, ctx, it) {
   const Lp = (lx, ly, lz) => [it.x + lx * c + lz * s, it.y + ly, it.z - lx * s + lz * c];
   const Lv = (lx, ly, lz) => [lx * c + lz * s, ly, -lx * s + lz * c];
   const { w, d, h } = it;
-  const wall = it.wall, dark = [wall[0] * 0.72, wall[1] * 0.72, wall[2] * 0.72];
+  const gray = (c, k) => { const m = (c[0] + c[1] + c[2]) / 3; return [lerp(c[0], m, 0.55) * k, lerp(c[1], m, 0.55) * k, lerp(c[2], m, 0.55) * k]; };
+  const wall = gray(it.wall, 0.72), dark = [wall[0] * 0.7, wall[1] * 0.7, wall[2] * 0.7]; it = Object.assign({}, it, { roof: gray(it.roof, 0.6), lit: false });
   const part = (lx, ly, lz, sx, sy, sz, col) => { const p = Lp(lx, ly, lz); B.box(p[0], p[1], p[2], sx, sy, sz, it.rot, col); };
   part(0, 0.18, 0, w + 0.35, 0.36, d + 0.35, [0.5, 0.49, 0.46]);          // фундамент
   part(0, 0.36 + (h - 0.36) / 2, 0, w, h - 0.36, d, wall);                  // стены
@@ -476,15 +555,16 @@ function emitHouse(B, ctx, it) {
     B.t(a[0], a[1], a[2], b[0], b[1], b[2], cc[0], cc[1], cc[2], wall, m[0], m[1], m[2]);
   }
   // дверь, окна
-  part(it.doorX, 1.05, d / 2 + 0.03, 0.95, 2.05, 0.1, [0.25, 0.15, 0.09]);
+  part(it.doorX, 1.05, d / 2 + 0.03, 0.95, 2.05, 0.1, [0.01, 0.01, 0.01]); // тёмный проём
+  { const a = 1.15, hx = it.doorX - 0.47, hp = Lp(hx + Math.cos(a) * 0.47, 1.05, d / 2 + Math.sin(a) * 0.47); B.box(hp[0], hp[1], hp[2], 0.94, 2.0, 0.06, it.rot - a, [0.2, 0.14, 0.1]); } // приоткрытая дверь
   part(it.doorX, 0.2, d / 2 + 0.35, 1.3, 0.2, 0.7, [0.55, 0.53, 0.5]);
   for (const wx of [-w * 0.3, w * 0.3]) {
     if (Math.abs(wx - it.doorX) < 1.2) continue;
     part(wx, 1.75, d / 2 + 0.03, 0.98, 0.98, 0.09, [0.9, 0.88, 0.82]);
-    part(wx, 1.75, d / 2 + 0.05, 0.78, 0.78, 0.09, it.lit ? [0.95, 0.78, 0.38] : [0.18, 0.25, 0.32]);
+    part(wx, 1.75, d / 2 + 0.05, 0.78, 0.78, 0.09, it.lit ? [0.95, 0.78, 0.38] : [0.04, 0.05, 0.06]);
   }
   part(w / 2 + 0.03, 1.75, 0, 0.09, 0.9, 0.9, [0.9, 0.88, 0.82]);
-  part(w / 2 + 0.05, 1.75, 0, 0.09, 0.72, 0.72, [0.18, 0.25, 0.32]);
+  part(w / 2 + 0.05, 1.75, 0, 0.09, 0.72, 0.72, [0.04, 0.05, 0.06]);
   // труба
   part(-w * 0.22, h + rh + 0.1, -d * 0.12, 0.55, 1.5, 0.55, [0.5, 0.28, 0.22]);
   ctx.boxes.push({ x: it.x, z: it.z, hx: w / 2 + 0.3, hz: d / 2 + 0.3, c, s });
@@ -494,7 +574,7 @@ function emitChapel(B, ctx, it) {
   const c = Math.cos(it.rot), s = Math.sin(it.rot);
   const Lp = (lx, ly, lz) => [it.x + lx * c + lz * s, it.y + ly, it.z - lx * s + lz * c];
   const part = (lx, ly, lz, sx, sy, sz, col) => { const p = Lp(lx, ly, lz); B.box(p[0], p[1], p[2], sx, sy, sz, it.rot, col); };
-  const white = [0.9, 0.89, 0.84], rng = ctx.rng;
+  const white = [0.6, 0.59, 0.55], rng = ctx.rng;
   part(0, 2.6, 0, 6, 5.2, 4.6, white);
   part(0, 0.15, 0, 6.3, 0.3, 4.9, [0.5, 0.49, 0.46]);
   const rh = 1.6, ex = 3.3, ez = 2.6, len = Math.hypot(rh, ez), sa = rh / len, ca = ez / len;
@@ -502,12 +582,12 @@ function emitChapel(B, ctx, it) {
   for (const sg of [1, -1]) B.obox(Lp(0, 5.2 + rh / 2, sg * ez / 2), Lv(1, 0, 0), Lv(0, ca, sg * sa), Lv(0, -sa, sg * ca), ex, 0.08, len / 2 + 0.1, [0.25, 0.42, 0.3]);
   part(0, 6.2, -1.4, 2.0, 2.6, 2.0, white);               // колокольня
   const dm = Lp(0, 8.4, -1.4);
-  B.blob(dm[0], dm[1], dm[2], 1.25, 1.7, 1.25, [0.95, 0.74, 0.18], rng, 0.04, 0.05);
-  B.limb(dm[0], dm[1] + 1.4, dm[2], dm[0], dm[1] + 2.9, dm[2], 0.05, 0.05, [0.95, 0.74, 0.18], 4, true, true);
-  B.limb(dm[0] - 0.4, dm[1] + 2.35, dm[2], dm[0] + 0.4, dm[1] + 2.35, dm[2], 0.04, 0.04, [0.95, 0.74, 0.18], 4, true, true);
+  B.blob(dm[0], dm[1], dm[2], 1.25, 1.7, 1.25, [0.5, 0.42, 0.2], rng, 0.04, 0.05);
+  B.limb(dm[0], dm[1] + 1.4, dm[2], dm[0], dm[1] + 2.9, dm[2], 0.05, 0.05, [0.5, 0.42, 0.2], 4, true, true);
+  B.limb(dm[0] - 0.4, dm[1] + 2.35, dm[2], dm[0] + 0.4, dm[1] + 2.35, dm[2], 0.04, 0.04, [0.5, 0.42, 0.2], 4, true, true);
   part(0, 1.1, 2.33, 1.2, 2.2, 0.15, [0.30, 0.18, 0.1]);
-  part(-1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.2, 0.25, 0.32]);
-  part(1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.2, 0.25, 0.32]);
+  part(-1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.03, 0.04, 0.05]);
+  part(1.8, 3.2, 2.33, 0.7, 1.4, 0.12, [0.03, 0.04, 0.05]);
   ctx.boxes.push({ x: it.x, z: it.z, hx: 3.3, hz: 2.6, c, s });
 }
 
@@ -543,14 +623,16 @@ function emitFence(B, ctx, it) {
   const { x0, z0, x1, z1, y } = it, L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / 2));
   for (let k = 0; k <= n; k++) {
     const t = k / n, px = lerp(x0, x1, t), pz = lerp(z0, z1, t);
-    B.limb(px, y - 0.1, pz, px, y + 1.25, pz, 0.07, 0.06, jit(wd, 0.2, rng), 4, false, true);
-    if (k < n) {
+    if (rng() < 0.2) continue;
+    B.limb(px, y - 0.1, pz, px + (rng() - 0.5) * 0.25, y + 1.25 - rng() * 0.5, pz, 0.07, 0.06, jit(wd, 0.2, rng), 4, false, true);
+    if (k < n && rng() < 0.7) {
       const qx = lerp(x0, x1, (k + 1) / n), qz = lerp(z0, z1, (k + 1) / n);
       for (const hy of [0.45, 0.95]) B.limb(px, y + hy, pz, qx, y + hy + (rng() - 0.5) * 0.06, qz, 0.045, 0.045, jit(wd, 0.2, rng), 4, false, false);
     }
   }
 }
-function emitTree(B, ctx, it) { const f = { broad: treeBroad, birch: treeBirch, spruce: treeSpruce, dead: treeDead, apple: treeApple }[it.type]; f(B, ctx.circ, ctx.rng, it.x, it.y, it.z, it.sc || 1); }
+function emitPaperItem(B, ctx, it) { paper(B, ctx, it.x, it.y, it.z, it.rot || 0, it.id); }
+function emitTree(B, ctx, it) { const f = { broad: treeBroad, birch: treeBirch, spruce: treeSpruce, dead: treeDead, apple: treeDead }[it.type]; f(B, ctx.circ, ctx.rng, it.x, it.y, it.z, it.sc || 1); }
 
 // ---------------- Раскладка деревни ----------------
 function layoutOf(v) {
@@ -588,12 +670,15 @@ function layoutOf(v) {
         items.push({ kind: 'fence', x: (b.x + c1.x) / 2, z: (b.z + c1.z) / 2, x0: b.x, z0: b.z, x1: c1.x, z1: c1.z, y: v.h });
       }
     }
-    if (rng() < 0.75) { const p = back((rng() - 0.5) * h.w * 0.8, -h.d / 2 - 3.2 - rng() * 1.5); if (inside(p, 35)) items.push({ kind: 'tree', type: 'apple', x: p.x, z: p.z, y: v.h, sc: 0.9 + rng() * 0.3 }); }
+    if (rng() < 0.75) { const p = back((rng() - 0.5) * h.w * 0.8, -h.d / 2 - 3.2 - rng() * 1.5); if (inside(p, 35)) items.push({ kind: 'tree', type: 'dead', x: p.x, z: p.z, y: v.h, sc: 0.9 + rng() * 0.3 }); }
   }
   for (let k = 0; k < 3; k++) {
     const p = place((rng() - 0.5) * 50, (rng() < 0.5 ? -1 : 1) * (22 + rng() * 5));
     if (inside(p, 33)) items.push({ kind: 'hay', x: p.x, z: p.z, y: v.h });
   }
+  { const nid = 3 + (Math.abs(v.id) % 3), h0 = houses[0];
+    if (h0) { const c = Math.cos(h0.rot), sn = Math.sin(h0.rot), lz = h0.d / 2 + 1.4, lx = h0.doorX + 0.6;
+      items.push({ kind: 'paper', x: h0.x + lx * c + lz * sn, z: h0.z - lx * sn + lz * c, y: v.h, rot: h0.rot, id: nid }); } }
   for (const it of items) it.vid = v.id;
   v.layout = items;
   return items;
@@ -621,6 +706,7 @@ function makeCamp() {
     }
     ctx.circ.push([C.x, C.z, 1.0]);
   });
+  add(C.x + 5.2, C.z + 7.4, (B, ctx) => emitTent(B, ctx, C.x + 5.2, gy(C.x + 5.2, C.z + 7.4), C.z + 7.4, 3.6, [0.6, 0.33, 0.12], 1));
   const Tx = C.x - 4.6, Tz = C.z + 5.6, Try = 0.5;
   add(Tx, Tz, (B, ctx) => { // стол
     const y = gy(Tx, Tz), c = Math.cos(Try), s = Math.sin(Try), rng = ctx.rng;
@@ -667,6 +753,39 @@ function makeCamp() {
 }
 const CAMP_ITEMS = makeCamp();
 
+// ---------------- Записки, палатки, находки ----------------
+function paper(B, ctx, x, y, z, rot, id) {
+  B.box(x, y + 0.012, z, 0.3, 0.02, 0.21, rot, [0.82, 0.8, 0.7]);
+  B.box(x + 0.02, y + 0.025, z, 0.2, 0.004, 0.012, rot, [0.25, 0.25, 0.3]);
+  ctx.notes.push({ x, y: y + 0.05, z, id });
+}
+function emitTent(B, ctx, x, y, z, rot, col, note) {
+  const c = Math.cos(rot), s = Math.sin(rot);
+  const Lp = (lx, ly, lz) => [x + lx * c + lz * s, y + ly, z - lx * s + lz * c];
+  const Lv = (lx, ly, lz) => [lx * c + lz * s, ly, -lx * s + lz * c];
+  const ex = 1.15, ez = 1.05, rh = 1.2, len = Math.hypot(rh, ez), sa = rh / len, ca = ez / len;
+  for (const sg of [1, -1]) B.obox(Lp(0, rh / 2, sg * ez / 2), Lv(1, 0, 0), Lv(0, ca, sg * sa), Lv(0, -sa, sg * ca), ex, 0.015, len / 2, col);
+  const f = (sx) => { const a = Lp(sx, 0, ez), b = Lp(sx, 0, -ez), t = Lp(sx, rh, 0), m = Lp(0, 0.4, 0); B.t(a[0], a[1], a[2], b[0], b[1], b[2], t[0], t[1], t[2], col, m[0], m[1], m[2]); };
+  f(-ex);
+  const a = Lp(ex, 0, ez), b = Lp(ex, 0, -ez), t = Lp(ex, rh, 0), m = Lp(0, 0.4, 0); // вход — тёмный
+  B.t(a[0], a[1], a[2], b[0], b[1], b[2], t[0], t[1], t[2], [0.02, 0.02, 0.02], m[0], m[1], m[2]);
+  const fl = Lp(0, 0.02, 0); B.box(fl[0], fl[1], fl[2], ex * 2, 0.03, ez * 2, rot, [0.12, 0.13, 0.1]);
+  const sl = Lp(0, 0.1, 0); B.box(sl[0], sl[1], sl[2], 1.9, 0.12, 0.7, rot, [0.22, 0.28, 0.35]); // спальник
+  ctx.boxes.push({ x, z, hx: ex + 0.1, hz: ez + 0.1, c, s });
+  if (note) { const p = Lp(ex + 0.9, 0, 0.2); paper(B, ctx, p[0], heightAt(p[0], p[2]), p[2], rot + 0.4, note); }
+}
+function emitCairn(B, ctx, x, y, z, rng) {
+  let r = 0.55;
+  for (let k = 0; k < 5; k++) { B.blob(x + (rng() - 0.5) * 0.1, y + 0.12 + k * 0.2, z + (rng() - 0.5) * 0.1, r, 0.13, r * 0.9, jit([0.42, 0.41, 0.39], 0.12, rng), rng, 0.15, 0.1); r *= 0.78; }
+  ctx.circ.push([x, z, 0.5]);
+}
+function emitPost(B, ctx, x, y, z, rng) {
+  B.limb(x, y - 0.2, z, x + 0.05, y + 2.3, z, 0.06, 0.05, [0.3, 0.24, 0.18], 5, false, true);
+  B.limb(x, y + 1.85, z, x + 0.6, y + 1.7, z + 0.2, 0.018, 0.018, [0.3, 0.24, 0.18], 4, false, false);
+  B.box(x + 0.35, y + 1.55, z + 0.1, 0.28, 0.5, 0.01, 0.3, [0.55, 0.25, 0.12]); // выцветшая лента
+  ctx.circ.push([x, z, 0.2]);
+}
+
 // ============================================================
 //  ЧАСТЬ 3. Чанки, рендер, игрок, звук, интерфейс
 // ============================================================
@@ -675,9 +794,9 @@ const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 let VIEW_R = isTouch ? 3 : 4;
 
 // ---------------- Цвета земли ----------------
-const cGreen = [0.36, 0.44, 0.17], cDry = [0.62, 0.55, 0.26], cLitter = [0.50, 0.31, 0.14], cOrange = [0.72, 0.42, 0.12];
-const cGravel = [0.58, 0.54, 0.46], cWet = [0.36, 0.33, 0.27], cSand = [0.68, 0.62, 0.48], cRock = [0.50, 0.48, 0.45];
-const cSnow = [0.93, 0.95, 0.98], cDirt = [0.44, 0.34, 0.22], cDeep = [0.17, 0.2, 0.18], cDebris = [0.45, 0.36, 0.24];
+const cGreen = [0.31, 0.34, 0.2], cDry = [0.46, 0.42, 0.27], cLitter = [0.33, 0.24, 0.15], cOrange = [0.45, 0.31, 0.17];
+const cGravel = [0.42, 0.4, 0.37], cWet = [0.24, 0.23, 0.2], cSand = [0.48, 0.45, 0.37], cRock = [0.36, 0.35, 0.34];
+const cSnow = [0.74, 0.76, 0.78], cDirt = [0.3, 0.25, 0.19], cDeep = [0.1, 0.12, 0.11], cDebris = [0.3, 0.25, 0.19];
 
 function terrainColor(x, z, h, grad, o) {
   const n1 = fbm(x * 0.09, z * 0.09, 2, 61), n2 = fbm(x * 0.025 + 3, z * 0.025, 2, 62), n3 = vnoise(x * 0.8, z * 0.8, 63);
@@ -692,9 +811,9 @@ function terrainColor(x, z, h, grad, o) {
     c = mixc(c, b, beach);
   }
   if (h < -0.1) c = mixc(c, mixc(cWet, cDeep, smooth(-0.3, -7, h)), smooth(0.1, -0.35, h));
-  const rock = Math.max(smooth(0.62, 1.1, grad), smooth(62, 96, h + 10 * n2));
+  const rock = Math.max(smooth(0.55, 1.0, grad), smooth(55, 88, h + 10 * n2));
   if (rock > 0) c = mixc(c, mixc(cRock, [0.40, 0.38, 0.36], smooth(-0.3, 0.5, n3)), rock);
-  const snow = smooth(104, 130, h + 9 * n2 - grad * 14);
+  const snow = smooth(125, 160, h + 9 * n2 - grad * 14);
   if (snow > 0) c = mixc(c, cSnow, snow);
   const vs = villagesNear(x, z, 50);
   for (let i = 0; i < vs.length; i++) {
@@ -751,7 +870,7 @@ function buildChunk(cx, cz) {
     nor[k * 3] = -gx * il; nor[k * 3 + 1] = il; nor[k * 3 + 2] = -gz * il;
     terrainColor(x, z, h, Math.hypot(gx, gz), TMP);
     col[k * 3] = lin(TMP[0]); col[k * 3 + 1] = lin(TMP[1]); col[k * 3 + 2] = lin(TMP[2]);
-    uv[k * 2] = x / 3.2; uv[k * 2 + 1] = z / 3.2;
+    uv[k * 2] = x / 4.5; uv[k * 2 + 1] = z / 4.5;
   }
   const idx = new Uint16Array(SEG * SEG * 6);
   let q = 0;
@@ -771,7 +890,8 @@ function buildChunk(cx, cz) {
   // ---- декор ----
   const rng = mulberry32((hash2(cx, cz, 777) * 4294967296) >>> 0);
   const B = new MB(), GB = new MB(), circ = [], boxes = [];
-  const ctx = { rng, circ, boxes };
+  const notes = [];
+  const ctx = { rng, circ, boxes, notes };
   const R = (a, b) => a + (b - a) * rng();
 
   // структуры (лагерь, деревни)
@@ -784,8 +904,21 @@ function buildChunk(cx, cz) {
     else if (it.kind === 'wood') emitWood(B, ctx, it);
     else if (it.kind === 'fence') emitFence(B, ctx, it);
     else if (it.kind === 'tree') emitTree(B, ctx, it);
+    else if (it.kind === 'paper') emitPaperItem(B, ctx, it);
   }
 
+  // одиночные находки в глуши: брошенные палатки, туры, вешки
+  if (hash2(cx, cz, 555) < 0.3) {
+    for (let tries = 0; tries < 6; tries++) {
+      const x = x0 + 8 + rng() * (CH - 16), z = z0 + 8 + rng() * (CH - 16), h = gridH(x, z);
+      if (h < 3 || h > 110 || gridGrad(x, z) > 0.4 || blocked(x, z)) continue;
+      const kind = rng();
+      if (kind < 0.45) emitTent(B, ctx, x, h, z, rng() * TAU, jit(rng() < 0.5 ? [0.5, 0.3, 0.12] : [0.2, 0.28, 0.36], 0.15, rng), rng() < 0.6 ? 1 + ((rng() * 9) | 0) : 0);
+      else if (kind < 0.75) { emitCairn(B, ctx, x, h, z, rng); if (rng() < 0.3) paper(B, ctx, x + 0.9, gridH(x + 0.9, z), z, rng() * 3, 1 + ((rng() * 9) | 0)); }
+      else emitPost(B, ctx, x, h, z, rng);
+      break;
+    }
+  }
   // деревья
   const TC = 6.4;
   for (let gj = 0; gj < 10; gj++) for (let gi = 0; gi < 10; gi++) {
@@ -799,9 +932,9 @@ function buildChunk(cx, cz) {
     if (gridGrad(x, z) > 1.0) continue;
     const sc = 0.85 + rng() * 0.5;
     const hi = smooth(45, 85, h);
-    if (tp < 0.06 + hi * 0.3) treeDead(B, circ, rng, x, h, z, sc);
-    else if (tp < 0.18 + hi * 0.8) treeSpruce(B, circ, rng, x, h, z, sc);
-    else if (tp < 0.5) treeBirch(B, circ, rng, x, h, z, sc);
+    if (tp < 0.58) treeDead(B, circ, rng, x, h, z, sc);
+    else if (tp < 0.7 + hi * 0.25) treeSpruce(B, circ, rng, x, h, z, sc);
+    else if (tp < 0.86) treeBirch(B, circ, rng, x, h, z, sc);
     else treeBroad(B, circ, rng, x, h, z, sc);
   }
   // кусты и камни
@@ -809,9 +942,8 @@ function buildChunk(cx, cz) {
     const x = x0 + (gi + rng()) * 3.2, z = z0 + (gj + rng()) * 3.2, h = gridH(x, z), r1 = rng(), r2 = rng();
     if (blocked(x, z) || h < 1.6) continue;
     const f = forestAt(x, z, h), g = gridGrad(x, z);
-    if (r1 < 0.05 + f * 0.1 && h < 80) {
-      const base = FOLIAGE[(rng() * FOLIAGE.length) | 0];
-      for (let b = 0; b < 2; b++) B.blob(x + R(-0.5, 0.5), h + 0.35, z + R(-0.5, 0.5), R(0.5, 0.9), R(0.4, 0.6), R(0.5, 0.9), jit(base, 0.12, rng), rng, 0.25, 0.14);
+    if (r1 < 0.07 + f * 0.2 && h < 80) {
+      bareBush(B, rng, x, h, z, R(0.8, 1.5));
     } else if (r2 < 0.02 + smooth(0.5, 1.1, g) * 0.15 + smooth(60, 100, h) * 0.08) {
       const s = R(0.5, 1.8), gr = R(0.42, 0.56);
       B.blob(x, h + s * 0.25, z, s, s * 0.7, s * R(0.8, 1.2), [gr, gr * 0.97, gr * 0.93], rng, 0.28, 0.12);
@@ -866,9 +998,9 @@ function buildChunk(cx, cz) {
     const f = forestAt(x, z, h), g = gridGrad(x, z);
     if (g > 1.1) continue;
     const meadow = 1 - f;
-    if (r1 < 0.8 + meadow * 0.15 && h > 0.9) { // пучок травы
+    if (r1 < 0.5 + meadow * 0.2 && h > 0.9) { // пучок травы
       const nb = 5 + ((r2 * 4) | 0), gold = rng() < 0.5;
-      const bc = gold ? [0.66, 0.58, 0.26] : [0.40, 0.48, 0.18], tc = gold ? [0.88, 0.78, 0.42] : [0.62, 0.62, 0.26];
+      const bc = gold ? [0.4, 0.35, 0.2] : [0.28, 0.32, 0.17], tc = gold ? [0.64, 0.58, 0.36] : [0.46, 0.46, 0.26];
       for (let b = 0; b < nb; b++) {
         const bx = x + R(-0.3, 0.3), bz = z + R(-0.3, 0.3), H = R(0.25, 0.7) * (0.7 + meadow * 0.5), a = rng() * TAU, w = R(0.04, 0.07);
         const ca = Math.cos(a), sa = Math.sin(a), lean = R(0.05, 0.3);
@@ -876,9 +1008,9 @@ function buildChunk(cx, cz) {
       }
     }
     if (r3 < 0.5 + f * 0.4 && h > 0.5) { // опавшие листья
-      const c = rng() < 0.5 ? jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng) : jit([0.5, 0.33, 0.14], 0.2, rng);
+      const c = rng() < 0.5 ? jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng) : jit([0.34, 0.25, 0.15], 0.25, rng);
       GB.quadUp(x + R(-0.5, 0.5), h + 0.025, z + R(-0.5, 0.5), R(0.07, 0.15), rng() * TAU, c);
-      if (rng() < 0.5) GB.quadUp(x + R(-0.5, 0.5), h + 0.025, z + R(-0.5, 0.5), R(0.07, 0.15), rng() * TAU, jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng));
+      if (rng() < 0.8) GB.quadUp(x + R(-0.5, 0.5), h + 0.025, z + R(-0.5, 0.5), R(0.07, 0.15), rng() * TAU, jit(FOLIAGE[(rng() * FOLIAGE.length) | 0], 0.15, rng));
     }
     if (f > 0.35 && rng() < 0.012) { // грибы
       const px = x, pz = z;
@@ -904,7 +1036,7 @@ function buildChunk(cx, cz) {
   };
   const deco = mk(B, MAT.deco), grass = mk(GB, MAT.grass);
   for (const m of [terrain, deco, grass]) if (m) scene.add(m);
-  return { cx, cz, terrain, deco, grass, circ, boxes };
+  return { cx, cz, terrain, deco, grass, circ, boxes, notes };
 }
 
 function disposeChunk(ch) {
@@ -920,7 +1052,7 @@ const camera = new THREE.PerspectiveCamera(72, 1, 0.1, 2500);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 const fogColor = new THREE.Color(0.7, 0.72, 0.72);
-scene.fog = new THREE.Fog(fogColor, 20, 250);
+scene.fog = new THREE.FogExp2(fogColor, 0.01);
 scene.background = fogColor;
 
 const hemi = new THREE.HemisphereLight(0xdfe6ee, 0x6b5a3a, 2.2);
@@ -929,18 +1061,23 @@ scene.add(hemi, sun, sun.target);
 
 // детальная текстура земли (листья/трава)
 function makeDetailTex() {
-  const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S;
   const g = cv.getContext('2d'), r = mulberry32(99);
-  g.fillStyle = '#e4e0d6'; g.fillRect(0, 0, S, S);
-  const cols = ['#ffd9a0', '#e8b070', '#cf8a45', '#b9a36a', '#9c7a45', '#f3e6bd', '#8d8a62', '#c9a05a'];
-  const draw = (x, y) => {
+  g.fillStyle = '#c9c3b4'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 5000; i++) { g.globalAlpha = 0.12; g.fillStyle = r() < 0.5 ? '#3d3426' : '#e8e0cc'; g.fillRect(r() * S, r() * S, 1 + r() * 2, 1 + r() * 2); }
+  const cols = ['#8a6f45', '#6e5436', '#a38a5a', '#5c4a30', '#9b9272', '#7b6a45', '#b3a06f', '#4e4030', '#6d6a4a', '#8d5f34'];
+  const leaf = (x, y) => {
     g.save(); g.translate(x, y); g.rotate(r() * 6.28);
-    g.globalAlpha = 0.25 + r() * 0.3; g.fillStyle = cols[(r() * cols.length) | 0];
-    g.beginPath(); g.ellipse(0, 0, 2 + r() * 5, 1 + r() * 2.5, 0, 0, 6.28); g.fill(); g.restore();
+    const L = 5 + r() * 10, W = L * (0.35 + r() * 0.2);
+    g.globalAlpha = 0.5 + r() * 0.4; g.fillStyle = cols[(r() * cols.length) | 0];
+    g.beginPath(); g.moveTo(-L, 0); g.quadraticCurveTo(0, -W, L, 0); g.quadraticCurveTo(0, W, -L, 0); g.fill();
+    g.globalAlpha *= 0.55; g.strokeStyle = '#2e251a'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(-L, 0); g.lineTo(L * 0.9, 0); g.stroke();
+    g.restore();
   };
-  for (let i = 0; i < 900; i++) { const x = r() * S, y = r() * S; draw(x, y); if (x < 8) draw(x + S, y); if (y < 8) draw(x, y + S); }
-  g.globalAlpha = 0.25; g.strokeStyle = '#7a6a48'; g.lineWidth = 1;
-  for (let i = 0; i < 260; i++) { const x = r() * S, y = r() * S, a = r() * 6.28, l = 3 + r() * 9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  for (let i = 0; i < 1700; i++) { const x = r() * S, y = r() * S; leaf(x, y); if (x < 16) leaf(x + S, y); if (y < 16) leaf(x, y + S); if (x < 16 && y < 16) leaf(x + S, y + S); }
+  g.strokeStyle = '#2f261c'; g.lineCap = 'round';
+  for (let i = 0; i < 160; i++) { const x = r() * S, y = r() * S, a = r() * 6.28, l = 10 + r() * 34; g.globalAlpha = 0.35 + r() * 0.3; g.lineWidth = 0.8 + r() * 1.2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  g.fillStyle = '#6b7050'; for (let i = 0; i < 50; i++) { g.globalAlpha = 0.25; g.beginPath(); g.ellipse(r() * S, r() * S, 2 + r() * 6, 1 + r() * 3, r() * 6, 0, 6.28); g.fill(); }
   const t = new THREE.CanvasTexture(cv);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -971,11 +1108,11 @@ sky.frustumCulled = false; sky.renderOrder = -10;
 scene.add(sky);
 
 // ---------------- Вода ----------------
-const waterU = { uTime: { value: 0 }, uFog: { value: fogColor }, uNear: { value: 20 }, uFar: { value: 250 }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSky: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() } };
+const waterU = { uTime: { value: 0 }, uFog: { value: fogColor }, uDen: { value: 0.01 }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSky: { value: new THREE.Color() }, uZen: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() } };
 const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
   uniforms: waterU, transparent: true, depthWrite: false,
   vertexShader: 'varying vec3 vW; void main(){ vec4 w=modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
-  fragmentShader: `varying vec3 vW; uniform float uTime,uNear,uFar; uniform vec3 uFog,uSunDir,uSky,uZen,uSunCol;
+  fragmentShader: `varying vec3 vW; uniform float uTime,uDen; uniform vec3 uFog,uSunDir,uSky,uZen,uSunCol;
     void main(){
       vec2 p=vW.xz; float t=uTime;
       vec2 g=vec2(0.0);
@@ -989,13 +1126,13 @@ const water = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000).rotateX(-Math.P
       float fr=pow(1.0-max(dot(n,V),0.0),3.0);
       vec3 r=reflect(-V,n);
       vec3 skyc=mix(uSky,uZen,pow(clamp(r.y,0.0,1.0),0.5));
-      vec3 deep=vec3(0.05,0.11,0.13)*(0.4+0.8*length(uSky));
+      vec3 deep=vec3(0.035,0.055,0.055)*(0.4+0.8*length(uSky));
       vec3 col=mix(deep,skyc,0.22+0.78*fr);
       float sp=pow(max(dot(r,uSunDir),0.0),90.0);
-      col+=uSunCol*sp*1.4;
-      float f=smoothstep(uNear,uFar,dist);
+      col+=uSunCol*sp*0.5;
+      float f=1.0-exp(-pow(dist*uDen,2.0));
       col=mix(col,uFog,f);
-      float a=mix(0.8+0.2*fr,1.0,f);
+      float a=mix(0.9+0.1*fr,1.0,f);
       gl_FragColor=vec4(col,a); gl_FragColor=linearToOutputTexel(gl_FragColor); }`,
 }));
 water.renderOrder = 5; water.frustumCulled = false;
@@ -1004,6 +1141,7 @@ scene.add(water);
 // ---------------- Костёр ----------------
 const fire = new THREE.Group();
 fire.position.set(CAMP.x, CAMP.y + 0.5, CAMP.z);
+fire.scale.setScalar(0.6);
 const flameMat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
 const flames = [];
 for (const [r, h, c, o] of [[0.42, 1.05, 0xff4a10, 0.7], [0.3, 0.9, 0xff8a1c, 0.75], [0.17, 0.62, 0xffe070, 0.85]]) {
@@ -1059,40 +1197,39 @@ const leaves = new THREE.Points(lfGeo, new THREE.PointsMaterial({ size: 0.17, ve
 leaves.frustumCulled = false; scene.add(leaves);
 
 // фонарик
-const torch = new THREE.SpotLight(0xffe8b8, 0, 45, 0.55, 0.5, 1.4);
+const torch = new THREE.SpotLight(0xffe6b0, 0, 48, 0.42, 0.65, 1.3);
 torch.position.set(0.2, -0.1, 0); camera.add(torch);
 const torchT = new THREE.Object3D(); torchT.position.set(0, 0, -5); camera.add(torchT); torch.target = torchT;
 
 // ---------------- Время суток ----------------
-let dayT = 0.34, torchOn = false;
+let dayT = 0.58, torchOn = false;
 const c3 = (r, g, b) => new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
 function applyTime() {
   const a = (dayT - 0.25) * TAU, sa = Math.sin(a), ca = Math.cos(a);
-  const day = smooth(-0.1, 0.25, sa);
-  const warm = Math.exp(-sa * sa * 22) * (1 - Math.abs(sa) * 0.5);
-  const hz = c3(0.74, 0.76, 0.77).lerp(c3(0.04, 0.05, 0.09), 1 - day).lerp(c3(0.95, 0.58, 0.34), warm * 0.8);
-  const zn = c3(0.50, 0.60, 0.72).lerp(c3(0.01, 0.015, 0.04), 1 - day).lerp(c3(0.55, 0.45, 0.55), warm * 0.35);
+  const day = smooth(-0.12, 0.3, sa);
+  const warm = Math.exp(-sa * sa * 30) * 0.6;
+  const hz = c3(0.54, 0.56, 0.56).lerp(c3(0.012, 0.016, 0.024), 1 - day).lerp(c3(0.6, 0.44, 0.34), warm * 0.55);
+  const zn = c3(0.34, 0.38, 0.42).lerp(c3(0.004, 0.006, 0.016), 1 - day);
   skyU.horizon.value.copy(hz); skyU.zenith.value.copy(zn); fogColor.copy(hz);
   const sd = new THREE.Vector3(ca * 0.85, sa, ca * 0.5 + 0.2).normalize();
   skyU.sunDir.value.copy(sd); skyU.night.value = 1 - day;
-  skyU.sunCol.value.setRGB(1.0, 0.78, 0.5).multiplyScalar(day * (0.3 + warm));
+  skyU.sunCol.value.setRGB(1.0, 0.78, 0.5).multiplyScalar(day * (0.08 + warm * 0.4));
   const ld = sa >= -0.05 ? sd : sd.clone().negate();
   sun.position.copy(ld).multiplyScalar(100).add(camera.position); sun.target.position.copy(camera.position);
-  sun.color.copy(c3(1, 0.94, 0.82).lerp(c3(1, 0.62, 0.35), warm).lerp(c3(0.45, 0.55, 0.9), 1 - day));
-  sun.intensity = lerp(0.55, 2.6, day);
-  hemi.color.copy(c3(0.86, 0.9, 0.95).lerp(c3(0.35, 0.42, 0.65), 1 - day).lerp(c3(1, 0.75, 0.6), warm * 0.4));
-  hemi.groundColor.copy(c3(0.42, 0.36, 0.24).lerp(c3(0.1, 0.1, 0.14), 1 - day));
-  hemi.intensity = lerp(0.8, 2.1, day);
-  fireLight.intensity = lerp(55, 26, day);
+  sun.color.copy(c3(0.95, 0.92, 0.85).lerp(c3(1, 0.6, 0.38), warm).lerp(c3(0.4, 0.5, 0.8), 1 - day));
+  sun.intensity = lerp(0.06, 1.5, day);
+  hemi.color.copy(c3(0.6, 0.64, 0.68).lerp(c3(0.1, 0.13, 0.22), 1 - day).lerp(c3(0.8, 0.6, 0.5), warm * 0.3));
+  hemi.groundColor.copy(c3(0.26, 0.22, 0.17).lerp(c3(0.02, 0.02, 0.03), 1 - day));
+  hemi.intensity = lerp(0.1, 1.35, day);
   Object.assign(waterU.uSunDir.value, ld); waterU.uSky.value.copy(hz); waterU.uZen.value.copy(zn);
   waterU.uSunCol.value.copy(skyU.sunCol.value);
-  MAT.terrain.needsUpdate = false;
 }
 
 // ---------------- Игрок ----------------
 const P = { x: SPAWN.x, y: 0, z: SPAWN.z, vx: 0, vy: 0, vz: 0, yaw: -Math.atan2(0.97, 0.26) - Math.PI / 2 + Math.PI / 2, pitch: -0.04, ground: false, swim: false, bob: 0 };
 // forward = (-sin yaw, -cos yaw): направим на +x с лёгким уклоном вглубь суши
 P.yaw = Math.atan2(-0.97, -0.26);
+P.slope = 0; P.stam = 1; P.tired = false;
 P.y = Math.max(heightAt(P.x, P.z), -1.25);
 const EYE = 1.68, PR = 0.36;
 const keys = {};
@@ -1126,8 +1263,10 @@ function updatePlayer(dt) {
   if (keys.KeyD || keys.ArrowRight) fx += 1; if (keys.KeyA || keys.ArrowLeft) fx -= 1;
   fx += touch.mx; fz += touch.mz;
   const l = Math.hypot(fx, fz); if (l > 1) { fx /= l; fz /= l; }
-  const run = keys.ShiftLeft || keys.ShiftRight || touch.run;
-  let sp = (run ? 7.6 : 4.2) * (P.swim ? 0.5 : 1);
+  if (P.stam < 0.03) P.tired = true; else if (P.stam > 0.3) P.tired = false;
+  const run = (keys.ShiftLeft || keys.ShiftRight || touch.run) && l > 0.1 && !P.tired;
+  let sp = (run ? 7.0 : 3.9) * (P.swim ? 0.5 : 1) * (P.tired ? 0.62 : 1);
+  sp *= 1 - 0.55 * smooth(0.25, 1.0, Math.max(0, P.slope));
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const tvx = (-sy * fz + cy * fx) * sp, tvz = (-cy * fz - sy * fx) * sp;
   const k = 1 - Math.exp(-(P.ground || P.swim ? 12 : 2.5) * dt);
@@ -1135,7 +1274,9 @@ function updatePlayer(dt) {
   const gOld = heightAt(P.x, P.z);
   let nx = P.x + P.vx * dt, nz = P.z + P.vz * dt;
   const gNew = heightAt(nx, nz), step = Math.hypot(nx - P.x, nz - P.z);
-  if (step > 1e-5 && P.ground && (gNew - gOld) / step > 1.15) { // слишком крутой склон
+  if (step > 1e-5) P.slope += ((gNew - gOld) / step - P.slope) * Math.min(1, dt * 6);
+  else P.slope += (0 - P.slope) * Math.min(1, dt * 3);
+  if (step > 1e-5 && P.ground && (gNew - gOld) / step > 1.15) { // слишком крутой склон — стена
     const gx = heightAt(nx, P.z), gz = heightAt(P.x, nz);
     if ((gx - gOld) / Math.max(1e-4, Math.abs(nx - P.x)) <= 1.15) { nz = P.z; }
     else if ((gz - gOld) / Math.max(1e-4, Math.abs(nz - P.z)) <= 1.15) { nx = P.x; }
@@ -1145,15 +1286,20 @@ function updatePlayer(dt) {
   collide();
   const g = Math.max(heightAt(P.x, P.z), -1.25);
   P.swim = heightAt(P.x, P.z) < -1.2;
-  if ((keys.Space || touch.jump) && (P.ground || P.swim) && started) { P.vy = P.swim ? 3.2 : 5.6; P.ground = false; }
+  if ((keys.Space || touch.jump) && (P.ground || P.swim) && started && !P.tired) { P.vy = P.swim ? 3.2 : 5.4; P.ground = false; P.stam = Math.max(0, P.stam - 0.05); }
   P.vy -= 17 * dt; if (P.swim && P.y < -1.2) P.vy *= 0.9;
   P.y += P.vy * dt;
   if (P.y <= g) { if (P.vy < -6 && !P.swim) playStep('land'); P.y = g; P.vy = 0; P.ground = true; } else if (P.y - g > 0.08) P.ground = false;
   const speed = Math.hypot(P.vx, P.vz);
-  if (P.ground && speed > 0.5) {
-    P.bob += dt * speed * 1.55;
-    if (Math.sin(P.bob) < -0.98 || (lastStepT += dt) > 0.9 / (speed / 4)) { /* step handled below */ }
-  }
+  if (P.ground && speed > 0.5) P.bob += dt * speed * 1.55;
+  // выносливость: бег и подъёмы выматывают
+  const moving = speed > 0.5;
+  let drain = 0;
+  if (run && moving) drain += 0.13;
+  if (moving) drain += 0.17 * smooth(0.3, 1.0, P.slope);
+  if (P.swim) drain += 0.05;
+  if (drain > 0) P.stam = Math.max(0, P.stam - drain * dt);
+  else P.stam = Math.min(1, P.stam + (moving ? 0.06 : 0.16) * dt);
   stepTimer(dt, speed);
 }
 let stepAcc = 0;
@@ -1225,12 +1371,11 @@ if (isTouch) {
   hold('tRun', (b) => { touch.run = !touch.run; b.classList.toggle('on', touch.run); });
   hold('tLight', (b) => { toggleTorch(); b.classList.toggle('on', torchOn); });
 }
-function toggleTorch() { torchOn = !torchOn; torch.intensity = torchOn ? 90 : 0; toast(torchOn ? '🔦 Фонарик включён' : 'Фонарик выключен'); }
-function nextTime() { dayT = (dayT + 0.125) % 1; applyTime(); const h = Math.floor(dayT * 24); toast('🕒 ' + String(h).padStart(2, '0') + ':00'); }
-$('bTime').onclick = () => nextTime();
+function toggleTorch() { torchOn = !torchOn; torch.intensity = torchOn ? 170 : 0; }
+function nextTime() { dayT = (dayT + 0.125) % 1; applyTime(); }
 $('bSound').onclick = () => toggleSound();
 $('bFull').onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen && d.requestFullscreen()); };
-['bTime', 'bSound', 'bFull'].forEach((id) => $(id).addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }));
+['bSound', 'bFull'].forEach((id) => $(id).addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true }));
 
 // ---------------- Звук (процедурный) ----------------
 let AC = null, master = null, windG = null, waterG = null, fireG = null, muted = false, noiseBuf = null;
@@ -1257,7 +1402,7 @@ function burst(freq, q, type, dur, vol) {
   s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 2, dur + 0.05);
 }
 function playStep(kind) {
-  if (kind === 'leaves') { burst(2600, 0.8, 'bandpass', 0.16, 0.5); burst(900, 0.6, 'bandpass', 0.1, 0.3); }
+  if (kind === 'leaves') { burst(2800, 0.8, 'bandpass', 0.2, 0.75); burst(1100, 0.6, 'bandpass', 0.13, 0.45); burst(5000, 1.2, 'highpass', 0.08, 0.25); }
   else if (kind === 'gravel') { burst(3800, 1.2, 'highpass', 0.1, 0.4); burst(1800, 1, 'bandpass', 0.08, 0.3); }
   else if (kind === 'water') { burst(700, 0.7, 'lowpass', 0.4, 0.8); burst(2200, 1, 'bandpass', 0.2, 0.25); }
   else if (kind === 'snow') burst(1500, 0.6, 'bandpass', 0.18, 0.45);
@@ -1270,13 +1415,14 @@ function chirp() {
   for (let i = 0; i < n; i++) { const tt = t + i * 0.11; o.frequency.setValueAtTime(f0 * (1 + Math.random() * 0.3), tt); o.frequency.exponentialRampToValueAtTime(f0 * 1.4, tt + 0.07); g.gain.linearRampToValueAtTime(0.05, tt + 0.015); g.gain.linearRampToValueAtTime(0, tt + 0.09); }
   o.connect(g); g.connect(master); o.start(t); o.stop(t + n * 0.11 + 0.1);
 }
-let waterNear = 0, nextChirp = 4, wnTimer = 0;
+let waterNear = 0, breathT = 0, wnTimer = 0;
+function breathe(v) { burst(1400, 0.5, 'bandpass', 0.45, 0.15 + 0.3 * v); setTimeout(() => burst(900, 0.5, 'bandpass', 0.5, 0.12 + 0.25 * v), 480); }
 function updateAudio(dt, tm) {
   if (!AC) return;
   const day = smooth(-0.1, 0.25, Math.sin((dayT - 0.25) * TAU));
   const gust = 0.5 + 0.5 * Math.sin(tm * 0.31) * Math.sin(tm * 0.13 + 1);
   const hgt = heightAt(P.x, P.z), alt = smooth(5, 90, hgt);
-  windG.g.gain.setTargetAtTime(muted ? 0 : (0.12 + 0.3 * gust + alt * 0.25) * 0.8, AC.currentTime, 0.3);
+  windG.g.gain.setTargetAtTime(muted ? 0 : (0.05 + 0.2 * gust + alt * 0.3) * 0.8, AC.currentTime, 0.3);
   windG.f.frequency.setTargetAtTime(380 + 500 * gust + alt * 500, AC.currentTime, 0.3);
   wnTimer -= dt;
   if (wnTimer < 0) { // доля воды вокруг
@@ -1288,61 +1434,51 @@ function updateAudio(dt, tm) {
   const fd = Math.hypot(P.x - CAMP.x, P.z - CAMP.z), fv = Math.pow(clamp(1 - fd / 36, 0, 1), 2);
   fireG.g.gain.setTargetAtTime(muted ? 0 : fv * 0.6, AC.currentTime, 0.2);
   if (fv > 0.02 && Math.random() < dt * (10 + 30 * fv)) burst(3500, 1.5, 'highpass', 0.03, 0.35 * fv + 0.02);
-  nextChirp -= dt;
-  if (nextChirp < 0) { nextChirp = 3 + Math.random() * 8; if (day > 0.5 && hgt > 1 && hgt < 80 && forestAt(P.x, P.z, hgt) > 0.15) chirp(); }
+  if (P.stam < 0.4 || P.tired) { breathT -= dt; if (breathT < 0) { breathT = 1.2 + P.stam * 1.6; breathe(1 - P.stam); } }
 }
 function toggleSound() { muted = !muted; initAudio(); if (master) master.gain.value = muted ? 0 : 0.9; $('bSound').textContent = muted ? '🔇' : '🔊'; toast(muted ? 'Звук выключен' : 'Звук включён'); }
 
 // ---------------- Интерфейс ----------------
 let toastT = 0;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
-const mini = $('miniC'), mg = mini.getContext('2d'), MN = 64, MS = 8; // 64 px * 8 м = 512 м
-let miniImg = mg.createImageData(MN, MN), miniJob = null, miniShown = null, miniCenter = [1e9, 1e9];
-function miniStart() { miniJob = { cx: Math.round(P.x / 8) * 8, cz: Math.round(P.z / 8) * 8, i: 0, img: new ImageData(MN, MN) }; }
-function miniStep() {
-  const j = miniJob; if (!j) return;
-  const end = Math.min(MN * MN, j.i + 400);
-  for (; j.i < end; j.i++) {
-    const px = j.i % MN, py = (j.i / MN) | 0, x = j.cx + (px - MN / 2) * MS, z = j.cz + (py - MN / 2) * MS, h = heightAt(x, z);
-    let c;
-    if (h < -0.2) { const d = smooth(0, -12, h); c = [lerp(70, 28, d), lerp(120, 66, d), lerp(150, 96, d)]; }
-    else if (h < 1.4) c = [176, 164, 130];
-    else if (h > 118) c = [240, 242, 246];
-    else if (h > 70) c = [128, 124, 118];
-    else { const f = forestAt(x, z, h); c = f > 0.35 ? [110, 92, 40] : [138, 132, 62]; const s = clamp(h / 70, 0, 1); c = [c[0] * (0.85 + s * 0.25), c[1] * (0.85 + s * 0.25), c[2] * (0.85 + s * 0.25)]; }
-    j.img.data[j.i * 4] = c[0]; j.img.data[j.i * 4 + 1] = c[1]; j.img.data[j.i * 4 + 2] = c[2]; j.img.data[j.i * 4 + 3] = 255;
+const stamEl = $('stam'), vigEl = $('vig'), promptEl = $('prompt'), noteEl = $('note');
+let noteOpen = false, nearNote = null, readNotes = new Set(), noteT = 0;
+function findNote() {
+  const cx = Math.floor(P.x / CH), cz = Math.floor(P.z / CH);
+  const fx = -Math.sin(P.yaw) * Math.cos(P.pitch), fy = Math.sin(P.pitch), fz = -Math.cos(P.yaw) * Math.cos(P.pitch);
+  let best = null, bd = 1e9;
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    const ch = chunks.get(ckey(cx + dx, cz + dz)); if (!ch) continue;
+    for (const n of ch.notes) {
+      const vx = n.x - P.x, vy = n.y - (P.y + EYE), vz = n.z - P.z, d = Math.hypot(vx, vy, vz);
+      if (d > 3.0) continue;
+      const dot = (vx * fx + vy * fy + vz * fz) / d;
+      if ((dot > 0.55 || d < 1.2) && d < bd) { bd = d; best = n; }
+    }
   }
-  if (j.i >= MN * MN) { miniShown = j; miniCenter = [j.cx, j.cz]; miniJob = null; }
+  return best;
 }
-function miniDraw() {
-  mg.clearRect(0, 0, MN, MN);
-  if (!miniShown) return;
-  const oc = miniDraw.oc || (miniDraw.oc = document.createElement('canvas')); oc.width = oc.height = MN;
-  oc.getContext('2d').putImageData(miniShown.img, 0, 0);
-  const ox = (miniShown.cx - P.x) / MS, oz = (miniShown.cz - P.z) / MS;
-  mg.drawImage(oc, ox, oz);
-  const m2w = (x, z) => [MN / 2 + (x - P.x) / MS, MN / 2 + (z - P.z) / MS];
-  let p = m2w(CAMP.x, CAMP.z); mg.fillStyle = '#ff9a2a'; mg.beginPath(); mg.arc(p[0], p[1], 2, 0, TAU); mg.fill();
-  const cx0 = Math.floor((P.x - 260) / VCELL), cx1 = Math.floor((P.x + 260) / VCELL), cz0 = Math.floor((P.z - 260) / VCELL), cz1 = Math.floor((P.z + 260) / VCELL);
-  for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) { const v = villageCell(cx, cz); if (v) { p = m2w(v.x, v.z); mg.fillStyle = '#e8412c'; mg.fillRect(p[0] - 2, p[1] - 2, 4, 4); } }
-  mg.save(); mg.translate(MN / 2, MN / 2); mg.rotate(-P.yaw); mg.fillStyle = '#fff'; mg.strokeStyle = '#000'; mg.lineWidth = 0.6;
-  mg.beginPath(); mg.moveTo(0, -3.6); mg.lineTo(2.4, 2.6); mg.lineTo(0, 1.2); mg.lineTo(-2.4, 2.6); mg.closePath(); mg.fill(); mg.stroke(); mg.restore();
+function openNote(n) {
+  noteOpen = true; readNotes.add(n.id);
+  $('noteText').textContent = NOTES[(n.id - 1) % NOTES.length];
+  $('noteMeta').textContent = 'найдено записок: ' + readNotes.size + ' из ' + NOTES.length;
+  noteEl.classList.remove('hidden');
 }
-const DIRS = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+function closeNote() { noteOpen = false; noteEl.classList.add('hidden'); }
+function interact() { if (noteOpen) closeNote(); else if (nearNote) openNote(nearNote); }
+addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') interact(); if (e.code === 'Escape' && noteOpen) closeNote(); });
+noteEl.addEventListener('click', closeNote);
+$('tE') && $('tE').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); interact(); }, { passive: false });
 function updateHUD() {
-  const h = heightAt(P.x, P.z), name = biomeName(P.x, P.z, h);
-  $('place').textContent = name;
-  const fd = Math.round(Math.hypot(P.x - CAMP.x, P.z - CAMP.z));
-  const brg = Math.atan2(-Math.sin(P.yaw) * -1, 0); // не используется
-  let ang = (-P.yaw) * 180 / Math.PI; // 0 = на -z (север)
-  ang = ((ang % 360) + 360) % 360;
-  const hr = Math.floor(dayT * 24), mn = Math.floor((dayT * 24 % 1) * 60);
-  $('coords').innerHTML = 'Высота: <b>' + Math.max(0, Math.round(h)) + ' м</b> · От костра: <b>' + fd + ' м</b><br>🕒 <b>' + String(hr).padStart(2, '0') + ':' + String(mn).padStart(2, '0') + '</b> · Деревень найдено: <b>' + foundVillages + '</b>';
-  $('compass').textContent = DIRS[Math.round(ang / 45) % 8] + ' · ' + Math.round(ang) + '°';
+  stamEl.style.opacity = P.stam < 0.97 ? 1 : 0;
+  stamEl.firstElementChild.style.width = (P.stam * 100) + '%';
+  stamEl.classList.toggle('low', P.tired || P.stam < 0.25);
+  vigEl.style.opacity = 0.9 + 0.1 * (1 - P.stam);
 }
-let foundVillages = 0;
-function checkVillage() {
-  for (const v of villagesNear(P.x, P.z, 55)) if (!v.found && Math.hypot(P.x - v.x, P.z - v.z) < 48) { v.found = true; foundVillages++; toast('🏘️ Вы нашли деревню «' + v.name + '»'); }
+// зерно плёнки
+{
+  const gr = $('grain'), gx = gr.getContext('2d'), img = gx.createImageData(180, 100);
+  setInterval(() => { const d = img.data; for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; } gx.putImageData(img, 0, 0); }, 100);
 }
 
 // ---------------- Потоковая загрузка чанков ----------------
@@ -1366,8 +1502,8 @@ function pump(budget, minOne) {
   }
 }
 function applyViewDistance() {
-  const far = (VIEW_R - 0.5) * CH;
-  scene.fog.near = 18; scene.fog.far = far; waterU.uNear.value = 18; waterU.uFar.value = far;
+  const far = (VIEW_R - 0.7) * CH * 0.75, den = 1.73 / far;
+  scene.fog.density = den; waterU.uDen.value = den;
 }
 
 // ---------------- Главный цикл ----------------
@@ -1376,16 +1512,17 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
-let tPrev = performance.now(), tClock = 0, hudT = 0, miniT = 0, fireT = 0;
+let tPrev = performance.now(), tClock = 0, hudT = 0, fireT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - tPrev) / 1000); tPrev = now; tClock += dt;
-  if (started) { updatePlayer(dt); refreshQueue(false); pump(7, true); checkVillage(); }
+  if (started) { updatePlayer(dt); refreshQueue(false); pump(7, true); }
   else pump(14, true);
   // камера
   const bob = P.ground && !P.swim ? Math.sin(P.bob * 2) * 0.035 * clamp(Math.hypot(P.vx, P.vz) / 4, 0, 1.4) : 0;
   const swimBob = P.swim ? Math.sin(tClock * 1.6) * 0.04 : 0;
-  camera.position.set(P.x, P.y + EYE + bob + swimBob, P.z);
+  const tired = P.tired || P.stam < 0.25 ? Math.sin(tClock * 2.2) * 0.012 : 0;
+  camera.position.set(P.x, P.y + EYE + bob + swimBob + tired, P.z);
   camera.rotation.set(P.pitch, P.yaw, 0);
   // небо/вода следуют за камерой
   sky.position.copy(camera.position); sky.scale.setScalar(900);
@@ -1403,7 +1540,7 @@ function frame(now) {
     m.rotation.y += dt * 1.5; m.rotation.z = 0.08 * Math.sin(fireT * 4 + u.ph); m.rotation.x = 0.08 * Math.cos(fireT * 3.1 + u.ph);
   }
   glow.material.opacity = 0.8 + 0.2 * Math.sin(fireT * 11);
-  fireLight.intensity = (lerp(55, 26, smooth(-0.1, 0.25, Math.sin((dayT - 0.25) * TAU)))) * (0.85 + 0.15 * Math.sin(fireT * 13) * Math.sin(fireT * 7.7) + (Math.random() - 0.5) * 0.12);
+  fireLight.intensity = (lerp(34, 16, smooth(-0.1, 0.25, Math.sin((dayT - 0.25) * TAU)))) * (0.85 + 0.15 * Math.sin(fireT * 13) * Math.sin(fireT * 7.7) + (Math.random() - 0.5) * 0.12);
   for (let i = 0; i < SP_N; i++) {
     spLife[i] -= dt * 0.45;
     if (spLife[i] <= 0) { spLife[i] = 0.6 + Math.random() * 0.8; const a = Math.random() * TAU, r = Math.random() * 0.35; spPos[i * 3] = CAMP.x + Math.cos(a) * r; spPos[i * 3 + 1] = fire.position.y + 0.5; spPos[i * 3 + 2] = CAMP.z + Math.sin(a) * r; spVel[i] = [(Math.random() - 0.5) * 0.7 + 0.25, 1.2 + Math.random() * 1.8, (Math.random() - 0.5) * 0.7]; }
@@ -1414,7 +1551,7 @@ function frame(now) {
   for (const s of smokes) {
     const u = s.userData; u.t += dt * 0.12; if (u.t > 1) u.t -= 1;
     const t = u.t; s.position.set(CAMP.x + 0.3 * t * 6 + Math.sin(t * 9 + u.t * 4) * 0.3, fire.position.y + 1.2 + t * 9, CAMP.z + Math.cos(t * 7) * 0.3);
-    s.scale.setScalar(0.8 + t * 4.5); s.material.opacity = Math.sin(t * Math.PI) * 0.28;
+    s.scale.setScalar(0.8 + t * 4.5); s.material.opacity = Math.sin(t * Math.PI) * 0.16;
   }
   // листья
   for (let i = 0; i < LF_N; i++) {
@@ -1429,10 +1566,9 @@ function frame(now) {
   // ui
   hudT -= dt; if (hudT < 0) { hudT = 0.25; if (started) updateHUD(); }
   if (started) {
-    miniT -= dt; if (!miniJob && (miniT < 0 || Math.hypot(P.x - miniCenter[0], P.z - miniCenter[1]) > 120)) { miniT = 6; miniStart(); }
-    miniStep(); miniDraw();
+    noteT -= dt; if (noteT < 0) { noteT = 0.12; nearNote = noteOpen ? nearNote : findNote(); if (!noteOpen) nearNote = findNote(); promptEl.classList.toggle('hidden', !nearNote || noteOpen); const te = $('tE'); if (te) te.classList.toggle('hidden', !nearNote && !noteOpen); }
     updateAudio(dt, tClock);
-    dayT = (dayT + dt / 900) % 1; if (Math.floor(tClock * 3) !== Math.floor((tClock - dt) * 3)) applyTime();
+    dayT = (dayT + dt / 1800) % 1; if (Math.floor(tClock * 3) !== Math.floor((tClock - dt) * 3)) applyTime();
   }
   renderer.render(scene, camera);
 }
@@ -1450,7 +1586,7 @@ function boot() {
     const before = queue.length; pump(12, true);
     done += Math.max(0, before - queue.length);
     bar.style.width = Math.min(100, (done / Math.max(1, need)) * 100) + '%';
-    if (queue.filter((q) => q[2] <= 2.3).length === 0) { const b = $('play'); b.disabled = false; b.textContent = 'Играть ▶'; bar.style.width = '100%'; return; }
+    if (queue.filter((q) => q[2] <= 2.3).length === 0) { const b = $('play'); b.disabled = false; b.textContent = 'Войти'; bar.style.width = '100%'; return; }
     setTimeout(tick, 0);
   };
   tick();
@@ -1461,16 +1597,16 @@ document.querySelectorAll('#quality button').forEach((b) => b.addEventListener('
   VIEW_R = +b.dataset.r; applyViewDistance(); refreshQueue(true);
 }));
 $('play').addEventListener('click', () => {
-  started = true; $('start').classList.add('hidden'); $('hud').classList.remove('hidden');
+  started = true; $('start').classList.add('hidden'); $('hud').classList.remove('hidden'); $('grain').classList.remove('hidden');
   initAudio();
   if (!isTouch) { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => { }); }
   else { const d = document.documentElement; d.requestFullscreen && d.requestFullscreen().catch(() => { }); }
-  toast('🔥 Вы на берегу Волги. Костёр рядом — иди по склону вверх, там деревня');
+  toast('Здесь никого нет.'); setTimeout(() => $('help').style.opacity = 0, 18000);
   refreshQueue(true);
 });
 
 window.__game = {
-  P, scene, camera, chunks, heightAt, villageCell, villagesNear, CAMP,
+  P, scene, camera, chunks, NOTES, openNote, findNote, heightAt, villageCell, villagesNear, CAMP,
   teleport(x, z, yaw, pitch) { P.x = x; P.z = z; P.y = Math.max(heightAt(x, z), -1.25); if (yaw !== undefined) P.yaw = yaw; if (pitch !== undefined) P.pitch = pitch; refreshQueue(true); },
   setTime(t) { dayT = t; applyTime(); },
   flush() { pump(1e9, true); },
