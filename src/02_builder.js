@@ -479,3 +479,20 @@ function emitPost(B, ctx, x, y, z, rng) {
   B.box(x + 0.35, y + 1.55, z + 0.1, 0.28, 0.5, 0.01, 0.3, [0.55, 0.25, 0.12]); // выцветшая лента
   ctx.circ.push([x, z, 0.2]);
 }
+
+// ---------------- Демо-мир (сид 1): всё рядом со стартом ----------------
+if (SHOWCASE) {
+  const fx = 0.97, fz = 0.26, rx = -0.26, rz = 0.97, S = SPAWN;
+  const at = (f, r) => ({ x: S.x + fx * f + rx * r, z: S.z + fz * f + rz * r });
+  // все 10 записок по порядку, через каждый метр вдоль берега
+  for (let k = 0; k < 10; k++) {
+    const p = at(1.5 + k * 1.0, 1.4 + (k % 2) * 0.9);
+    CAMP_ITEMS.push({ kind: 'camp', x: p.x, z: p.z, fn: (B, ctx) => paper(B, ctx, p.x, Math.max(heightAt(p.x, p.z), 0.15), p.z, 0.5 + k, k + 1) });
+  }
+  const t = at(6, 10);
+  CAMP_ITEMS.push({ kind: 'camp', x: t.x, z: t.z, fn: (B, ctx) => emitTent(B, ctx, t.x, heightAt(t.x, t.z), t.z, 1.2, [0.2, 0.28, 0.36], 0) });
+  const c = at(14, 6);
+  CAMP_ITEMS.push({ kind: 'camp', x: c.x, z: c.z, fn: (B, ctx) => emitCairn(B, ctx, c.x, heightAt(c.x, c.z), c.z, ctx.rng) });
+  const po = at(-4, 6);
+  CAMP_ITEMS.push({ kind: 'camp', x: po.x, z: po.z, fn: (B, ctx) => emitPost(B, ctx, po.x, heightAt(po.x, po.z), po.z, ctx.rng) });
+}

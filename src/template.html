@@ -41,6 +41,7 @@ canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block;filter:s
 .row{display:flex;gap:8px;justify-content:center;align-items:center;margin:0 0 16px;font-size:14px;flex-wrap:wrap}
 .seg button{background:#2c2f28;border:1px solid #5a5a4a;color:#eee;padding:7px 14px;font-size:14px;border-radius:8px}
 .seg button.on{background:#4a4a40;border-color:#9a9482;color:#fff}
+.sbtn{background:#2c2f28;border:1px solid #5a5a4a;color:#eee;padding:7px 12px;font-size:14px;border-radius:2px}
 #play{background:transparent;color:#d8d2c2;border:1px solid rgba(255,255,255,.35);border-radius:2px;font-size:18px;letter-spacing:4px;padding:13px 44px;text-transform:uppercase}
 #play:hover:not(:disabled){background:rgba(255,255,255,.08)}
 #play:disabled{opacity:.6}
@@ -81,6 +82,8 @@ canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block;filter:s
       <li>📱 Стик слева, взгляд справа</li>
     </ul>
     <p class="sub" style="font-size:13px;opacity:.55;margin:-4px 0 14px">Наушники и тёмная комната. Игра без монстров и без скримеров.</p>
+    <div class="row" id="seedRow" style="gap:6px"><span>Сид:</span><input id="seedIn" placeholder="число или слово" maxlength="24" style="width:150px;background:#1b1c19;border:1px solid #5a5a4a;color:#eee;padding:7px 10px;border-radius:2px;font-size:14px"><button id="seedGo" class="sbtn">Применить</button><button id="seedRnd" class="sbtn" title="Случайный сид">🎲</button></div>
+    <p class="sub" id="seedInfo" style="font-size:12px;opacity:.6;margin:-8px 0 14px"></p>
     <div class="row seg" id="quality"><span>Туман:</span><button data-r="3" class="on">Густой</button><button data-r="4">Обычный</button><button data-r="5">Редкий</button></div>
     <button id="play" disabled>Загрузка…</button>
     <div id="loadbar"><i></i></div>

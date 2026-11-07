@@ -804,6 +804,15 @@ function boot() {
   tick();
   requestAnimationFrame(frame);
 }
+{
+  const goSeed = (v) => { v = (v || '').trim(); location.hash = v ? '#seed=' + encodeURIComponent(v) : ''; location.reload(); };
+  $('seedIn').value = SEEDINFO.raw;
+  $('seedGo').onclick = () => goSeed($('seedIn').value);
+  $('seedIn').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') goSeed($('seedIn').value); });
+  $('seedIn').addEventListener('keyup', (e) => e.stopPropagation());
+  $('seedRnd').onclick = () => { let n = 100000 + Math.floor(Math.random() * 900000); goSeed(String(n)); };
+  $('seedInfo').textContent = SHOWCASE ? 'Сид 1 — демо-мир: все записки, деревни и стоянки рядом со стартом.' : (SEEDINFO.raw ? 'Сид: ' + SEEDINFO.raw + ' · пусто = стандартный мир · 1 = демо, всё рядом' : 'Стандартный мир · введи сид; 1 = демо, где всё рядом со стартом');
+}
 document.querySelectorAll('#quality button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('#quality button').forEach((x) => x.classList.remove('on')); b.classList.add('on');
   VIEW_R = +b.dataset.r; applyViewDistance(); refreshQueue(true);

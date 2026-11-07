@@ -6,8 +6,22 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
+// ---------------- Сид мира ----------------
+// Задаётся в адресе: index.html#seed=ТЕКСТ_ИЛИ_ЧИСЛО. Пусто = стандартный мир. Сид 1 = демо-мир, где всё рядом со стартом.
+function readSeed() {
+  let raw = '';
+  try { const m = /seed=([^&]*)/.exec(location.hash); if (m) raw = decodeURIComponent(m[1]).trim(); } catch (e) { }
+  if (!raw) return { raw: '', n: 0 };
+  if (/^-?\d{1,9}$/.test(raw)) return { raw, n: parseInt(raw, 10) };
+  let h = 2166136261;
+  for (const ch of raw) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+  return { raw, n: (h | 0) || 7 };
+}
+const SEEDINFO = readSeed(), WSEED = SEEDINFO.n, SHOWCASE = WSEED === 1;
+const SEEDMIX = Math.imul(WSEED, 2654435761);
+
 function hash2(x, z, s) {
-  let h = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul((s | 0) + 1, 1442695041);
+  let h = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul(((s | 0) + 1) ^ SEEDMIX, 1442695041);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
@@ -105,11 +119,13 @@ function villageCell(cx, cz) {
   let v = villageCache.get(key);
   if (v !== undefined) return v;
   v = null;
-  const forced = cx === 0 && cz === 0;
+  const showPos = SHOWCASE ? (cx === 0 && cz === 0 ? [34, shoreZ(34) + 36] : (cx === -1 && cz === 0 ? [-50, shoreZ(-50) + 42] : null)) : null;
+  const forced = showPos ? true : (!SHOWCASE && cx === 0 && cz === 0);
   const r1 = hash2(cx, cz, 901), r2 = hash2(cx, cz, 902), r3 = hash2(cx, cz, 903), r4 = hash2(cx, cz, 904);
   if (forced || r1 < 0.4) {
     let x, z;
-    if (forced) { x = 46; z = 205; }
+    if (showPos) { x = showPos[0]; z = showPos[1]; }
+    else if (forced) { x = 46; z = 205; }
     else { x = (cx + 0.18 + 0.64 * r2) * VCELL; z = (cz + 0.18 + 0.64 * r3) * VCELL; }
     const h = heightBase(x, z);
     let ok = forced || (h > 3 && h < 70 && Math.hypot(x, z) > 150);
@@ -127,7 +143,7 @@ function villageCell(cx, cz) {
       v = {
         x, z, h, id: (cx * 1000 + cz) | 0,
         ang: forced ? 0.2 : r4 * TAU,
-        name: forced ? 'Нагорное' : VNAMES[Math.floor(hash2(cx, cz, 905) * VNAMES.length)],
+        name: showPos ? (cx === 0 ? 'Нагорное' : 'Заречье') : forced ? 'Нагорное' : VNAMES[Math.floor(hash2(cx, cz, 905) * VNAMES.length)],
         found: false, layout: null,
       };
     }
