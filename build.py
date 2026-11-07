@@ -12,6 +12,6 @@ html = html.replace('<!--GAME-->', '<script>\n(function(){\n"use strict";\n' + g
 print('index.html', len(html) // 1024, 'KB')
 tro = (root / 'src/tropa.html').read_text(encoding='utf-8')
 tro = tro.replace('<!--THREE-->', '<script>' + three + '</script>')
-tro = tro.replace('<!--GAME-->', '<script>\n(function(){\n"use strict";\n' + (root / 'src/tropa.js').read_text(encoding='utf-8') + '\n})();\n</script>')
+tro = tro.replace('<!--GAME-->', '<script>\n(function(){\n"use strict";\n' + '\n'.join((root / f).read_text(encoding='utf-8') for f in ['src/00_textures.js'] + sorted(str(p.relative_to(root)) for p in (root / 'src/tropa').glob('t*.js'))) + '\n})();\n</script>')
 (root / 'tropa.html').write_text(tro, encoding='utf-8')
 print('tropa.html', len(tro) // 1024, 'KB')
