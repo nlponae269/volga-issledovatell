@@ -913,8 +913,8 @@ function buildChunk(cx, cz) {
       const x = x0 + 8 + rng() * (CH - 16), z = z0 + 8 + rng() * (CH - 16), h = gridH(x, z);
       if (h < 3 || h > 110 || gridGrad(x, z) > 0.4 || blocked(x, z)) continue;
       const kind = rng();
-      if (kind < 0.45) emitTent(B, ctx, x, h, z, rng() * TAU, jit(rng() < 0.5 ? [0.5, 0.3, 0.12] : [0.2, 0.28, 0.36], 0.15, rng), rng() < 0.6 ? 1 + ((rng() * 9) | 0) : 0);
-      else if (kind < 0.75) { emitCairn(B, ctx, x, h, z, rng); if (rng() < 0.3) paper(B, ctx, x + 0.9, gridH(x + 0.9, z), z, rng() * 3, 1 + ((rng() * 9) | 0)); }
+      if (kind < 0.45) emitTent(B, ctx, x, h, z, rng() * TAU, jit(rng() < 0.5 ? [0.5, 0.3, 0.12] : [0.2, 0.28, 0.36], 0.15, rng), rng() < 0.6 ? 1 + ((rng() * 10) | 0) : 0);
+      else if (kind < 0.75) { emitCairn(B, ctx, x, h, z, rng); if (rng() < 0.3) paper(B, ctx, x + 0.9, gridH(x + 0.9, z), z, rng() * 3, 1 + ((rng() * 10) | 0)); }
       else emitPost(B, ctx, x, h, z, rng);
       break;
     }
