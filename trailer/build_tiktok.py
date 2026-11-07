@@ -8,12 +8,12 @@ FONT2 = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 W, H, FPS = 1080, 1920, 30
 # (источник-начало, длительность, текст сверху, размер)
 SEG = [
- (7.0, 1.6, 'ХОРРОР БЕЗ МОНСТРОВ', 84),
- (4.5, 1.4, 'БЕЗ СКРИМЕРОВ', 90),
+ (7.0, 1.6, 'ХОРРОР БЕЗ МОНСТРОВ', 62),
+ (4.5, 1.4, 'БЕЗ СКРИМЕРОВ', 78),
  (2.0, 1.2, 'ТОЛЬКО ТЫ', 100),
  (10.0, 1.2, '', 0),
  (14.2, 2.0, 'ОНИ УШЛИ…', 100),
- (16.3, 2.0, 'А КОСТЁР ГОРИТ', 84),
+ (16.3, 2.0, 'А КОСТЁР ГОРИТ', 72),
  (18.5, 2.0, 'ПОЧЕМУ?', 110),
  (12.8, 0.33, '', 0), (19.5, 0.33, '', 0), (4.0, 0.34, '', 0),
  ('end', 2.6, '', 0),
@@ -30,7 +30,7 @@ for i, (ss, d, t, size) in enumerate(SEG):
     o = os.path.join(tmp, f'{i:02d}.mp4')
     if ss == 'end':
         vf = ("noise=alls=8:allf=t"
-              f",drawtext=fontfile={FONT}:text='ТИШИНА':fontsize=190:fontcolor=0xe8e2d0:x=(w-text_w)/2:y=h*0.30:alpha='min(t/0.4,1)'"
+              f",drawtext=fontfile={FONT}:text='ТИШИНА':fontsize=150:fontcolor=0xe8e2d0:x=(w-text_w)/2:y=h*0.30:alpha='min(t/0.4,1)'"
               f",drawtext=fontfile={FONT2}:text='Играй на Android':fontsize=62:fontcolor=white:x=(w-text_w)/2:y=h*0.46:alpha='if(lt(t,0.5),0,min((t-0.5)/0.3,1))'"
               f",drawtext=fontfile={FONT2}:text='и в браузере':fontsize=62:fontcolor=white:x=(w-text_w)/2:y=h*0.46+80:alpha='if(lt(t,0.7),0,min((t-0.7)/0.3,1))'"
               f",drawtext=fontfile={FONT2}:text='Сид 1 — все записки рядом':fontsize=48:fontcolor=0xd8c9a0:x=(w-text_w)/2:y=h*0.62:alpha='if(lt(t,1.1),0,min((t-1.1)/0.4,1))',fade=t=out:st={d-0.5}:d=0.5")
