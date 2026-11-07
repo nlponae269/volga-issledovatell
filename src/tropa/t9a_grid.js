@@ -19,7 +19,7 @@ const MT = {
   tileWall: rep(std({ map: TX.tileWall, roughness: 0.4, vertexColors: true }), 2.4, 2.7),
   tubeOn: new THREE.MeshStandardMaterial({ color: 0xf4fbff, emissive: 0xe8f4ff, emissiveIntensity: 4 }),
   tubeOff: std({ color: 0xbcc4c8, roughness: 0.3 }),
-  whiteDoor: rep(envMat({ map: TX.wall, color: 0xe8e8e2, roughness: 0.45, vertexColors: true }, 0.3), 0.9, 2.05),
+  whiteDoor: rep(envMat({ map: TX.wall, color: 0xe8e8e2, roughness: 0.45 }, 0.3), 0.9, 2.05),
   board: null,
 };
 // люминесцентная лампа на потолке (часть мерцает)
