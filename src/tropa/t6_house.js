@@ -245,7 +245,7 @@ function jumpStep(dt) {
   P.y = j.y0 + (j.t < 0.7 ? Math.sin(k1 * Math.PI) * 0.6 + k1 * 0.3 : 0.9 - 9.8 * (j.t - 0.7) * (j.t - 0.7) * 1.2);
   P.pitch = lerp(P.pitch, j.t < 0.7 ? 0 : -0.9, 0.05);
   const f = $('fade'); if (j.t > 0.9) { f.style.transition = 'opacity 0.5s'; f.style.background = '#000'; f.style.opacity = 1; }
-  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} location.href = (w.to || (PODEZD ? 'tropa' : 'vorota')) + '.html'; }
+  if (j.t > 1.5 && !j.done) { j.done = true; try { localStorage.setItem(WORLD + '_trash', TRASHN); } catch (e) {} location.href = (w.to || (PODEZD ? 'dvory' : 'vorota')) + '.html'; }
 }
 let TRASHN = 0; try { TRASHN = +localStorage.getItem(WORLD + '_trash') || 0; } catch (e) {}
 if (HOUSE) { P.x = HC / 2; P.z = HC / 2; P.yaw = 0.6; }

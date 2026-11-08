@@ -155,7 +155,7 @@ const footGeo = new THREE.PlaneGeometry(0.16, 0.32).rotateX(-Math.PI / 2);
 const mittenMats = [0xc82a2a, 0x2a4ac8, 0xe8e0d0, 0x2a8a4a].map((c) => std({ color: c, roughness: 1 }));
 function strangerPath(t) { const kp = KEY_POS.zima; return [lerp(2, kp[0], t) + Math.sin(t * 17) * 6, lerp(3, kp[2], t) + Math.sin(t * 11 + 1) * 9]; }
 function railFence(b, x0, x1, z) { for (let x = Math.ceil(x0 / 2.2) * 2.2; x < x1; x += 2.2) { const y = groundH(x, z); b.box(M.plank, x, y + 0.5, z, 0.1, 1.0, 0.1, shade(0.45)); b.box(M.plank, x + 1.1, y + 0.95, z, 2.2, 0.08, 0.06, shade(0.5)); b.box(M.plank, x + 1.1, y + 1.0, z, 2.2, 0.03, 0.08, shade(1.6, [1, 0.95, 1])); b.box(M.plank, x + 1.1, y + 0.55, z, 2.2, 0.06, 0.05, shade(0.5)); } b.cols.push({ x: (x0 + x1) / 2, z, hx: (x1 - x0) / 2, hz: 0.15, c: 1, s: 0 }); }
-if (SNOW) {
+if (ZIMA) {
   KEY_POS.zima = [148, 0, -46];
   P.x = 0; P.z = 1.5; P.yaw = -Math.PI / 2 - 0.15;
   M.slate.color.setHex(0xf0eef4); M.glass.emissive.setHex(0xffa050); M.glass.emissiveIntensity = 0.9; M.lattice.color.setHex(0x6a6a6a);

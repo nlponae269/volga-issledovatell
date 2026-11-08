@@ -64,7 +64,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.016 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -94,7 +94,7 @@ const post = (() => {
       float T = exp(-od);
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${SNOW ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
+      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}${DVOR ? 'fogC = vec3(0.07,0.05,0.042)*(isSky ? 1.0 : 0.9);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*0.35*(0.5+0.5*T);
       col = aces(col*expo);
@@ -150,7 +150,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR && dvRoadD(x, z) < 6.4) return 'asph'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -188,7 +188,7 @@ function updateAudio(dt, gust) {
   const L = AC.listener, fw = new V3(0, 0, -1).applyQuaternion(camera.quaternion), up = new V3(0, 1, 0).applyQuaternion(camera.quaternion);
   if (L.positionX) { L.positionX.value = P.x; L.positionY.value = camera.position.y; L.positionZ.value = P.z; L.forwardX.value = fw.x; L.forwardY.value = fw.y; L.forwardZ.value = fw.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
   else { L.setPosition(P.x, camera.position.y, P.z); L.setOrientation(fw.x, fw.y, fw.z, up.x, up.y, up.z); }
-  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : SNOW ? 1.8 : 1); rustleG.gain.value = INDOOR ? 0 : 0.004 + gust * 0.02;
+  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : ZIMA ? 1.8 : DVOR ? 0.6 : 1); rustleG.gain.value = INDOOR ? 0 : 0.004 + gust * 0.02;
   const rd = Math.abs(P.z - ROAD_C); humG.gain.value = !ROADW ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
   for (const c of cars) { const s = c.snd; if (!s) continue; const dir = c.lane === 0 ? -1 : 1, cz = LANE_Z[c.lane];
     const dx = P.x - c.x, dz = P.z - cz, d = Math.hypot(dx, dz) || 1, vr = dir * c.v * dx / d; const dop = clamp(343 / (343 - vr), 0.7, 1.4);
@@ -264,9 +264,9 @@ function frame(now) {
         else if (T.k) { FR[T.k]++; showFruit(); try { localStorage.setItem('vorota_fruit', JSON.stringify(FR)); } catch (e) {} toast(T.k === 'rasp' ? `Малина <b style="color:#e0566b">+1</b>` : `${T.n} <b style="color:#cfe08a">+1</b>`); burst(0.08, 'bandpass', 1400, 1.2, 0.25); blip([T.k === 'rasp' ? 1568 : 784], 0.18, 'sine', 0.05); }
         else { money += T.v; if (coinsEl) coinsEl.textContent = money; save(); toast(`${T.n} <b style="color:#ffd35a">+${T.v}</b>`); blip(c.type === 2 ? [880, 1175, 1568] : c.type === 1 ? [988, 1319, 1568] : [1319], 0.3, 'triangle', 0.1); } } }
   } else if (!started) { P.yaw += dt * 0.02; }
-  if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: 0, z: 0, y: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
+  if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: SPAWN ? SPAWN.x : 0, z: SPAWN ? SPAWN.z : 0, y: 0, vy: 0, yaw: SPAWN ? SPAWN.yaw : -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else crow(); } }
+  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else if (DVOR) petard(); else crow(); } }
   autoQuality(dt);
   houseUpdate(dt); metaUpdate(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);

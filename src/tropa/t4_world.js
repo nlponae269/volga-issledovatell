@@ -10,7 +10,7 @@ const skyMat = new THREE.ShaderMaterial({
     void main(){ vec3 d = normalize(vD); float y = max(d.y, 0.0);
       vec2 cp = d.xz / (y + 0.12) * 0.09;
       float c = texture2D(tN, cp + vec2(uTime*0.0012, uTime*0.0005)).r*0.6 + texture2D(tN, cp*2.7 - vec2(uTime*0.002, 0.0)).g*0.4;
-      vec3 hor = ${NIGHT ? 'vec3(0.045,0.05,0.07)' : SNOW ? 'vec3(0.95,0.16,0.62)' : 'vec3(0.60, 0.62, 0.64)'}, zen = ${NIGHT ? 'vec3(0.012,0.016,0.03)' : SNOW ? 'vec3(0.62,0.05,0.4)' : 'vec3(0.40, 0.43, 0.47)'};
+      vec3 hor = ${NIGHT ? 'vec3(0.045,0.05,0.07)' : DVOR ? 'vec3(0.075,0.05,0.04)' : ZIMA ? 'vec3(0.95,0.16,0.62)' : 'vec3(0.60, 0.62, 0.64)'}, zen = ${NIGHT ? 'vec3(0.012,0.016,0.03)' : DVOR ? 'vec3(0.004,0.005,0.01)' : ZIMA ? 'vec3(0.62,0.05,0.4)' : 'vec3(0.40, 0.43, 0.47)'};
       vec3 col = mix(hor, zen, pow(y, 0.6));
       col *= mix(1.08, 0.78, smoothstep(0.35, 0.8, c));
       float s = max(dot(d, sunDir), 0.0); col += vec3(0.20, 0.18, 0.14) * pow(s, 6.0) * 0.6 + vec3(0.25,0.22,0.18)*pow(s, 60.0)*0.5;
@@ -23,10 +23,10 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), skyMat); sky.f
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a2c })); gnd.position.y = -2; envScene.add(gnd);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0.02).texture; pm.dispose(); }
 const ENV_TEX = scene.environment; if (INDOOR) scene.environment = null;
-if (NIGHT) { scene.environment = null; skyU.night = true; }
-const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGHT ? 0.09 : SNOW ? 0.5 : 0.35); scene.add(hemi);
+if (NIGHT || DVOR) { scene.environment = null; skyU.night = true; }
+const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGHT ? 0.09 : DVOR ? 0.2 : SNOW ? 0.5 : 0.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
-sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; if (SNOW) { sun.intensity = 0; sun.castShadow = false; hemi.color.setHex(0xff5ac8); hemi.groundColor.setHex(0x6a3a5a); }
+sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; if (SNOW) { sun.intensity = 0; sun.castShadow = false; if (ZIMA) { hemi.color.setHex(0xff5ac8); hemi.groundColor.setHex(0x6a3a5a); } else { hemi.color.setHex(0x9aa4d0); hemi.groundColor.setHex(0x40343a); } }
 if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
@@ -88,6 +88,20 @@ groundMat.onBeforeCompile = (sh) => {
       as *= 1.0 - tr;
       col = mix(col, as, rm);
       gRough = mix(gRough, 0.82 - tr, rm);
+      ${DVOR ? `{ float ux = mod(wp.x - 48.0, 96.0), uz = mod(wp.y - 48.0, 96.0); float ax = min(ux, 96.0 - ux), az = min(uz, 96.0 - uz); float rd = min(ax, az);
+        vec3 as = texture2D(tAsph, wp/3.2).rgb * mix(0.55, 0.8, nB.g) * vec3(0.95,0.97,1.0);
+        float slush = smoothstep(0.7, 0.95, nC.r*0.7 + nB.b*0.5) * 0.45 + smoothstep(3.2, 4.0, rd)*0.6;
+        float mkx = (1.0 - smoothstep(0.06, 0.09, ax)) * step(fract(wp.y/6.0), 0.5) * step(4.5, az);
+        float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
+        as = mix(as, vec3(0.62,0.6,0.55), (mkx + mkz) * 0.6);
+        as = mix(as, vec3(0.62,0.62,0.66)*(0.85+0.2*nC.g), clamp(slush, 0.0, 0.85));
+        float road = 1.0 - smoothstep(3.95, 4.05, rd);
+        float curb = (1.0 - smoothstep(4.0, 4.3, rd)) * (1.0 - road);
+        float walk = (1.0 - smoothstep(6.3, 6.6, rd + nB.r*0.4)) * (1.0 - road) * (1.0 - curb);
+        vec3 snowC = vec3(0.86,0.9,1.0) * (0.9 + 0.12*nC.g) - vec3(0.05)*smoothstep(0.6,0.9,nB.r);
+        vec3 tro = mix(vec3(0.42,0.42,0.44), snowC, 0.35 + 0.4*smoothstep(0.4, 0.8, nC.b)) * (0.8 + 0.3*nB.g);
+        col = snowC; col = mix(col, tro, walk); col = mix(col, vec3(0.5,0.5,0.5), curb); col = mix(col, as, road);
+        gRough = mix(0.9, mix(0.28, 0.75, clamp(slush,0.0,1.0)), road); }` : ''}
       diffuseColor.rgb *= col;
       ${HOUSE ? 'totalEmissiveRadiance += diffuseColor.rgb * 0.5;' : ''}
     `)

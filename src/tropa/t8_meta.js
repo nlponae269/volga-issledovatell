@@ -1,6 +1,6 @@
 // ===================== Сон: переходы между мирами, ключи, концовка =====================
-const WORLD_LIST = ['tishina', 'tropa', 'vorota', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'];
-const WORLD_NAMES = { tishina: 'Тишина', tropa: 'Тропа', vorota: 'Ворота', dom: 'Дом', podezd: 'Подъезд', ostanovka: 'Остановка', shkola: 'Школа', bolnica: 'Поликлиника', metro: 'Метро', magazin: 'Универсам', plyazh: 'Пляж', lager: 'Пионерлагерь', pole: 'Поле', elektrichka: 'Электричка', stroyka: 'Стройка', zima: 'Аномальная зима' };
+const WORLD_LIST = ['dvory', 'tishina', 'tropa', 'vorota', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'];
+const WORLD_NAMES = { dvory: 'Дворы', tishina: 'Тишина', tropa: 'Тропа', vorota: 'Ворота', dom: 'Дом', podezd: 'Подъезд', ostanovka: 'Остановка', shkola: 'Школа', bolnica: 'Поликлиника', metro: 'Метро', magazin: 'Универсам', plyazh: 'Пляж', lager: 'Пионерлагерь', pole: 'Поле', elektrichka: 'Электричка', stroyka: 'Стройка', zima: 'Аномальная зима' };
 const KEY_WORLDS = WORLD_LIST.filter((w) => w !== 'vorota');
 const INTER = [];
 function goWorld(id, text) {
@@ -56,11 +56,14 @@ function metaUpdate(dt) {
 // --- концовка (в «Воротах», когда собраны все ключи) ---
 function allKeys() { return KEY_WORLDS.every((w) => keysGot().includes(w)); }
 function ending() {
+  if (GARDEN) { try { localStorage.setItem('dream_final', '1'); } catch (e) {} blip([392, 523, 659], 1.5, 'sine', 0.06); goWorld('dvory', 'Ворота открылись.<br><span style="font-size:15px">За ними — твой двор. 00:24.</span>'); return; }
+  wakeUp(['Ворота открылись.', 'За ними не было ни участка, ни тумана.', 'Только комната. Утро. Будильник на семь.', 'Ты проснулся.']);
+}
+function wakeUp(lines) {
   if (goWorld.busy) return; goWorld.busy = true; if (document.pointerLockElement) document.exitPointerLock();
   try { localStorage.setItem('dream_done', '1'); } catch (e) {}
   const f = $('fade'); f.style.transition = 'opacity 3s'; f.style.background = '#f4f1ea'; f.style.opacity = 1; f.style.pointerEvents = 'auto'; f.innerHTML = '';
   blip([392, 523, 659, 784], 2.5, 'sine', 0.06);
-  const lines = ['Ворота открылись.', 'За ними не было ни участка, ни тумана.', 'Только комната. Утро. Будильник на семь.', 'Ты проснулся.'];
   const box = document.createElement('div'); box.style.cssText = 'color:#333;font:300 22px system-ui,sans-serif;text-align:center;line-height:2;max-width:640px;padding:20px'; f.appendChild(box);
   lines.forEach((l, i) => setTimeout(() => { const p = document.createElement('div'); p.textContent = l; p.style.cssText = 'opacity:0;transition:opacity 2s'; box.appendChild(p); requestAnimationFrame(() => (p.style.opacity = 1)); }, 3500 + i * 3200));
   setTimeout(() => { const b = document.createElement('button'); b.textContent = 'В меню'; b.style.cssText = 'margin-top:30px;background:#333;color:#eee;border:0;padding:12px 28px;font-size:16px;border-radius:4px;cursor:pointer'; b.onclick = () => (location.href = 'index.html'); box.appendChild(b); }, 3500 + lines.length * 3200 + 800);
