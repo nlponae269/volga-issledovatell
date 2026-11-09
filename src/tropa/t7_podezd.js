@@ -1,6 +1,7 @@
 // ===================== «ПОДЪЕЗД»: бесконечная лестница =====================
 const FH = 2.8, PW = 2.7, PL = 2.7, WELL0 = 1.28, WELL1 = 1.42, MIDD = 1.5, LAND = 2.0, LX0 = -1.6, LX1 = 4.3;
-const CX = (LX0 + LX1) / 2, CW = 1.9, CL = 24, CZ0 = -LAND, CZ1 = -LAND - CL;
+const EX0 = 2.95, EX1 = 4.15, EXC = (EX0 + EX1) / 2, EZ1 = -LAND - 1.45;   // лифт в торце площадки
+let podBase = 0;                                                               // «настоящий» номер этажа = podBase + n + 1
 const PLAF_GEO = new THREE.CylinderGeometry(0.2, 0.25, 0.08, 16);
 // высота поверхности в пределах этажного модуля (0..FH)
 function podLocal(x, z) {
@@ -44,11 +45,11 @@ const MP = {
   dirtyGlass: std({ color: 0xb8c0b8, roughness: 0.2, transparent: true, opacity: 0.35, depthWrite: false }),
 };
 const floorNumMats = new Map();
-function floorNumMat(n) { if (!floorNumMats.has(n)) floorNumMats.set(n, new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.9, map: texFrom(mkCanvas(128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(240,235,220,0.85)'; g.font = 'bold 88px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 4); })) })); return floorNumMats.get(n); }
+function floorNumMat(n) { if (!floorNumMats.has(n)) floorNumMats.set(n, new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.9, map: texFrom(mkCanvas(String(n).length > 3 ? 64 * String(n).length : 128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(240,235,220,0.85)'; g.font = 'bold 88px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 4); })) })); return floorNumMats.get(n); }
 // --- модуль этажа ---
 const podMods = new Map();
 function buildFloor(n) {
-  const group = new THREE.Group(), b = new Batch(), y0 = n * FH, r = rng(n * 7919 + 31), wallM = PWALL[0], wc = shade(0.9 + r() * 0.15);
+  const group = new THREE.Group(), b = new Batch(), y0 = n * FH, F = podBase + n + 1, FD = F | 0, r = rng(Math.imul(FD, 7919) + 31), wallM = PWALL[0], wc = shade(0.9 + r() * 0.15);
   b.push(0, y0, 0);
   // площадка этажа (плитка) и плита потолка над ней
   b.box(MP.tile, (LX0 + LX1) / 2, -0.06, -LAND / 2, LX1 - LX0, 0.12, LAND);
@@ -81,20 +82,24 @@ function buildFloor(n) {
   for (let k = 0; k < 9; k++) b.box(MP.radiator, PW / 2 - 0.45 + k * 0.11, FH / 2 + 0.42, WZ - 0.2, 0.07, 0.55, 0.12);
   b.cyl(M.metal, PW / 2 + 0.45, wy0 + 0.1, WZ - 0.12, 0.05, 0.05, 0.12, 10, PAINT.galv); if (r() < 0.5) { b.cyl(M.paint, PW / 2 - 0.4, wy0 + 0.09, WZ - 0.12, 0.07, 0.05, 0.13, 10, lin([0.6, 0.3, 0.2])); b.geo(M.leafOlive, new THREE.IcosahedronGeometry(0.12, 0), PW / 2 - 0.4, wy0 + 0.25, WZ - 0.12, 0, r(), 0, 1, shade(0.7)); }
   // стены площадки этажа
-  b.box(wallM, (LX0 + CX - CW / 2) / 2, FH / 2, -LAND - 0.06, CX - CW / 2 - LX0, FH, 0.12, wc); b.box(wallM, (CX + CW / 2 + LX1) / 2, FH / 2, -LAND - 0.06, LX1 - CX - CW / 2, FH, 0.12, wc); b.box(wallM, CX, (2.2 + FH) / 2, -LAND - 0.06, CW, FH - 2.2, 0.12, wc);
-  podCorridor(b, group, n, y0, r, wallM, wc);
+  b.box(wallM, (LX0 + EX0) / 2, FH / 2, -LAND - 0.06, EX0 - LX0, FH, 0.12, wc); b.box(wallM, (EX1 + LX1) / 2, FH / 2, -LAND - 0.06, LX1 - EX1, FH, 0.12, wc); b.box(wallM, EXC, (2.15 + FH) / 2, -LAND - 0.06, EX1 - EX0, FH - 2.15, 0.12, wc);
+  liftBuild(b, group, y0, FD, r);
+  { const nm = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), MPC.notice); nm.position.set(2.7, y0 + 1.5, -LAND + 0.01); group.add(nm);
+    for (let k = 0; k < 12; k++) { const t = k / 12; b.box(MPC.tinsel[k % 4], WELL0, 0.95 + t * FH / 2 + Math.sin(t * 25) * 0.04, t * PL, 0.05, 0.05, 0.22, null, 0.4 * k, 0, 0); }
+    for (let k = 0; k < 2; k++) b.geo(MPC.flake, new THREE.PlaneGeometry(0.2, 0.2), PW / 2 - 0.3 + k * 0.55, FH / 2 + 1.5 + r() * 0.4, PL + MIDD, 0, 0, r(), 1); }
   b.box(wallM, LX0 - 0.06, FH / 2, -LAND / 2, 0.12, FH, LAND, wc); b.box(wallM, LX1 + 0.06, FH / 2, -LAND / 2, 0.12, FH, LAND, wc);
   b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
   // номер этажа
-  const num = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.45), floorNumMat(n + 1)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(String(FD).length > 3 ? 0.22 * String(FD).length : 0.45, 0.45), floorNumMat(FD)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
   // квартирные двери (дерматин), номера
-  const doors = [[LX0, -LAND / 2 - 0.45, 1], [LX1, -LAND / 2 + 0.45, -1]];
+  const pk = r() < 0.35 ? (r() * 4) | 0 : -1;
+  const doors = [[0.25, -LAND, 0], [PW - 0.25 - 0.9, -LAND, 0], [LX0, -LAND / 2 - 0.45, 1], [LX1, -LAND / 2 + 0.45, -1]];
   doors.forEach(([dx, dz, side], k) => {
     const dc = shade(0.75 + r() * 0.4), metal = r() < 0.3;
     if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
     else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
     const ax = side === 0 ? dx + 0.45 : dx + side * 0.3, az = side === 0 ? dz + 0.3 : dz;
-    doorsLive.push({ knock: true, x: ax, z: az, y: y0, apt: n * 4 + k + 1, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
+    doorsLive.push({ knock: true, party: k === pk, x: ax, z: az, y: y0, apt: FD * 4 + k + 1, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
   });
   // щиток с проводами
   b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42])); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
@@ -114,8 +119,8 @@ function buildFloor(n) {
   if (r() < 0.25) { b.box(M.plank, LX1 - 0.5, 0.45, -LAND + 0.4, 0.42, 0.04, 0.42, shade(0.8)); b.box(M.plank, LX1 - 0.5, 0.7, -LAND + 0.2, 0.42, 0.5, 0.04, shade(0.8)); for (const [ox, oz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) b.box(M.plank, LX1 - 0.5 + ox, 0.22, -LAND + 0.4 + oz, 0.04, 0.45, 0.04, shade(0.8)); }
   b.pop();
   // мусор
-  const spots = [[CX + (r() - 0.5) * 1.2, CZ0 - 2 - r() * 9, 0], [CX + (r() - 0.5) * 1.2, CZ0 - 12 - r() * 10, 0], [LX0 + 0.5 + r() * 4.5, -0.3 - r() * 1.4, 0], [0.3 + r() * 0.7, PL + 0.3 + r() * 1, FH / 2], [PW / 2 + (r() - 0.5) * 1.6, PL + 0.4 + r() * 0.9, FH / 2]];
-  spots.forEach(([x, z, yy], k) => { if (r() < 0.45) { addTrash(group, x, z, `p${n},${k}`, r); const c = coinsLive[coinsLive.length - 1]; c.obj.position.y = y0 + yy; c.fy = y0 + yy; } });
+  const spots = [[LX0 + 0.5 + r() * 4.5, -0.3 - r() * 1.4, 0], [0.3 + r() * 0.7, PL + 0.3 + r() * 1, FH / 2], [PW / 2 + (r() - 0.5) * 1.6, PL + 0.4 + r() * 0.9, FH / 2]];
+  spots.forEach(([x, z, yy], k) => { if (r() < 0.45) { addTrash(group, x, z, `p${F},${k}`, r); const c = coinsLive[coinsLive.length - 1]; c.obj.position.y = y0 + yy; c.fy = y0 + yy; } });
   b.build(group); scene.add(group);
   return group;
 }
@@ -124,17 +129,19 @@ const podCols = [
   { x: -0.12, z: (PL + MIDD) / 2, hx: 0.12, hz: (PL + MIDD) / 2 }, { x: PW + 0.12, z: (PL + MIDD) / 2, hx: 0.12, hz: (PL + MIDD) / 2 },
   { x: PW / 2, z: PL + MIDD + 0.1, hx: PW / 2, hz: 0.12 },
   { x: (WELL0 + WELL1) / 2, z: PL / 2 + 0.02, hx: (WELL1 - WELL0) / 2 + 0.02, hz: PL / 2 + 0.02 },
-  { x: (LX0 + CX - CW / 2) / 2, z: -LAND - 0.1, hx: (CX - CW / 2 - LX0) / 2, hz: 0.12 }, { x: (CX + CW / 2 + LX1) / 2, z: -LAND - 0.1, hx: (LX1 - CX - CW / 2) / 2, hz: 0.12 },
-  { x: CX - CW / 2 - 0.1, z: (CZ0 + CZ1) / 2, hx: 0.12, hz: CL / 2 }, { x: CX + CW / 2 + 0.1, z: (CZ0 + CZ1) / 2, hx: 0.12, hz: CL / 2 }, { x: CX, z: CZ1 - 0.1, hx: CW / 2 + 0.2, hz: 0.12 }, { x: LX0 - 0.1, z: -LAND / 2, hx: 0.12, hz: LAND / 2 + 0.1 }, { x: LX1 + 0.1, z: -LAND / 2, hx: 0.12, hz: LAND / 2 + 0.1 },
+  { x: (LX0 + EX0) / 2, z: -LAND - 0.1, hx: (EX0 - LX0) / 2, hz: 0.12 }, { x: (EX1 + LX1) / 2, z: -LAND - 0.1, hx: (LX1 - EX1) / 2, hz: 0.12 },
+  { x: EX0 - 0.08, z: (EZ1 - LAND) / 2, hx: 0.08, hz: 0.8 }, { x: EX1 + 0.08, z: (EZ1 - LAND) / 2, hx: 0.08, hz: 0.8 }, { x: EXC, z: EZ1 - 0.08, hx: 0.7, hz: 0.08 }, { x: LX0 - 0.1, z: -LAND / 2, hx: 0.12, hz: LAND / 2 + 0.1 }, { x: LX1 + 0.1, z: -LAND / 2, hx: 0.12, hz: LAND / 2 + 0.1 },
   { x: LX0 / 2, z: 0.1, hx: -LX0 / 2, hz: 0.12 }, { x: (PW + LX1) / 2, z: 0.1, hx: (LX1 - PW) / 2, hz: 0.12 },
 ].map((c) => Object.assign(c, { c: 1, s: 0 }));
+const liftGap = { x: EXC, z: -LAND - 0.1, hx: (EX1 - EX0) / 2, hz: 0.12, c: 1, s: 0, off: false }; podCols.push(liftGap);
 function podUpdate() {
   if (!colliders.has('pod')) colliders.set('pod', podCols);
   const cur = Math.floor((P.y + 0.5) / FH);
   for (let n = cur - 2; n <= cur + 2; n++) if (!podMods.has(n)) podMods.set(n, buildFloor(n));
   for (const [n, g] of podMods) if (Math.abs(n - cur) > 3) { scene.remove(g); g.traverse((o) => { if (o.geometry && o.geometry !== BULB_GEO && o.geometry !== PLAF_GEO && !Object.values(trashGeo).includes(o.geometry)) o.geometry.dispose(); }); for (let i = coinsLive.length - 1; i >= 0; i--) if (coinsLive[i].group === g) coinsLive.splice(i, 1); podMods.delete(n); }
   { let best = 99; for (const d of doorsLive) if (d.party) { const dd = Math.hypot(d.x - P.x, d.z - P.z) + Math.abs(d.y - P.y) * 5; if (dd < best) best = dd; } partyTick(clamp(1 - best / 16, 0, 1) * 0.32, 380); }
-  const fe = $('f_floor'); if (fe) { const t = String(Math.floor((P.y + 0.3) / FH) + 1); if (fe.textContent !== t) fe.textContent = t; }
+  liftUpdate(cur);
+  const fe = $('f_floor'); if (fe) { const t = LIFT.st === 'ride' ? LIFT.show : String((podBase + Math.floor((P.y + 0.3) / FH) + 1) | 0); if (fe.textContent !== t) fe.textContent = t; }
 }
 // звуки подъезда: далёкий хлопок двери, шаги этажом выше, лай за дверью
 function podSound() { if (!AC) return; const t = Math.random();
@@ -145,7 +152,7 @@ function podSound() { if (!AC) return; const t = Math.random();
 function podKnock(d) { if (d.party) { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['За дверью музыка и смех. «…С Новым годом!» — но не тебе.', 'Музыку сделали тише. Шаги к двери… и обратно.', '— Кто там? — Из-за двери пахнет мандаринами. Не открывают.'][(Math.random() * 3) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); return; } for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['Тишина.', 'За дверью кто-то есть. Но не открывают.', 'Никого.', 'Где-то за дверью работает телевизор.', 'Шаги… и снова тишина.'][(Math.random() * 5) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); }
 if (PODEZD) { P.x = PW / 2 + 0.3; P.z = -1.0; P.y = 0; P.yaw = Math.PI; ground.visible = false; grass.mesh.visible = false; }
 
-// --- коридор этажа (как в малосемейках): двери по обе стороны, плафоны, окно в торце ---
+// --- общие материалы подъезда ---
 const MPC = {
   white: lin([0.86, 0.85, 0.8]),
   flake: std({ transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, color: 0xf2f2ec, emissive: 0x303030, roughness: 1, map: texFrom(mkCanvas(128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = '#fff'; g.lineWidth = 7; g.lineCap = 'round'; g.translate(64, 64); for (let a = 0; a < 6; a++) { g.rotate(Math.PI / 3); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -56); g.moveTo(0, -32); g.lineTo(-15, -46); g.moveTo(0, -32); g.lineTo(15, -46); g.moveTo(0, -15); g.lineTo(-10, -25); g.moveTo(0, -15); g.lineTo(10, -25); g.stroke(); } })) }),
@@ -154,46 +161,6 @@ const MPC = {
     ['Уважаемые жильцы!', '1 января с 00:24', 'до 00:25', 'будет отключено', 'время.', 'Приносим извинения', 'за неудобства.', '', 'ЖЭУ № 3'].forEach((t, i) => g.fillText(t, w / 2, 90 + i * 25)); g.fillStyle = 'rgba(120,100,60,0.25)'; g.fillRect(0, 0, w, 6); })) }),
   tinsel: [0xd8b030, 0xc02828, 0x2aa048, 0x3a6ad8].map((c) => std({ color: c, emissive: c, emissiveIntensity: 0.25, metalness: 0.8, roughness: 0.3 })),
 };
-function podDoor(b, x, z, side, y0, apt, r, party, group) {
-  const metal = r() < 0.45, dc = shade(0.7 + r() * 0.4);
-  b.box(M.paint, x + side * 0.02, 1.09, z, 0.06, 2.2, 1.06, MPC.white);
-  b.box(metal ? M.metal : MP.leather, x + side * 0.06, 1.02, z, 0.04, 2.04, 0.9, metal ? lin([0.28 + r() * 0.15, 0.2, 0.15]) : dc);
-  b.box(MH.chrome, x + side * 0.1, 1.0, z - side * 0.35, 0.03, 0.14, 0.03); b.box(M.paint, x + side * 0.09, 1.55, z, 0.02, 0.05, 0.05, shade(0.15));
-  b.box(M.paint, x + side * 0.02, 2.32, z, 0.03, 0.12, 0.16, shade(0.85));
-  if (r() < 0.55) b.box(M.paint, x + side * 0.42, 0.012, z, 0.5, 0.02, 0.8, lin([[0.42, 0.15, 0.12], [0.25, 0.3, 0.2], [0.3, 0.25, 0.35], [0.4, 0.35, 0.2]][(r() * 4) | 0]));
-  if (r() < 0.25) for (const dz of [-0.15, 0.1]) b.box(M.paint, x + side * 0.3, 0.05, z + dz, 0.26, 0.09, 0.1, shade(0.12));
-  doorsLive.push({ knock: true, party, x: x + side * 0.4, z, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
-}
-function podCorridor(b, group, n, y0, r, wallM, wc) {
-  const xl = CX - CW / 2, xr = CX + CW / 2, zm = (CZ0 + CZ1) / 2;
-  b.box(MP.tile, CX, -0.06, zm, CW + 0.24, 0.12, CL); b.box(M.paint, CX, FH - 0.2, zm, CW + 0.24, 0.16, CL, shade(0.88));
-  b.box(wallM, xl - 0.06, FH / 2, zm, 0.12, FH, CL, wc); b.box(wallM, xr + 0.06, FH / 2, zm, 0.12, FH, CL, wc);
-  b.box(M.paint, xl + 0.02, 0.06, zm, 0.04, 0.12, CL, shade(0.25)); b.box(M.paint, xr - 0.02, 0.06, zm, 0.04, 0.12, CL, shade(0.25));
-  b.pipe(M.metal, new V3(xl + 0.12, FH - 0.38, CZ0), new V3(xl + 0.12, FH - 0.38, CZ1), 0.035, PAINT.galv);
-  // тамбур: белая рама и распахнутая створка
-  b.box(M.paint, xl + 0.03, 1.1, CZ0 - 0.06, 0.06, 2.2, 0.16, MPC.white); b.box(M.paint, xr - 0.03, 1.1, CZ0 - 0.06, 0.06, 2.2, 0.16, MPC.white); b.box(M.paint, CX, 2.2, CZ0 - 0.06, CW, 0.06, 0.16, MPC.white);
-  const a = 1.45; b.box(M.paint, xl + 0.06 + 0.45 * Math.cos(a), 1.05, CZ0 - 0.1 - 0.45 * Math.sin(a), 0.9, 2.05, 0.04, MPC.white, 0, a, 0);
-  // торцевое окно: ночь, бумажные снежинки
-  const wz = CZ1 - 0.06; b.box(wallM, CX, FH / 2, wz, CW + 0.24, FH, 0.12, wc);
-  b.box(MPC.night, CX, 1.55, CZ1 + 0.01, 1.1, 1.3, 0.02); for (const [x, y, sx, sy] of [[CX, 0.9, 1.25, 0.07], [CX, 2.2, 1.25, 0.07], [CX - 0.58, 1.55, 0.07, 1.36], [CX + 0.58, 1.55, 0.07, 1.36], [CX, 1.55, 0.05, 1.3]]) b.box(M.paint, x, y, CZ1 + 0.03, sx, sy, 0.05, MPC.white);
-  b.box(M.paint, CX, 0.87, CZ1 + 0.12, 1.3, 0.04, 0.25, MPC.white); for (let k = 0; k < 8; k++) b.box(MP.radiator, CX - 0.4 + k * 0.11, 0.45, CZ1 + 0.12, 0.07, 0.5, 0.1);
-  for (let k = 0; k < 3; k++) b.geo(MPC.flake, new THREE.PlaneGeometry(0.22, 0.22), CX - 0.35 + k * 0.33 + (r() - 0.5) * 0.1, 1.4 + r() * 0.5, CZ1 + 0.04, 0, 0, r(), 1);
-  // двери
-  const party = (r() * 14) | 0; let apt = 100 + n * 14;
-  for (let k = 0; k < 7; k++) { const z = CZ0 - 1.7 - k * 3.2; podDoor(b, xl, z, 1, y0, apt++, r, 2 * k === party, group); podDoor(b, xr, z - 1.0, -1, y0, apt++, r, 2 * k + 1 === party, group); }
-  // плафоны
-  for (let k = 0; k < 4; k++) { const z = CZ0 - 3 - k * 6, on = r() < 0.85, flick = on && r() < 0.2; let m = null;
-    if (flick) { m = new THREE.Mesh(PLAF_GEO, MH.bulb); m.position.set(CX, y0 + FH - 0.32, z); group.add(m); } else b.geo(on ? MH.bulb : MH.bulbOff, PLAF_GEO, CX, FH - 0.32, z, 0, 0, 0, 1);
-    if (on) bulbAnchors.push({ x: CX, y: y0 + FH - 0.55, fy: y0, z, flick, ph: r() * 100, group, mesh: m, color: 0xfff0dc, int: 4.2, dist: 9 }); }
-  // хлам: санки, коробки, ёлка у двери
-  if (r() < 0.35) { const z = CZ0 - 3 - r() * 18; b.box(M.metal, xl + 0.25, 0.35, z, 0.05, 0.7, 0.4, lin([0.6, 0.15, 0.1]), 0, 0, -0.25); b.box(M.plank, xl + 0.3, 0.42, z, 0.08, 0.75, 0.36, shade(0.7), 0, 0, -0.25); }
-  if (r() < 0.4) { const z = CZ0 - 3 - r() * 18; b.box(M.paint, xr - 0.3, 0.22, z, 0.45, 0.44, 0.5, lin([0.55, 0.42, 0.28]), 0, r(), 0); }
-  if (r() < 0.2) { const z = CZ0 - 4 - r() * 16; for (let i = 0; i < 4; i++) b.add(M.leafOlive, new THREE.ConeGeometry(0.35 - i * 0.07, 0.4, 7), new THREE.Matrix4().makeTranslation(xl + 0.4, 0.3 + i * 0.25, z), shade(0.35)); }
-  // объявление и мишура на площадке
-  const nm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.56), MPC.notice); nm.position.set(xr + 0.55, y0 + 1.5, CZ0 + 0.01); group.add(nm);
-  for (let k = 0; k < 12; k++) { const t = k / 12; b.box(MPC.tinsel[k % 4], WELL0, 0.95 + t * FH / 2 + Math.sin(t * 25) * 0.04, t * PL, 0.05, 0.05, 0.22, null, 0.4 * k, 0, 0); }
-  for (let k = 0; k < 2; k++) b.geo(MPC.flake, new THREE.PlaneGeometry(0.2, 0.2), PW / 2 - 0.3 + k * 0.55, FH / 2 + 1.5 + r() * 0.4, PL + MIDD + 0.0, 0, 0, r(), 1);
-}
 // приглушённая музыка «за стеной» (подъезд и дворы)
 let PARTY = null;
 function partyTick(vol, cut) { if (!AC) return;
@@ -206,3 +173,67 @@ function partyTick(vol, cut) { if (!AC) return;
     if (k % 2 === 1) { const bo = AC.createOscillator(), bg = AC.createGain(); bo.type = 'triangle'; bo.frequency.value = CH[((k / 8) | 0) % 4][0] / 2; bg.gain.setValueAtTime(0.35, t); bg.gain.exponentialRampToValueAtTime(0.001, t + 0.22); bo.connect(bg).connect(PARTY.g); bo.start(t); bo.stop(t + 0.25); }
     if (k % 8 === 0) for (const fq of CH[((k / 8) | 0) % 4]) { const q = AC.createOscillator(), qg = AC.createGain(); q.type = 'sawtooth'; q.frequency.value = fq; qg.gain.setValueAtTime(0, t); qg.gain.linearRampToValueAtTime(0.07, t + 0.06); qg.gain.setValueAtTime(0.07, t + 3.4); qg.gain.linearRampToValueAtTime(0, t + 3.8); q.connect(qg).connect(PARTY.g); q.start(t); q.stop(t + 3.9); }
     PARTY.t += 0.47; PARTY.beat++; } }
+
+// ===================== ЛИФТ: вместо кнопок — табло, на котором можно набрать любой этаж =====================
+const MPL = {
+  door: std({ color: 0x6a6258, roughness: 0.5, metalness: 0.6 }),
+  wood: std({ roughness: 0.7, map: texFrom(mkCanvas(256, 256, (g, w, h) => { const r = rng(5); g.fillStyle = '#7a5032'; g.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 2) { g.fillStyle = `rgba(${r() < 0.5 ? '40,20,10' : '150,100,60'},${r() * 0.18})`; g.fillRect(0, y, w, 2); }
+    g.fillStyle = 'rgba(20,10,5,0.7)'; g.font = '20px sans-serif'; ['ВИТЯ', 'лох', '2016', 'ДНО', 'АУ'].forEach((t, i) => { g.save(); g.translate(20 + r() * 180, 30 + i * 45); g.rotate((r() - 0.5) * 0.5); g.fillText(t, 0, 0); g.restore(); });
+    for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(10,5,0,0.6)'; g.beginPath(); g.arc(r() * w, r() * h, 3 + r() * 5, 0, 6.28); g.fill(); } })) }),
+  panel: std({ color: 0x222222, roughness: 0.4, metalness: 0.5 }),
+  disp: std({ color: 0x200000, emissive: 0xff3010, emissiveIntensity: 2 }),
+  btn: std({ color: 0x300000, emissive: 0xff2010, emissiveIntensity: 1.2 }),
+  lamp: std({ color: 0xfff4e0, emissive: 0xfff0d0, emissiveIntensity: 2.5 }),
+};
+function liftBuild(b, group, y0, FD, r) {
+  // проём, рама, кабина за ним
+  for (const [x, y, sx, sy] of [[EX0 + 0.03, 1.07, 0.08, 2.14], [EX1 - 0.03, 1.07, 0.08, 2.14], [EXC, 2.14, EX1 - EX0, 0.08]]) b.box(M.metal, x, y, -LAND + 0.01, sx, sy, 0.04, lin([0.35, 0.33, 0.3]));
+  b.box(M.paint, EXC, -0.05, (EZ1 - LAND) / 2, EX1 - EX0, 0.1, -LAND - EZ1, shade(0.25));
+  b.box(MPL.wood, EX0 - 0.02, 1.2, (EZ1 - LAND) / 2 - 0.06, 0.04, 2.4, -LAND - EZ1 - 0.12); b.box(MPL.wood, EX1 + 0.02, 1.2, (EZ1 - LAND) / 2 - 0.06, 0.04, 2.4, -LAND - EZ1 - 0.12); b.box(MPL.wood, EXC, 1.2, EZ1, EX1 - EX0, 2.4, 0.04);
+  b.box(M.paint, EXC, 2.38, (EZ1 - LAND) / 2, EX1 - EX0, 0.04, -LAND - EZ1, shade(0.7)); b.box(MPL.lamp, EXC, 2.35, (EZ1 - LAND) / 2, 0.5, 0.02, 0.3);
+  b.box(MPL.panel, EX1 - 0.03, 1.35, -LAND - 0.45, 0.04, 0.5, 0.22); b.box(MPL.disp, EX1 - 0.055, 1.52, -LAND - 0.45, 0.01, 0.08, 0.16);
+  b.box(MPL.btn, EX0 - 0.2, 1.2, -LAND + 0.02, 0.06, 0.06, 0.03);
+  const dl = new THREE.Mesh(new THREE.BoxGeometry((EX1 - EX0) / 2, 2.08, 0.04), MPL.door), dr = dl.clone(); dl.position.set(EX0 + (EX1 - EX0) / 4, y0 + 1.05, -LAND - 0.08); dr.position.set(EX1 - (EX1 - EX0) / 4, y0 + 1.05, -LAND - 0.08); group.add(dl, dr); group.userData.lift = [dl, dr];
+  bulbAnchors.push({ x: EXC, y: y0 + 2.2, fy: y0, z: (EZ1 - LAND) / 2, group, mesh: null, color: 0xfff0d0, dist: 4.5, int: 2.2 });
+}
+const LIFT = { n: 0, open: 0, tgt: 0, st: 'idle', t: 0, dur: 0, from: 0, dest: 0, show: '', snd: null, inter: false, glitch: false };
+function inCabin() { return P.x > EX0 && P.x < EX1 && P.z < -LAND - 0.15 && P.z > EZ1; }
+function liftHum(on) { if (!AC) return; if (!LIFT.snd) { const s = loopSrc(AC._brown, 0.5), f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160; const g = AC.createGain(); g.gain.value = 0; const o = AC.createOscillator(); o.frequency.value = 55; const og = AC.createGain(); og.gain.value = 0.25; o.connect(og).connect(g); s.connect(f).connect(g); g.connect(master); o.start(); LIFT.snd = g; } LIFT.snd.gain.setTargetAtTime(on ? 0.5 : 0, AC.currentTime, 0.3); }
+function liftDing() { blip([988, 784], 0.7, 'sine', 0.05); }
+function liftClank() { burst(0.25, 'lowpass', 400, 1, 0.5); setTimeout(() => burst(0.15, 'bandpass', 1200, 2, 0.15), 120); }
+// табло ввода этажа
+const liftUI = document.createElement('div'); liftUI.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0009;z-index:30';
+liftUI.innerHTML = '<div style="background:#3a2a1e;border:3px solid #8a6a40;padding:20px 24px;border-radius:6px;text-align:center;color:#e8d8b0;font-family:monospace;box-shadow:0 10px 40px #000;max-width:92vw"><div style="font-size:13px;opacity:.75;margin-bottom:10px">ЛИФТ · наберите этаж</div><input id="liftIn" inputmode="numeric" autocomplete="off" maxlength="22" style="font:26px monospace;width:min(300px,78vw);text-align:center;background:#0b0b0b;color:#ff5a3a;border:2px solid #000;padding:8px;box-sizing:border-box"><div style="margin-top:14px"><button class="b" id="liftGo">Поехать</button><button class="b b2" id="liftNo">Отмена</button></div><div id="liftMsg" style="font-size:12px;opacity:.55;margin-top:10px">грузоподъёмность 320 кг · 4 человека · не курить</div></div>';
+document.body.appendChild(liftUI);
+const liftIn = liftUI.querySelector('#liftIn');
+['keydown', 'keyup'].forEach((ev) => liftIn.addEventListener(ev, (e) => { e.stopPropagation(); if (ev === 'keydown' && e.key === 'Enter') liftGo(); if (ev === 'keydown' && e.key === 'Escape') liftUI.style.display = 'none'; }));
+liftUI.querySelector('#liftNo').onclick = () => { liftUI.style.display = 'none'; };
+liftUI.querySelector('#liftGo').onclick = () => liftGo();
+function liftOpenUI() { if (document.pointerLockElement) document.exitPointerLock(); liftUI.style.display = 'flex'; liftIn.value = ''; liftUI.querySelector('#liftMsg').textContent = 'грузоподъёмность 320 кг · 4 человека · не курить'; setTimeout(() => liftIn.focus(), 50); }
+function liftGo() { const v = liftIn.value.trim().replace(/\s+/g, ''); if (!/^-?\d{1,22}$/.test(v)) { liftUI.querySelector('#liftMsg').textContent = 'Лифт не знает такого этажа.'; return; }
+  const T = Number(v), cur = podBase + Math.floor((P.y + 0.5) / FH) + 1; liftUI.style.display = 'none'; if (T === cur) { toast('Ты и так на этом этаже.'); return; }
+  LIFT.dest = T; LIFT.from = cur; LIFT.tgt = 0; LIFT.st = 'closing'; liftClank(); }
+function liftUpdate(cur) {
+  if (!LIFT.inter) { LIFT.inter = true;
+    INTER.push({ x: EXC, z: -LAND + 0.55, r: 1.1, get y() { return Math.floor((P.y + 0.5) / FH) * FH; }, on: () => !inCabin() && LIFT.st === 'idle' && !(LIFT.n === Math.floor((P.y + 0.5) / FH) && LIFT.open > 0.5), label: 'E — вызвать лифт',
+      act: () => { const c = Math.floor((P.y + 0.5) / FH); blip([660], 0.15, 'square', 0.03); if (LIFT.n === c) { LIFT.tgt = 1; liftClank(); } else { LIFT.st = 'coming'; LIFT.t = 2 + Math.min(5, Math.abs(LIFT.n - c) * 0.6); liftHum(true); } } });
+    INTER.push({ x: EXC, z: (EZ1 - LAND) / 2, r: 0.9, get y() { return Math.floor((P.y + 0.5) / FH) * FH; }, on: () => inCabin() && LIFT.st === 'idle', label: 'E — набрать этаж', act: liftOpenUI }); }
+  LIFT.open += (LIFT.tgt - LIFT.open) * Math.min(1, 0.03 * 60 * 0.033 * 2.2);
+  for (const [n, g] of podMods) { const d = g.userData.lift; if (!d) continue; const o = n === LIFT.n ? LIFT.open : 0, w = (EX1 - EX0) / 4; d[0].position.x = EX0 + w - o * w * 1.9; d[1].position.x = EX1 - w + o * w * 1.9; }
+  liftGap.off = LIFT.open > 0.75 && LIFT.n === cur;
+  if (LIFT.st === 'coming') { LIFT.t -= 0.033; if (LIFT.t <= 0) { LIFT.n = cur; LIFT.st = 'idle'; LIFT.tgt = 1; liftHum(false); liftDing(); liftClank(); } }
+  else if (LIFT.st === 'closing') { if (LIFT.open < 0.03) { LIFT.st = 'ride'; LIFT.dur = Math.min(9, 2 + Math.log10(Math.abs(LIFT.dest - LIFT.from) + 1) * 0.9); LIFT.t = 0; liftHum(true); } }
+  else if (LIFT.st === 'ride') { LIFT.t += 0.033; const k = Math.min(1, LIFT.t / LIFT.dur), e = k * k * (3 - 2 * k), v = LIFT.from + (LIFT.dest - LIFT.from) * e; LIFT.show = String(Math.round(v)); P.vy = 0;
+    if (k >= 1) { // приехали: переносим этажи к началу координат
+      const ly = P.y - cur * FH; podClear(); podBase = LIFT.dest - 1; P.y = ly; LIFT.n = 0; LIFT.st = 'idle'; LIFT.tgt = 1; liftHum(false); liftDing(); liftClank();
+      const disp = LIFT.dest | 0; LIFT.glitch = disp !== LIFT.dest;
+      if (LIFT.glitch) toast(`<b style="color:#ff4a3a">ПЕРЕПОЛНЕНИЕ</b><br>этаж ${LIFT.dest} не помещается в int32<br><span style="font-size:14px">табло показывает ${disp}</span>`);
+      else if (Math.abs(LIFT.dest) > 1e6) toast(`Этаж ${LIFT.dest}.<br><span style="font-size:14px">Здесь тоже кто-то живёт.</span>`); } }
+  // переполнение: этаж ушёл за 2147483647 (на лифте или пешком)
+  const real = podBase + cur + 1, gl = (real | 0) !== real;
+  if (gl !== LIFT.glitch && LIFT.st !== 'ride') { LIFT.glitch = gl; if (gl) toast(`<b style="color:#ff4a3a">ЭТАЖ ${real | 0}</b><br><span style="font-size:14px">Так не бывает.</span>`); }
+  if (LIFT.glitch) { for (const l of LPOOL) l.color.setRGB(1, 0.12 + Math.random() * 0.05, 0.08); post.U.expo.value = Math.random() < 0.04 ? 0.3 + Math.random() * 1.6 : 1.0 + Math.sin(clock * 7) * 0.08; }
+  else if (post.U.expo.value !== 1) post.U.expo.value = 1;
+}
+function podClear() { for (const [n, g] of podMods) { scene.remove(g); g.traverse((o) => { if (o.geometry && o.geometry !== BULB_GEO && o.geometry !== PLAF_GEO && !Object.values(trashGeo).includes(o.geometry)) o.geometry.dispose(); }); for (let i = coinsLive.length - 1; i >= 0; i--) if (coinsLive[i].group === g) coinsLive.splice(i, 1); } podMods.clear(); }
+if (TEST && PODEZD) window.__lift = { LIFT, go: (T) => { liftIn.value = String(T); liftGo(); }, get base() { return podBase; } };
