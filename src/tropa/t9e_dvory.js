@@ -21,7 +21,12 @@ function dvLS(k, v) { try { if (v === undefined) return localStorage.getItem(k);
 // хлопушки/петарды где-то во дворах
 function petard() { if (!AC) return; const pan = Math.random() * 2 - 1, n = 3 + ((Math.random() * 8) | 0); let t = 0;
   for (let i = 0; i < n; i++) { t += 40 + Math.random() * 160; setTimeout(() => burst(0.05 + Math.random() * 0.05, 'bandpass', 1400 + Math.random() * 2400, 0.7, 0.18 + Math.random() * 0.25, pan), t); }
-  if (Math.random() < 0.5) setTimeout(() => burst(0.5, 'lowpass', 260, 0.7, 0.5, pan), t + 200); }
+  if (Math.random() < 0.5) setTimeout(() => burst(0.5, 'lowpass', 260, 0.7, 0.5, pan), t + 200);
+  if (Math.random() < 0.3) for (let k = 0; k < 3 + ((Math.random() * 3) | 0); k++) setTimeout(() => burst(0.11, 'bandpass', 480 + Math.random() * 120, 3, 0.07, -pan), t + 1500 + k * 320); }
+// автосигнализация, сработавшая от салюта
+function carAlarm() { if (!AC) return; const o = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(); o.type = 'square'; f.type = 'lowpass'; f.frequency.value = 1600; const t = AC.currentTime, v = 0.012 + Math.random() * 0.02;
+  for (let i = 0; i < 40; i++) o.frequency.setValueAtTime(i % 2 ? 1250 : 720, t + i * 0.18); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.1); g.gain.setValueAtTime(v, t + 6.5); g.gain.linearRampToValueAtTime(0, t + 7);
+  o.connect(f).connect(g); if (AC.createStereoPanner) { const pn = AC.createStereoPanner(); pn.pan.value = Math.random() * 2 - 1; g.connect(pn).connect(master); } else g.connect(master); o.start(t); o.stop(t + 7.1); }
 
 if (DVOR) {
   KEY_POS.dvory = [-187.5, 0, 100.5];
@@ -52,6 +57,7 @@ if (DVOR) {
         g.fillStyle = glow; g.fillRect(x, y, ww, wh); e.fillStyle = glow; e.fillRect(x, y, ww, wh);
         const cur = r(); if (cur < 0.7) { const cw = ww * (0.15 + r() * 0.25), cl = ['#7a3a2a', '#8a6a3a', '#3a4a6a', '#6a6a4a'][(r() * 4) | 0]; for (const k of [0, 1]) { g.fillStyle = cl; e.fillStyle = 'rgba(80,40,15,0.85)'; const xx = k ? x + ww - cw : x; g.fillRect(xx, y, cw, wh); e.fillRect(xx, y, cw, wh); } }
         if (r() < 0.16) { e.fillStyle = '#0a2a0a'; g.fillStyle = '#204a20'; const cx = x + ww * (0.3 + r() * 0.4); e.beginPath(); e.moveTo(cx, y + wh * 0.25); e.lineTo(cx - ww * 0.18, y + wh); e.lineTo(cx + ww * 0.18, y + wh); e.fill(); g.beginPath(); g.moveTo(cx, y + wh * 0.25); g.lineTo(cx - ww * 0.18, y + wh); g.lineTo(cx + ww * 0.18, y + wh); g.fill(); }
+        if (r() < 0.08) { const sx = x + ww * (0.3 + r() * 0.4), sy = y + wh * 0.45; for (const c of [g, e]) { c.fillStyle = 'rgba(8,6,5,0.92)'; c.beginPath(); c.arc(sx, sy, ww * 0.1, 0, 6.28); c.fill(); c.beginPath(); c.ellipse(sx, sy + ww * 0.32, ww * 0.22, ww * 0.2, 0, 3.14, 6.28); c.fill(); c.fillRect(sx - ww * 0.22, sy + ww * 0.3, ww * 0.44, wh); } }
         e.fillStyle = 'rgba(0,0,0,0.35)'; e.fillRect(x + ww / 2 - 2, y, 4, wh); e.fillRect(x, y + wh * 0.3, ww, 3);
       } else { const gr = g.createLinearGradient(x, y, x + ww, y + wh); gr.addColorStop(0, '#20242c'); gr.addColorStop(0.5, '#141820'); gr.addColorStop(1, '#262a30'); g.fillStyle = gr; g.fillRect(x, y, ww, wh); }
       g.fillStyle = o.frame; g.fillRect(x + ww / 2 - 2, y, 4, wh); g.fillRect(x, y + wh * 0.3, ww, 3);
@@ -116,13 +122,17 @@ if (DVOR) {
     b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.4)); b.box(roofSnow, len * 0.2, Hh + 2.25, 0, 4, 0.1, 3.5);
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 7 * 3 : 0), uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
+    // сугробы вдоль стен
+    const drift = (x, z, sx, sz) => b.add(roofSnow, new THREE.SphereGeometry(1, 10, 6), new THREE.Matrix4().compose(new V3(x, -0.18, z), new THREE.Quaternion(), new V3(sx, 0.5 + r() * 0.35, sz)));
+    for (let k = 0; k < 4; k++) drift(-len / 2 + 3 + r() * (len - 6), -dep / 2 - 0.8, 1.5 + r() * 1.5, 0.9);
+    for (const dx of [-6, 6]) if (r() < 0.7) drift(dx + (r() - 0.5) * 2, dep / 2 + 0.8, 1.2 + r(), 0.8);
     // балконы со стороны двора
     if (floors === 9) for (let c = 0; c < len / 3; c++) { const col = Math.floor((c * 3 + uo) / 3) % 12; if (col % 4 !== 1) continue; const lx = -len / 2 + c * 3 + 1.5; if (lx > len / 2 - 1) continue;
-      for (let f = 1; f < floors; f++) { const y = 1.6 + f * 2.8; b.box(M.conc, lx, y, dep / 2 + 0.55, 2.8, 0.14, 1.1, shade(0.55)); const gl = ((c * 7 + f * 3) % 5) === 0; b.box(gl ? M.glass : M.conc, lx, y + 0.55, dep / 2 + 1.08, 2.8, gl ? 1.0 : 0.95, 0.06, shade(0.6)); for (const s of [-1.4, 1.4]) b.box(M.conc, lx + s, y + 0.5, dep / 2 + 0.55, 0.06, 0.95, 1.1, shade(0.6)); } }
+      for (let f = 1; f < floors; f++) { const y = 1.6 + f * 2.8; b.box(M.conc, lx, y, dep / 2 + 0.55, 2.8, 0.14, 1.1, shade(0.55)); const gl = ((c * 7 + f * 3) % 5) === 0; b.box(gl ? M.glass : M.conc, lx, y + 0.55, dep / 2 + 1.08, 2.8, gl ? 1.0 : 0.95, 0.06, shade(0.6)); for (const s of [-1.4, 1.4]) b.box(M.conc, lx + s, y + 0.5, dep / 2 + 0.55, 0.06, 0.95, 1.1, shade(0.6)); if (!gl) b.box(roofSnow, lx, y + 1.04, dep / 2 + 1.08, 2.8, 0.05, 0.12); } }
     // подъезды
     const n = Math.max(1, Math.round(len / 12)); const street = DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 17) num = 19; if (home) num = 17;
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
-      b.box(M.metal, lx, 1.05, fz + 0.04, 1.1, 2.1, 0.08, lin([0.16, 0.14, 0.13])); b.box(M.metal, lx + 0.75, 1.3, fz + 0.06, 0.18, 0.3, 0.04, PAINT.galv);
+      b.box(M.metal, lx, 1.05, fz + 0.04, 1.1, 2.1, 0.08, lin([0.16, 0.14, 0.13])); b.box(M.metal, lx + 0.75, 1.3, fz + 0.06, 0.18, 0.3, 0.04, PAINT.galv); if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.09));
       b.box(M.conc, lx, 2.7, fz + 0.75, 2.4, 0.14, 1.6, shade(0.6)); b.box(roofSnow, lx, 2.82, fz + 0.75, 2.35, 0.1, 1.55); b.box(M.conc, lx, 0.08, fz + 0.75, 2.4, 0.16, 1.5, shade(0.55));
       const lo = b.world(lx, 2.45, fz + 0.3); b.box(entLamp, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18); bulbAnchors.push({ x: lo.x, y: 2.4, z: lo.z, fy: 0, group, mesh: null, color: 0xffb060, dist: 9, int: 5 });
       const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
@@ -203,6 +213,9 @@ if (DVOR) {
     const fb = K.block; const freeY = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad;
     // фонари вдоль улиц
     for (const c of [12, 36]) { const [x, z] = W(c, 42.6); sodium(K, x, z, 0, ez); const [x2, z2] = W(42.6, c); sodium(K, x2, z2, ex, 0); }
+    // снежные валы вдоль бордюров
+    for (let a = 2; a < 40; a += 5) { if (r() < 0.65) { const [x, z] = W(a + r() * 2, 43.6); b.add(roofSnow, new THREE.SphereGeometry(1, 10, 6), new THREE.Matrix4().compose(new V3(x, -0.12, z), new THREE.Quaternion(), new V3(2.2, 0.38, 0.6))); }
+      if (r() < 0.65) { const [x, z] = W(43.6, a + r() * 2); b.add(roofSnow, new THREE.SphereGeometry(1, 10, 6), new THREE.Matrix4().compose(new V3(x, -0.12, z), new THREE.Quaternion(), new V3(0.6, 0.38, 2.2))); } }
     // двор
     if (tree) { yolka(K, -189, 99); }
     if (type !== 'school') {
@@ -249,6 +262,7 @@ if (DVOR) {
         if (f.y >= f.h) { f.ph = 2; f.t = 0; const sp = 13 + Math.random() * 9, ring = Math.random() < 0.25; for (let i = 0; i < FWN; i++) { let vx = Math.random() * 2 - 1, vy = Math.random() * 2 - 1, vz = Math.random() * 2 - 1; if (ring) vy *= 0.12; const l = Math.hypot(vx, vy, vz) || 1, s = sp * (0.75 + Math.random() * 0.3) / l; f.vel[i * 3] = vx * s; f.vel[i * 3 + 1] = vy * s; f.vel[i * 3 + 2] = vz * s; p[i * 3] = f.x; p[i * 3 + 1] = f.y; p[i * 3 + 2] = f.z; }
           f.mat.size = 1.5; f.mat.color.setRGB(f.col[0] * 14, f.col[1] * 14, f.col[2] * 14); fwFlash = Math.max(fwFlash, 1.2 - f.d / 220); fwLight.color.setRGB(f.col[0], f.col[1], f.col[2]); fwLight.position.set(f.x, f.y, f.z);
           const dl = f.d / 340 * 1000, v = Math.max(0.08, 1 - f.d / 220); setTimeout(() => { burst(1.1, 'lowpass', 140 + Math.random() * 80, 0.8, 1.1 * v); burst(0.25, 'bandpass', 900, 0.5, 0.3 * v); }, dl);
+          if (Math.random() < 0.14) setTimeout(carAlarm, dl + 700 + Math.random() * 1500);
           if (Math.random() < 0.6) setTimeout(() => { for (let k = 0; k < 10; k++) setTimeout(() => burst(0.03, 'bandpass', 3000 + Math.random() * 3000, 0.8, 0.12 * v), k * 60 + Math.random() * 90); }, dl + 900); }
         f.geo.attributes.position.needsUpdate = true; continue; }
       const dr = Math.exp(-dt * 1.4); for (let i = 0; i < FWN; i++) { const j = i * 3; f.vel[j] *= dr; f.vel[j + 1] = f.vel[j + 1] * dr - 7 * dt; f.vel[j + 2] *= dr; p[j] += f.vel[j] * dt; p[j + 1] += f.vel[j + 1] * dt; p[j + 2] += f.vel[j + 2] * dt; }
@@ -269,12 +283,18 @@ if (DVOR) {
   if (FINAL) { const st = $('start'); const p = st && st.querySelector('p'); if (p) p.innerHTML = '<b>01.01.2017. 00:24:59.</b><br>Ворота открылись. Ты снова у своего подъезда. Минута вот-вот пойдёт дальше.'; }
   const myFeet = []; let lastFoot = null, footSide = 1, interT = 0;
   WORLD_UPDATE = (dt) => {
-    carsUpdate(dt); fwUpdate(dt); skyline.position.x = P.x; skyline.position.z = P.z;
+    carsUpdate(dt); fwUpdate(dt); partyTick(started ? 0.05 + 0.03 * Math.sin(clock * 0.07) : 0, 240); strangerUpdate(dt); skyline.position.x = P.x; skyline.position.z = P.z;
     const p = sg.attributes.position; for (let i = 0; i < SN; i++) { let y = p.getY(i) - dt * (0.9 + (i % 7) * 0.12), x = p.getX(i) + dt * (0.3 + Math.sin(clock * 0.4 + i) * 0.4); if (y < 0) y += 16; if (x > 20) x -= 40; p.setXY(i, x, y); } p.needsUpdate = true; snow.position.set(P.x, 0, P.z);
     if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = `01.01.2017 · 00:24:${String(s).padStart(2, '0')}`; } }
     if (P.ground && P.speed > 0.4 && dvRoadD(P.x, P.z) > 6.4 && (!lastFoot || Math.hypot(P.x - lastFoot[0], P.z - lastFoot[1]) > 0.7)) { lastFoot = [P.x, P.z]; footSide = -footSide; const a = Math.atan2(P.dx || 0, P.dz || 1); const m = myFeet.length > 200 ? myFeet.shift() : new THREE.Mesh(footGeo, footMat); m.position.set(P.x + Math.cos(a) * 0.12 * footSide, 0.02, P.z - Math.sin(a) * 0.12 * footSide); m.rotation.y = a; if (!m.parent) scene.add(m); myFeet.push(m); }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };
+  // незнакомец: стоит во дворе вдалеке и исчезает, если подойти
+  const stranger = new THREE.Group(); { const dm = std({ color: 0x060606, roughness: 1 }); const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 1.05, 4, 10), dm); body.position.y = 0.82; const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), dm); head.position.y = 1.62; const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.12, 10), dm); hat.position.y = 1.74; stranger.add(body, head, hat); }
+  stranger.visible = false; scene.add(stranger); let strT = 25;
+  function strangerUpdate(dt) { if (!started) return; strT -= dt;
+    if (stranger.visible) { const d = Math.hypot(stranger.position.x - P.x, stranger.position.z - P.z); stranger.lookAt(P.x, 0, P.z); if (d < 12 || strT < 0) { stranger.visible = false; strT = 35 + Math.random() * 40; if (d < 12) burst(1.2, 'lowpass', 200, 0.5, 0.25); } return; }
+    if (strT < 0) { const a = P.yaw + (Math.random() - 0.5) * 0.9, d = 26 + Math.random() * 14, x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d; if (dvRoadD(x, z) > 8) { stranger.position.set(x, 0, z); stranger.visible = true; strT = 60; } else strT = 3; } }
   if (TEST) window.__dv = { INTER, DC, FW, fwLaunch };
   if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Твой подъезд.</b><br><span style="font-size:14px">Дверь за спиной. Подойди и нажми E.</span>'), 2500);
 }
