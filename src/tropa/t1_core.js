@@ -47,6 +47,39 @@ const FENCE = 44;
 // «Дворы»: дороги по линиям x,z = 48 + 96k; расстояние до оси ближайшей дороги
 function dvRoadD(x, z) { const u = ((x - 48) % 96 + 96) % 96, v = ((z - 48) % 96 + 96) % 96; return Math.min(Math.min(u, 96 - u), Math.min(v, 96 - v)); }
 let SPAWN = null;
+// «Дворы»: каждый уличный фонарь светит по-настоящему. Фонари стоят на регулярной решётке вдоль дорог,
+// поэтому свет ближайших считается прямо в шейдере (диффуз + блик на мокром асфальте), без лимита на число ламп.
+if (DVOR) {
+  THREE.ShaderChunk.lights_pars_begin += `
+#ifdef STANDARD
+void dvLamp( vec3 wp, vec3 lp, float w, out IncidentLight l ) {
+  vec3 d = lp - wp; float d2 = dot( d, d ); float q = d2 / 676.0; float a = clamp( 1.0 - q * q, 0.0, 1.0 );
+  float cone = smoothstep( -0.05, 0.45, d.y * inversesqrt( max( d2, 0.01 ) ) );
+  l.color = vec3( 1.0, 0.5, 0.16 ) * ( 34.0 * w * a * a * cone / max( d2, 1.0 ) );
+  l.direction = normalize( mat3( viewMatrix ) * d ); l.visible = true;
+}
+#endif`;
+  const call = (pos, w) => `dvLamp( dvW, ${pos}, ${w}, dvL ); RE_Direct( dvL, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );`;
+  THREE.ShaderChunk.lights_fragment_begin += `
+#if defined( STANDARD ) && defined( RE_Direct )
+{ vec3 dvW = cameraPosition + geometryPosition * mat3( viewMatrix ); IncidentLight dvL;
+  float lx = floor( dvW.x / 24.0 ) * 24.0 + 12.0, lz = floor( dvW.z / 24.0 ) * 24.0 + 12.0;
+  float rz = floor( ( dvW.z - 48.0 ) / 96.0 + 0.5 ) * 96.0 + 48.0, rx = floor( ( dvW.x - 48.0 ) / 96.0 + 0.5 ) * 96.0 + 48.0;
+  ${MOBILE ? `
+  float wx = smoothstep( 12.5, 8.0, abs( dvW.x - lx ) ), wz = smoothstep( 12.5, 8.0, abs( dvW.z - lz ) );
+  ${call('vec3( lx, 6.2, rz )', '2.0 * wx')}
+  ${call('vec3( rx, 6.2, lz )', '2.0 * wz')}` : `
+  float sz = dvW.z < rz ? -1.0 : 1.0, sx = dvW.x < rx ? -1.0 : 1.0;
+  float nx = lx + ( dvW.x < lx ? -24.0 : 24.0 ), nz = lz + ( dvW.z < lz ? -24.0 : 24.0 );
+  ${call('vec3( lx, 6.2, rz + 4.0 * sz )', '1.0')}
+  ${call('vec3( lx, 6.2, rz - 4.0 * sz )', '1.0')}
+  ${call('vec3( nx, 6.2, rz )', '2.0')}
+  ${call('vec3( rx + 4.0 * sx, 6.2, lz )', '1.0')}
+  ${call('vec3( rx - 4.0 * sx, 6.2, lz )', '1.0')}
+  ${call('vec3( rx, 6.2, nz )', '2.0')}`}
+}
+#endif`;
+}
 const GROUND_Y = HOUSE ? -6 : STROY ? -42 : 0;                     // в «Доме» земля — во дворах-колодцах, на 6 м ниже пола                                      // забор участка (мир «Ворота»): z = ±44
 // грядки: клетки 24×16 м, детерминированный узор (одинаковый в JS и GLSL)
 function bedM(x, z) {

@@ -101,7 +101,12 @@ groundMat.onBeforeCompile = (sh) => {
         vec3 snowC = vec3(0.86,0.9,1.0) * (0.9 + 0.12*nC.g) - vec3(0.05)*smoothstep(0.6,0.9,nB.r);
         vec3 tro = mix(vec3(0.42,0.42,0.44), snowC, 0.35 + 0.4*smoothstep(0.4, 0.8, nC.b)) * (0.8 + 0.3*nB.g);
         col = snowC; col = mix(col, tro, walk); col = mix(col, vec3(0.5,0.5,0.5), curb); col = mix(col, as, road);
-        gRough = mix(0.9, mix(0.28, 0.75, clamp(slush,0.0,1.0)), road); }` : ''}
+        // искры на снегу: вспыхивают только под светом и зависят от угла взгляда
+        vec2 sg = floor(wp * 70.0); float sh = fract(sin(dot(sg, vec2(12.9898, 78.233))) * 43758.5453);
+        vec3 vd = normalize(cameraPosition - vW); float tw = pow(max(0.0, sin(dot(vd, vec3(sh * 37.0, 3.0, sh * 53.0)) * 30.0 + sh * 6.283)), 10.0);
+        float dsp = 1.0 / (1.0 + dot(cameraPosition - vW, cameraPosition - vW) * 0.004);
+        col += vec3(5.0) * step(0.985, sh) * tw * (1.0 - road) * dsp;
+        gRough = mix(0.9, mix(0.22, 0.75, clamp(slush,0.0,1.0)), road); }` : ''}
       diffuseColor.rgb *= col;
       ${HOUSE ? 'totalEmissiveRadiance += diffuseColor.rgb * 0.5;' : ''}
     `)

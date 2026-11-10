@@ -54,12 +54,13 @@ function updateCars(dt, px) {
 // ---------------- постобработка: AO, объёмный туман, свечение, плёнка ----------------
 const post = (() => {
   const VS = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
+  const BLOOM_IT = MOBILE ? 3 : 4, BLOOM_K = DVOR ? 0.6 : DARK ? 0.48 : 0.38;
   const HF = THREE.HalfFloatType;
   const main = new THREE.WebGLRenderTarget(4, 4, { type: HF, samples: Q.msaa, depthTexture: new THREE.DepthTexture(4, 4) });
   const bA = new THREE.WebGLRenderTarget(4, 4, { type: HF }), bB = new THREE.WebGLRenderTarget(4, 4, { type: HF });
   const qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), qg = new THREE.PlaneGeometry(2, 2);
   const mk = (fs, u) => { const m = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: fs, depthTest: false, depthWrite: false }); const sc = new THREE.Scene(); const me = new THREE.Mesh(qg, m); me.frustumCulled = false; sc.add(me); return { m, sc }; };
-  const bright = mk(`varying vec2 vUv; uniform sampler2D t; void main(){ vec3 c=texture2D(t,vUv).rgb; float l=dot(c,vec3(0.2126,0.7152,0.0722)); gl_FragColor=vec4(c*smoothstep(0.9,2.5,l),1.0); }`, { t: { value: main.texture } });
+  const bright = mk(`varying vec2 vUv; uniform sampler2D t; void main(){ vec3 c=texture2D(t,vUv).rgb; float l=dot(c,vec3(0.2126,0.7152,0.0722)); gl_FragColor=vec4(min(c, vec3(40.0))*smoothstep(0.9,2.5,l),1.0); }`, { t: { value: main.texture } });
   const blurFS = `varying vec2 vUv; uniform sampler2D t; uniform vec2 dir; void main(){ vec3 c=texture2D(t,vUv).rgb*0.227; c+=(texture2D(t,vUv+dir*1.385).rgb+texture2D(t,vUv-dir*1.385).rgb)*0.316; c+=(texture2D(t,vUv+dir*3.231).rgb+texture2D(t,vUv-dir*3.231).rgb)*0.07; gl_FragColor=vec4(c,1.0); }`;
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
@@ -78,6 +79,7 @@ const post = (() => {
     void main(){
       vec2 uv=vUv, dc=uv-0.5;
       vec3 col=texture2D(tC,uv).rgb;
+      ${!MOBILE ? 'vec2 ca = dc * dot(dc, dc) * 0.012; col.r = texture2D(tC, uv + ca).r; col.b = texture2D(tC, uv - ca).b;' : ''}
       float rd=texture2D(tD,uv).x; bool isSky = rd > 0.99999;
       ${!MOBILE ? `if(!isSky && aoOn > 0.5){ float d0=lz(rd); float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(22.0/d0,0.35,3.0);
         for(int i=0;i<10;i++){ float fi=float(i); float a=rn+fi*2.39996; vec2 o=vec2(cos(a),sin(a))*(3.0+fi*2.2)*sc/res;
@@ -96,7 +98,7 @@ const post = (() => {
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
       ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}${DVOR ? 'fogC = vec3(0.07,0.05,0.042)*(isSky ? 1.0 : 0.9);' : ''}
       col = col*T + fogC*(1.0-T);
-      col += texture2D(tB,uv).rgb*0.35*(0.5+0.5*T);
+      col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);
       col = aces(col*expo);
       float Lm=dot(col,vec3(0.2126,0.7152,0.0722));
       col=mix(vec3(Lm),col,0.82);
@@ -114,7 +116,8 @@ const post = (() => {
     render(t) {
       U.time.value = t; U.invProj.value.copy(camera.projectionMatrixInverse); U.camW.value.copy(camera.matrixWorld); U.camPos.value.copy(camera.position);
       renderer.setRenderTarget(main); renderer.render(scene, camera);
-      renderer.setRenderTarget(bA); renderer.render(bright.sc, qc); renderer.setRenderTarget(bB); renderer.render(blurH.sc, qc); renderer.setRenderTarget(bA); renderer.render(blurV.sc, qc);
+      renderer.setRenderTarget(bA); renderer.render(bright.sc, qc);
+      for (let i = 0; i < BLOOM_IT; i++) { const k = 1 + i * 1.6; blurH.m.uniforms.dir.value.set(k / bA.width, 0); blurV.m.uniforms.dir.value.set(0, k / bA.height); renderer.setRenderTarget(bB); renderer.render(blurH.sc, qc); renderer.setRenderTarget(bA); renderer.render(blurV.sc, qc); }
       renderer.setRenderTarget(null); renderer.render(comp.sc, qc);
     },
   };

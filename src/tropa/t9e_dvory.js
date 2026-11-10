@@ -75,11 +75,14 @@ if (DVOR) {
   ];
   const SCHOOL = facade(53, { wall: '#b45a3e', plinth: '#6a6a66', frame: '#e8e4dc', base: 1.0, fh: 3.6, floors: 3, cw: 3, ww: 2.2, wh: 2.2, sill: 0.9, lit: 0.06, balc: false, ei: 1.6 });
   const roofSnow = std({ color: 0xe6e8f0, roughness: 0.95 });
-  const lampHead = std({ color: 0xffd0a0, emissive: 0xff8a2a, emissiveIntensity: 9 });
-  const entLamp = std({ color: 0xffe8c8, emissive: 0xffc070, emissiveIntensity: 5 });
+  const lampHead = std({ color: 0xffd0a0, emissive: 0xff8a2a, emissiveIntensity: 34 });
+  const entLamp = std({ color: 0xffe8c8, emissive: 0xffc070, emissiveIntensity: 11 });
   const poolTex = texFrom(mkCanvas(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }));
   const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(0.55, 0.3, 0.1), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -6 });
   const beamMat = new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(0.5, 0.48, 0.42), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -6 });
+  const spillMat = new THREE.MeshBasicMaterial({ map: poolTex, color: new THREE.Color(0.2, 0.12, 0.05), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -5 });
+  const coneMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.42, 0.4, 0.34), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    map: texFrom(mkCanvas(128, 32, (g, w, h) => { const img = g.createImageData(w, h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const u = x / w, v = Math.abs(y / (h - 1) - 0.5) * 2, a = Math.pow(1 - u, 1.6) * Math.max(0, 1 - Math.pow(v / (0.25 + u * 0.75), 2)) * Math.min(1, u * 14); const i = (y * w + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 255 * a; img.data[i + 3] = 255; } g.putImageData(img, 0, 0); })) });
   const shopGlass = std({ color: 0x222, emissive: 0xfff4e0, emissiveIntensity: 1.6, map: texFrom(mkCanvas(256, 128, (g, w, h) => { g.fillStyle = '#ddd'; g.fillRect(0, 0, w, h); for (let i = 0; i < 4; i++) { g.fillStyle = '#556'; g.fillRect(0, 20 + i * 26, w, 5); for (let k = 0; k < 40; k++) { g.fillStyle = ['#c33', '#3a3', '#dd4', '#36c', '#fff'][(k * 7 + i) % 5]; g.fillRect(k * 6.4 + 1, 8 + i * 26, 4, 12); } } g.fillStyle = 'rgba(0,0,0,0.5)'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 4, h); })) });
   shopGlass.emissiveMap = shopGlass.map;
   const signCache = new Map();
@@ -88,9 +91,9 @@ if (DVOR) {
   const RED = lin([0.62, 0.16, 0.12]), YEL = lin([0.85, 0.66, 0.18]), BLU = lin([0.2, 0.36, 0.62]), GRN = lin([0.22, 0.45, 0.3]), WHT = shade(0.9), DRK = shade(0.12);
 
   // --- уличные фонари (натрий) ---
-  function sodium(K, x, z, ax, az) { const { b, group } = K, y = 0; b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
-    const on = K.r() < 0.9; b.box(on ? lampHead : M.metal, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, PAINT.dark, 0, Math.atan2(az, ax) * -1);
-    if (on) { bulbAnchors.push({ x: x + ax * 1.4, y: 6.1, z: z + az * 1.4, fy: 0, group, mesh: null, color: 0xff8a30, dist: 20, int: 22 }); b.add(poolMat, new THREE.PlaneGeometry(13, 13).rotateX(-Math.PI / 2), new THREE.Matrix4().makeTranslation(x + ax * 1.4, 0.03, z + az * 1.4)); }
+  function sodium(K, x, z, ax, az, grid) { const { b, group } = K, y = 0; b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
+    const on = grid || K.r() < 0.9; b.box(on ? lampHead : M.metal, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, PAINT.dark, 0, Math.atan2(az, ax) * -1);
+    if (on) { if (!grid) { bulbAnchors.push({ x: x + ax * 1.4, y: 6.1, z: z + az * 1.4, fy: 0, group, mesh: null, color: 0xff8a30, dist: 20, int: 22 }); b.add(poolMat, new THREE.PlaneGeometry(13, 13).rotateX(-Math.PI / 2), new THREE.Matrix4().makeTranslation(x + ax * 1.4, 0.03, z + az * 1.4)); } }
     b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function bench(K, x, z, ry) { const { b } = K; b.push(x, 0, z, ry); b.box(M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, shade(0.55)); b.box(M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, shade(0.55)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); b.box(M.paint, 0, 0.49, 0.02, 1.7, 0.04, 0.36, shade(0.92)); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
   function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); b.push(x, 0, z, ry);
@@ -122,6 +125,7 @@ if (DVOR) {
     b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.4)); b.box(roofSnow, len * 0.2, Hh + 2.25, 0, 4, 0.1, 3.5);
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 7 * 3 : 0), uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
+    for (const sd of [1, -1]) b.add(spillMat, new THREE.PlaneGeometry(len * 1.05, 9).rotateX(-Math.PI / 2), new THREE.Matrix4().makeTranslation(0, 0.04, sd * (dep / 2 + 3.6)));
     // сугробы вдоль стен
     const drift = (x, z, sx, sz) => b.add(roofSnow, new THREE.SphereGeometry(1, 10, 6), new THREE.Matrix4().compose(new V3(x, -0.18, z), new THREE.Quaternion(), new V3(sx, 0.5 + r() * 0.35, sz)));
     for (let k = 0; k < 4; k++) drift(-len / 2 + 3 + r() * (len - 6), -dep / 2 - 0.8, 1.5 + r() * 1.5, 0.9);
@@ -212,7 +216,7 @@ if (DVOR) {
     else { const [x, z] = W(22, 24); school(K, x, z, Math.atan2(0, ez)); K.block = (px, pz) => { const a = (px - X0) * ex, c = (pz - Z0) * ez; return a > 0 && a < 44 && c > 11 && c < 41; }; }
     const fb = K.block; const freeY = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad;
     // фонари вдоль улиц
-    for (const c of [12, 36]) { const [x, z] = W(c, 42.6); sodium(K, x, z, 0, ez); const [x2, z2] = W(42.6, c); sodium(K, x2, z2, ex, 0); }
+    for (const c of [12, 36]) { const [x, z] = W(c, 42.6); sodium(K, x, z, 0, ez, true); const [x2, z2] = W(42.6, c); sodium(K, x2, z2, ex, 0, true); }
     // снежные валы вдоль бордюров
     for (let a = 2; a < 40; a += 5) { if (r() < 0.65) { const [x, z] = W(a + r() * 2, 43.6); b.add(roofSnow, new THREE.SphereGeometry(1, 10, 6), new THREE.Matrix4().compose(new V3(x, -0.12, z), new THREE.Quaternion(), new V3(2.2, 0.38, 0.6))); }
       if (r() < 0.65) { const [x, z] = W(43.6, a + r() * 2); b.add(roofSnow, new THREE.SphereGeometry(1, 10, 6), new THREE.Matrix4().compose(new V3(x, -0.12, z), new THREE.Quaternion(), new V3(0.6, 0.38, 2.2))); } }
@@ -233,7 +237,8 @@ if (DVOR) {
     K.block = fb; return K.finish(); };
 
   // --- машины на дорогах: фары, свет на асфальте; не тормозят ---
-  const DC = []; for (let i = 0; i < (MOBILE ? 5 : 8); i++) { const c = makeCar(); const beam = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.6).rotateX(-Math.PI / 2), beamMat); beam.position.set(6.6, 0.05, 0); c.g.add(beam); const tail = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.6).rotateX(-Math.PI / 2), poolMat); tail.position.set(-3, 0.05, 0); c.g.add(tail); scene.add(c.g); DC.push(Object.assign(c, { s: 0, lane: 0, ax: 0, dir: 1, v: 10, passed: false, honk: 0 })); }
+  const DC = []; for (let i = 0; i < (MOBILE ? 5 : 8); i++) { const c = makeCar(); const beam = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.6).rotateX(-Math.PI / 2), beamMat); beam.position.set(6.6, 0.05, 0); c.g.add(beam); const tail = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.6).rotateX(-Math.PI / 2), poolMat); tail.position.set(-3, 0.05, 0); c.g.add(tail);
+    for (const sz of [-0.6, 0.6]) { const c1 = new THREE.Mesh(new THREE.PlaneGeometry(13, 2.4).rotateX(-Math.PI / 2), coneMat); c1.position.set(2.3 + 6.5, 0.66, sz); const c2 = new THREE.Mesh(new THREE.PlaneGeometry(13, 1.5), coneMat); c2.position.set(2.3 + 6.5, 0.66, sz); c.g.add(c1, c2); } scene.add(c.g); DC.push(Object.assign(c, { s: 0, lane: 0, ax: 0, dir: 1, v: 10, passed: false, honk: 0 })); }
   function carSpawn(c, first) { c.ax = Math.random() < 0.5 ? 0 : 1; c.dir = Math.random() < 0.5 ? 1 : -1; c.v = 8 + Math.random() * 7; c.passed = false;
     const pc = c.ax ? P.x : P.z, k = Math.round(((c.ax ? P.x : P.z) - 48) / 96) + ((Math.random() * 3) | 0) - 1, line = 48 + k * 96; const along = c.ax ? P.z : P.x;
     c.lane = c.ax ? line - c.dir * 1.9 : line + c.dir * 1.9; c.s = first ? along + (Math.random() - 0.5) * 260 : along - c.dir * (120 + Math.random() * 60); void pc; }

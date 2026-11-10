@@ -34,9 +34,15 @@ TX.leather = texFrom(mkCanvas(256, 512, (g, w, h) => { const r = rng(71), base =
   const st = 64; for (let y = -st; y < h + st; y += st) for (let x = -st; x < w + st; x += st) { const ox = (y / st) % 2 ? st / 2 : 0; g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.moveTo(x + ox, y - st / 2); g.lineTo(x + ox + st / 2, y); g.lineTo(x + ox, y + st / 2); g.lineTo(x + ox - st / 2, y); g.fill(); g.fillStyle = '#c8a860'; g.beginPath(); g.arc(x + ox, y - st / 2, 3.5, 0, 6.28); g.fill(); }
   g.strokeStyle = 'rgba(200,170,100,0.7)'; g.lineWidth = 3; g.strokeRect(10, 10, w - 20, h - 20);
   for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(r() * w, r() * h, 2 + r() * 20, 1 + r() * 4); } }));
-const PWALL = PAINTS.map((_, k) => rep(std({ map: podWallTex(k), roughness: 0.75, vertexColors: true }), 2.4, 2.8));
+const podRough = texFrom(mkCanvas(512, 512, (g, w, h) => { const r = rng(91), split = h * (1 - 1.55 / 2.8); g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, split); g.fillStyle = '#4c4c4c'; g.fillRect(0, split, w, h - split);
+  for (let i = 0; i < 60; i++) { const x = r() * w, y = split + r() * (h - split), s2 = 8 + r() * 40; const q = g.createRadialGradient(x, y, 0, x, y, s2); q.addColorStop(0, `rgba(${r() < 0.6 ? '150,150,150' : '40,40,40'},0.5)`); q.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = q; g.fillRect(x - s2, y - s2, s2 * 2, s2 * 2); } }), false);
+const podBump = texFrom(normalFromHeight(mkCanvas(512, 512, (g, w, h) => { const r = rng(93), split = h * (1 - 1.55 / 2.8); g.fillStyle = '#808080'; g.fillRect(0, 0, w, h); g.fillStyle = '#8c8c8c'; g.fillRect(0, split, w, h - split);
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${0.03 + r() * 0.06})`; const s2 = 2 + r() * 14; g.beginPath(); g.arc(r() * w, r() * h, s2, 0, 6.28); g.fill(); }
+  for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(r() * w, split + r() * (h - split - 60), 2 + r() * 3, 20 + r() * 70); }      // потёки краски
+  for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(0,0,0,0.25)'; const x = r() * w, y = r() * h, s2 = 6 + r() * 16; g.beginPath(); for (let a2 = 0; a2 < 6.28; a2 += 0.6) g.lineTo(x + Math.cos(a2) * s2 * (0.6 + r() * 0.5), y + Math.sin(a2) * s2 * (0.6 + r() * 0.5)); g.fill(); } }), 5), false);
+const PWALL = PAINTS.map((_, k) => rep(std({ map: podWallTex(k), roughness: 1, roughnessMap: podRough, normalMap: podBump, normalScale: new THREE.Vector2(0.3, 0.3), vertexColors: true }), 2.4, 2.8));
 const MP = {
-  tile: rep(std({ map: TX.tile, roughness: 0.6 }), 1.2, 1.2),
+  tile: rep(std({ map: TX.tile, roughness: 0.3, normalMap: texFrom(normalFromHeight(mkCanvas(256, 256, (g, w, h) => { const n = 16, q = w / n; g.fillStyle = '#404040'; g.fillRect(0, 0, w, h); g.fillStyle = '#b0b0b0'; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) g.fillRect(x * q + 1.2, y * q + 1.2, q - 2.4, q - 2.4); }), 3), false), normalScale: new THREE.Vector2(0.6, 0.6) }), 1.2, 1.2),
   conc: M.conc,
   leather: rep(std({ map: TX.leather, roughness: 0.6, vertexColors: true }), 0.9, 2.05),
   rail: envMat({ color: 0x4a2c1e, roughness: 0.35 }, 0.3),
@@ -85,7 +91,7 @@ function buildFloor(n) {
   b.box(wallM, (LX0 + EX0) / 2, FH / 2, -LAND - 0.06, EX0 - LX0, FH, 0.12, wc); b.box(wallM, (EX1 + LX1) / 2, FH / 2, -LAND - 0.06, LX1 - EX1, FH, 0.12, wc); b.box(wallM, EXC, (2.15 + FH) / 2, -LAND - 0.06, EX1 - EX0, FH - 2.15, 0.12, wc);
   liftBuild(b, group, y0, FD, r);
   { const nm = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), MPC.notice); nm.position.set(2.7, y0 + 1.5, -LAND + 0.01); group.add(nm);
-    for (let k = 0; k < 12; k++) { const t = k / 12; b.box(MPC.tinsel[k % 4], WELL0, 0.95 + t * FH / 2 + Math.sin(t * 25) * 0.04, t * PL, 0.05, 0.05, 0.22, null, 0.4 * k, 0, 0); }
+    for (let k = 0; k < 12; k++) { const t = k / 12; b.box(MPC.tinsel[k % 4], WELL0, 0.95 + t * FH / 2 + Math.sin(t * 25) * 0.03, t * PL, 0.025, 0.025, 0.2, null, 0.4 * k, 0, 0); }
     for (let k = 0; k < 2; k++) b.geo(MPC.flake, new THREE.PlaneGeometry(0.2, 0.2), PW / 2 - 0.3 + k * 0.55, FH / 2 + 1.5 + r() * 0.4, PL + MIDD, 0, 0, r(), 1); }
   b.box(wallM, LX0 - 0.06, FH / 2, -LAND / 2, 0.12, FH, LAND, wc); b.box(wallM, LX1 + 0.06, FH / 2, -LAND / 2, 0.12, FH, LAND, wc);
   b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
