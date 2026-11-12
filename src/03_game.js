@@ -549,6 +549,7 @@ function updatePlayer(dt) {
   }
   P.x = nx; P.z = nz;
   collide();
+  if (Math.abs(P.x) > WLIM - 0.5 || Math.abs(P.z) > WLIM - 0.5) { P.x = Math.max(-WLIM + 0.5, Math.min(WLIM - 0.5, P.x)); P.z = Math.max(-WLIM + 0.5, Math.min(WLIM - 0.5, P.z)); }
   const g = Math.max(heightAt(P.x, P.z), -1.25);
   P.swim = heightAt(P.x, P.z) < -1.2;
   if ((keys.Space || touch.jump) && (P.ground || P.swim) && started && !P.tired) { P.vy = P.swim ? 3.2 : 5.4; P.ground = false; P.stam = Math.max(0, P.stam - 0.05); }
@@ -754,7 +755,7 @@ function refreshQueue(force) {
   lastPC = [pcx, pcz]; queue = [];
   for (let dz = -VIEW_R; dz <= VIEW_R; dz++) for (let dx = -VIEW_R; dx <= VIEW_R; dx++) {
     const d = Math.hypot(dx, dz); if (d > VIEW_R + 0.2) continue;
-    if (!chunks.has(ckey(pcx + dx, pcz + dz))) queue.push([pcx + dx, pcz + dz, d]);
+    if (!chunks.has(ckey(pcx + dx, pcz + dz)) && (pcx + dx) * CH >= -WLIM && (pcx + dx + 1) * CH <= WLIM && (pcz + dz) * CH >= -WLIM && (pcz + dz + 1) * CH <= WLIM) queue.push([pcx + dx, pcz + dz, d]);
   }
   queue.sort((a, b) => a[2] - b[2]);
   for (const [k, ch] of chunks) if (Math.hypot(ch.cx - pcx, ch.cz - pcz) > VIEW_R + 1.6) { disposeChunk(ch); chunks.delete(k); }

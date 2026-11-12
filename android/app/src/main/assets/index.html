@@ -36,7 +36,7 @@ footer{text-align:center;color:rgba(255,255,255,.32);font-size:11px;letter-spaci
 </style></head><body>
 <div id="bg"></div><div id="bg2"></div><div class="fog"></div><canvas id="grain"></canvas><div class="vig"></div>
 <div id="wrap">
-  <header><h1>ТИШИНА</h1><div class="sub">выбери, куда проснуться</div><div class="sub" id="keys" style="color:#d9b45a;margin-top:4px"></div></header>
+  <header><h1>ТИШИНА</h1><div class="sub">выбери, куда проснуться</div><div class="sub" id="keys" style="color:#d9b45a;margin-top:4px"></div><button id="far" style="margin-top:8px;background:none;border:1px solid #666;color:#aaa;font:600 11px system-ui;letter-spacing:2px;padding:6px 12px;border-radius:14px;cursor:pointer"></button></header>
   <div id="row"></div>
   <footer>← → выбрать · Enter войти · из некоторых миров можно выпрыгнуть в окно</footer>
 </div>
@@ -100,6 +100,8 @@ const KEYW = ['dvory', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola
 function keysTxt() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} const n = KEYW.filter((w) => k.includes(w)).length; return ls('dream_done') ? 'ты проснулся · сон пройден' : `ключи от ворот: ${n} / ${KEYW.length}` + (n >= KEYW.length ? ' — ворота ждут' : ''); }
 function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 document.getElementById('keys').textContent = keysTxt();
+const farB = document.getElementById('far'); function farTxt() { const on = ls('farlands') === '1'; farB.textContent = on ? 'FAR LANDS: ВКЛ · край мира' : 'FAR LANDS: выкл'; farB.style.color = on ? '#ff9a7a' : '#aaa'; farB.style.borderColor = on ? '#ff9a7a' : '#666'; }
+farB.onclick = (e) => { e.stopPropagation(); try { localStorage.setItem('farlands', ls('farlands') === '1' ? '0' : '1'); } catch (er) {} farTxt(); }; farTxt();
 const row = document.getElementById('row'), bg = document.getElementById('bg'), bg2 = document.getElementById('bg2');
 let sel = Math.max(0, WORLDS.findIndex((w) => w.id === ls('menu_last')));
 WORLDS.forEach((w, i) => {

@@ -131,6 +131,11 @@ const FENCE = 44;
 // «Дворы»: дороги по линиям x,z = 48 + 96k; расстояние до оси ближайшей дороги
 function dvRoadD(x, z) { const u = ((x - 48) % 96 + 96) % 96, v = ((z - 48) % 96 + 96) % 96; return Math.min(Math.min(u, 96 - u), Math.min(v, 96 - v)); }
 let SPAWN = null;
+// Far Lands: геометрия мира хранится в 32-битных числах; после 16 777 216 м в них не остаётся места даже для целых метров.
+// Это и есть край мира: дальше чанки не создаются. Режим просто переносит игрока к самому краю.
+const WLIM = 16777216;
+const FAR = (() => { try { return localStorage.getItem('farlands') === '1'; } catch (e) { return false; } })();
+function inWorld(a0, a1) { return a0 >= -WLIM && a1 <= WLIM; }
 // «Дворы»: каждый уличный фонарь светит по-настоящему. Фонари стоят на регулярной решётке вдоль дорог,
 // поэтому свет ближайших считается прямо в шейдере (диффуз + блик на мокром асфальте), без лимита на число ламп.
 if (DVOR) {
@@ -924,6 +929,7 @@ groundMat.onBeforeCompile = (sh) => {
         float dsp = 1.0 / (1.0 + dot(cameraPosition - vW, cameraPosition - vW) * 0.004);
         col += vec3(5.0) * step(0.985, sh) * tw * (1.0 - road) * dsp;
         gRough = mix(0.9, mix(0.22, 0.75, clamp(slush,0.0,1.0)), road); }` : ''}
+      if (abs(vW.x) > 16777216.0 || abs(vW.z) > 16777216.0) discard;
       diffuseColor.rgb *= col;
       ${HOUSE ? 'totalEmissiveRadiance += diffuseColor.rgb * 0.5;' : ''}
     `)
@@ -955,7 +961,7 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
         vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
@@ -1123,7 +1129,7 @@ function updateChunks(px, pz, force) {
   if (PODEZD) return podUpdate(force);
   if (METRO) return metroUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];
-  for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
+  for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k) && inWorld((ccx + dx) * CS, (ccx + dx + 1) * CS) && inWorld((ccz + dz) * CS, (ccz + dz + 1) * CS)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
   chunkQueue.sort((a, b) => a[2] - b[2]);
   const n = force ? chunkQueue.length : 1;
   for (let i = 0; i < n && chunkQueue.length; i++) { const [x, z] = chunkQueue.shift(); const c = buildChunk(x, z); chunks.set(x + ',' + z, c); colliders.set(x + ',' + z, c.cols); }
@@ -2385,7 +2391,7 @@ function metroSeg(n) {
   const kp = KEY_POS.metro; if (kp && kp[0] >= x0 && kp[0] < x0 + SEG) placeKey(group, kp[0], 0, kp[2]);
   b.build(group); scene.add(group); return { group, cols: b.cols };
 }
-function metroUpdate() { const cur = Math.floor(P.x / SEG); for (let n = cur - 5; n <= cur + 5; n++) if (!metroSegs.has(n)) { const s = metroSeg(n); metroSegs.set(n, s); colliders.set('m' + n, s.cols); }
+function metroUpdate() { const cur = Math.floor(P.x / SEG); for (let n = cur - 5; n <= cur + 5; n++) if (!metroSegs.has(n) && inWorld(n * SEG, (n + 1) * SEG)) { const s = metroSeg(n); metroSegs.set(n, s); colliders.set('m' + n, s.cols); }
   for (const [n, s] of metroSegs) if (Math.abs(n - cur) > 7) { scene.remove(s.group); s.group.traverse((o) => { if (o.geometry && o.geometry !== keyGeo) o.geometry.dispose(); }); for (let i = coinsLive.length - 1; i >= 0; i--) if (coinsLive[i].group === s.group) coinsLive.splice(i, 1); metroSegs.delete(n); colliders.delete('m' + n); } }
 // поезд метро
 function makeMetroTrain() { const g = new THREE.Group(), blue = envMat({ color: 0x2a4a8a, roughness: 0.4, metalness: 0.3 }, 0.6), gray = envMat({ color: 0xb8bcc0, roughness: 0.4, metalness: 0.3 }, 0.6), doors = [];
@@ -2785,6 +2791,27 @@ if (DVOR) {
     if (strT < 0) { const a = P.yaw + (Math.random() - 0.5) * 0.9, d = 26 + Math.random() * 14, x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d; if (dvRoadD(x, z) > 8) { stranger.position.set(x, 0, z); stranger.visible = true; strT = 60; } else strT = 3; } }
   if (TEST) window.__dv = { INTER, DC, FW, fwLaunch };
   if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Твой подъезд.</b><br><span style="font-size:14px">Дверь за спиной. Подойди и нажми E.</span>'), 2500);
+}
+
+// ===================== FAR LANDS: перенос к самому краю мира (во всех мирах) =====================
+{
+  const lim = WLIM - 0.5; let edgeToast = 0;
+  if (FAR) {
+    const fx = WLIM - 150;
+    if (PODEZD) { podBase = 2147483639; }                                   // этаж 2147483640: до переполнения int32 — семь этажей
+    else if (TRAIN) { TR.x = fx - 300; P.x = TR.x + 46; }
+    else if (GRID) { const i0 = Math.floor(fx / HC); let done = false; for (let r = 0; r < 14 && !done; r++) for (let i = i0 - r; i <= i0 && !done; i++) for (let j = -r; j <= r; j++) { const t = cellType(i, j); if (t === 'room' || t === 'aisle') { P.x = (i + 0.5) * HC; P.z = (j + 0.5) * HC; done = true; break; } } if (!done) { P.x = (i0 + 0.5) * HC; P.z = HC / 2; } }
+    else if (STROY) { let i = Math.floor(fx / SC); while (stroyHole(i, 0)) i--; P.x = (i + 0.5) * SC; P.z = SC / 2; }
+    else if (DVOR) { P.x = Math.floor(fx / 96) * 96 + 4; P.z = 4; SPAWN = { x: P.x, z: P.z, yaw: -Math.PI / 2 }; P.yaw = -Math.PI / 2; }
+    else { P.x = fx; if (PATH_ON) P.z = pathC(fx); }
+    const hud = $('hud'); if (hud) { const d = document.createElement('div'); d.className = 'k'; d.id = 'f_far'; d.style.cssText = 'color:#ff9a7a;opacity:1;font-variant-numeric:tabular-nums'; hud.appendChild(d); }
+    const st = $('start'); if (st) { const p = document.createElement('p'); p.style.cssText = 'color:#ff9a7a;font-size:14px'; p.innerHTML = PODEZD ? '<b>FAR LANDS.</b> Этаж 2 147 483 640. Выше 2 147 483 647 этажей не бывает.' : '<b>FAR LANDS.</b> Ты у самого края мира: X ≈ 16 777 066. Дальше 16 777 216 мир не создаётся — в числах больше нет места.'; st.insertBefore(p, st.querySelector('div')); }
+  }
+  const wu = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (wu) wu(dt);
+    if (!PODEZD && (Math.abs(P.x) > lim || Math.abs(P.z) > lim)) { P.x = clamp(P.x, -lim, lim); P.z = clamp(P.z, -lim, lim); if (TRAIN) { TR.v = 0; TR.st = 'stop'; TR.t = 1e9; }
+      if (clock - edgeToast > 6 || !edgeToast) { edgeToast = clock || 0.01; toast('<b style="color:#ff9a7a">Край мира.</b><br><span style="font-size:14px">Дальше нет места для координат.</span>'); } }
+    if (FAR) { const e = $('f_far'); if (e) { const t = PODEZD ? 'FAR LANDS' : `X ${Math.round(P.x)} · Z ${Math.round(P.z)}`; if (e.textContent !== t) e.textContent = t; } } };
 }
 
 })();

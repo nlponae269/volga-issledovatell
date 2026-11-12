@@ -107,6 +107,7 @@ groundMat.onBeforeCompile = (sh) => {
         float dsp = 1.0 / (1.0 + dot(cameraPosition - vW, cameraPosition - vW) * 0.004);
         col += vec3(5.0) * step(0.985, sh) * tw * (1.0 - road) * dsp;
         gRough = mix(0.9, mix(0.22, 0.75, clamp(slush,0.0,1.0)), road); }` : ''}
+      if (abs(vW.x) > 16777216.0 || abs(vW.z) > 16777216.0) discard;
       diffuseColor.rgb *= col;
       ${HOUSE ? 'totalEmissiveRadiance += diffuseColor.rgb * 0.5;' : ''}
     `)
@@ -138,7 +139,7 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
         vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
@@ -306,7 +307,7 @@ function updateChunks(px, pz, force) {
   if (PODEZD) return podUpdate(force);
   if (METRO) return metroUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];
-  for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
+  for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) { const k = (ccx + dx) + ',' + (ccz + dz); want.add(k); if (!chunks.has(k) && inWorld((ccx + dx) * CS, (ccx + dx + 1) * CS) && inWorld((ccz + dz) * CS, (ccz + dz + 1) * CS)) chunkQueue.push([ccx + dx, ccz + dz, dx * dx + dz * dz]); }
   chunkQueue.sort((a, b) => a[2] - b[2]);
   const n = force ? chunkQueue.length : 1;
   for (let i = 0; i < n && chunkQueue.length; i++) { const [x, z] = chunkQueue.shift(); const c = buildChunk(x, z); chunks.set(x + ',' + z, c); colliders.set(x + ',' + z, c.cols); }

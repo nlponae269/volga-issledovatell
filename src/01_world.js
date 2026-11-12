@@ -178,7 +178,8 @@ function heightAt(x, z) {
 // ---------------- Лагерь у костра (спавн) ----------------
 const CAMP = { x: 15, z: shoreZ(15) + 11, y: 0 };
 CAMP.y = heightAt(CAMP.x, CAMP.z);
-const SPAWN = { x: 0, z: shoreZ(0) + 3.2 };
+const WLIM = 16777216, FAR = (() => { try { return localStorage.getItem('farlands') === '1'; } catch (e) { return false; } })();   // Far Lands: край мира там, где в 32-битных числах кончается место
+const SPAWN = { x: FAR ? WLIM - 150 : 0, z: shoreZ(FAR ? WLIM - 150 : 0) + 3.2 };
 
 // плотность леса 0..1
 function forestAt(x, z, h) {

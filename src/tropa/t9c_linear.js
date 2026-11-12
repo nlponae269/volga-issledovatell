@@ -36,7 +36,7 @@ function metroSeg(n) {
   const kp = KEY_POS.metro; if (kp && kp[0] >= x0 && kp[0] < x0 + SEG) placeKey(group, kp[0], 0, kp[2]);
   b.build(group); scene.add(group); return { group, cols: b.cols };
 }
-function metroUpdate() { const cur = Math.floor(P.x / SEG); for (let n = cur - 5; n <= cur + 5; n++) if (!metroSegs.has(n)) { const s = metroSeg(n); metroSegs.set(n, s); colliders.set('m' + n, s.cols); }
+function metroUpdate() { const cur = Math.floor(P.x / SEG); for (let n = cur - 5; n <= cur + 5; n++) if (!metroSegs.has(n) && inWorld(n * SEG, (n + 1) * SEG)) { const s = metroSeg(n); metroSegs.set(n, s); colliders.set('m' + n, s.cols); }
   for (const [n, s] of metroSegs) if (Math.abs(n - cur) > 7) { scene.remove(s.group); s.group.traverse((o) => { if (o.geometry && o.geometry !== keyGeo) o.geometry.dispose(); }); for (let i = coinsLive.length - 1; i >= 0; i--) if (coinsLive[i].group === s.group) coinsLive.splice(i, 1); metroSegs.delete(n); colliders.delete('m' + n); } }
 // поезд метро
 function makeMetroTrain() { const g = new THREE.Group(), blue = envMat({ color: 0x2a4a8a, roughness: 0.4, metalness: 0.3 }, 0.6), gray = envMat({ color: 0xb8bcc0, roughness: 0.4, metalness: 0.3 }, 0.6), doors = [];
