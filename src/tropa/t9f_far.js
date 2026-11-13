@@ -1,7 +1,7 @@
 // ===================== FAR LANDS: перенос к самому краю мира (во всех мирах) =====================
 {
   const lim = WLIM - 0.5; let edgeToast = 0;
-  if (FAR) {
+  if (FAR && !KV) {
     const fx = WLIM - 150;
     if (PODEZD) { podBase = 2147483639; }                                   // этаж 2147483640: до переполнения int32 — семь этажей
     else if (TRAIN) { TR.x = fx - 300; P.x = TR.x + 46; }

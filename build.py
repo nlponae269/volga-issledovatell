@@ -18,6 +18,9 @@ for wid, w in WORLDS.items():
     page = (tpl.replace('%TITLE%', w['h1'].capitalize()).replace('%H1%', w['h1']).replace('%BG%', w['bg']).replace('%HUD%', w['hud']).replace('%TEXT%', w['text'])
             .replace('%WORLD%', wid).replace('%LIGHT%', '' if w.get('light') else 'display:none').replace('%KEYS%', ', F — фонарик' if w.get('light') else ''))
     page = page.replace('<!--THREE-->', MUSIC + '<script>' + three + '</script>').replace('<!--GAME-->', GAME)
+    if wid == 'kvartira':
+        import base64 as _b, json as _j
+        page = page.replace('/*KVIMG*/{}', _j.dumps({'o%d' % i: 'data:image/jpeg;base64,' + _b.b64encode((root / ('src/kv/okno%d.jpg' % i)).read_bytes()).decode() for i in (1, 2)}))
     (root / (wid + '.html')).write_text(page, encoding='utf-8')
 print('миры:', len(WORLDS), 'по', len(page) // 1024, 'KB')
 import base64, json

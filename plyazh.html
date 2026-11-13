@@ -94,6 +94,7 @@ if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass 
 if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }
 if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
+if (window.WORLD === 'kvartira') { Q.R = 0; Q.grass = 16; Q.fogSteps = 4; }
 if (window.WORLD === 'dvory') { Q.grass = MOBILE ? 4000 : 12000; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
@@ -122,7 +123,8 @@ const METRO = WORLD === 'metro', TRAIN = WORLD === 'elektrichka', STROY = WORLD 
 const DVOR = WORLD === 'dvory', ZIMA = WORLD === 'zima';
 const SNOW = ZIMA;
 const NIGHT = WORLD === 'lager', BEACH = WORLD === 'plyazh', FIELD = WORLD === 'pole', BUS = WORLD === 'ostanovka';
-const INDOOR = GRID || PODEZD || METRO;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
+const KV = WORLD === 'kvartira';
+const INDOOR = GRID || PODEZD || METRO || KV;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
 const DARK = INDOOR || NIGHT || SNOW;
 const ROADW = WORLD === 'tropa' || BUS;
 const PATH_ON = ['tropa', 'vorota', 'lager', 'pole', 'elektrichka'].includes(WORLD);
@@ -920,9 +922,17 @@ groundMat.onBeforeCompile = (sh) => {
         float wetAll = road*0.75 + walk*0.6;
         vec3 vd = normalize(cameraPosition - vW); float fr = pow(1.0 - max(vd.y, 0.0), 4.0);
         vec2 rip = (texture2D(tNoise, wp*0.9 + vec2(uTimeG*0.05, uTimeG*0.031)).rg - 0.5) * 0.005;
+        float rpl = 0.0;
+        if (pud > 0.02) { vec2 rc = wp * 2.2, ci = floor(rc), cf = fract(rc) - 0.5; vec2 rn = vec2(0.0);
+          for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { vec2 o = vec2(float(i), float(j)), id = ci + o;
+            float h = fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453), sp = 0.6 + h * 0.8;
+            float ph = fract(uTimeG * sp * 0.55 + h * 7.0); vec2 cc = o + vec2(fract(h * 13.1), fract(h * 7.7)) - 0.5, d = cf - cc; float r = length(d);
+            float ring = (1.0 - smoothstep(0.0, 0.045, abs(r - ph * 0.8))) * (1.0 - ph) * (1.0 - ph) * step(0.25, h);
+            rpl += ring; rn += d / max(r, 0.001) * ring; }
+          rip += rn * 0.018 * pud; }
         vec3 refl = texture2D(tRefl, vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y) + rip).rgb;
         dvK = uReflOn * (pud * mix(0.4, 0.96, fr) + (1.0 - pud) * wetAll * fr * 0.32);
-        dvRefl = refl * dvK;
+        dvRefl = refl * dvK + vec3(0.9, 0.92, 0.95) * rpl * pud * 0.22 * uReflOn;
         col = mix(col, col*0.5, pud);
         gRough = mix(mix(0.93, 0.42, wetAll), mix(0.05, 0.3, uReflOn), pud); gPath = max(road, walk); }` : ''}
       if (abs(vW.x) > 16777216.0 || abs(vW.z) > 16777216.0) discard;
@@ -1123,6 +1133,7 @@ let chunkQueue = [];
 let OUT_BUILD = null, EXTRA_BUILD = null;
 function keyInChunk(group, x0, z0, x1, z1) { const kp = KEY_POS[WORLD]; if (kp && kp[0] >= x0 && kp[0] < x1 && kp[2] >= z0 && kp[2] < z1) placeKey(group, kp[0], groundH(kp[0], kp[2]) + (kp[1] || 0), kp[2]); }
 function updateChunks(px, pz, force) {
+  if (KV) return;
   if (PODEZD) return podUpdate(force);
   if (METRO) return metroUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];
@@ -1205,7 +1216,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.008 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.008 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -1703,7 +1714,8 @@ if (TEST) window.__house = { cellType, winAnchors, doorsLive, interact: houseInt
 // ===================== «ПОДЪЕЗД»: бесконечная лестница =====================
 const FH = 2.8, PW = 2.7, PL = 2.7, WELL0 = 1.28, WELL1 = 1.42, MIDD = 1.5, LAND = 2.0, LX0 = -1.6, LX1 = 4.3;
 const EX0 = 2.95, EX1 = 4.15, EXC = (EX0 + EX1) / 2, EZ1 = -LAND - 1.45;   // лифт в торце площадки
-let podBase = 0;                                                               // «настоящий» номер этажа = podBase + n + 1
+let podBase = 0;
+const HOMEPOD = PODEZD && (() => { try { const v = sessionStorage.getItem('pod_home') === '1'; sessionStorage.removeItem('pod_home'); return v; } catch (e) { return false; } })();                                                               // «настоящий» номер этажа = podBase + n + 1
 const PLAF_GEO = new THREE.CylinderGeometry(0.2, 0.25, 0.08, 16);
 // высота поверхности в пределах этажного модуля (0..FH)
 function podLocal(x, z) {
@@ -1807,7 +1819,8 @@ function buildFloor(n) {
     if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
     else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
     const ax = side === 0 ? dx + 0.45 : dx + side * 0.3, az = side === 0 ? dz + 0.3 : dz;
-    doorsLive.push({ knock: true, party: k === pk, x: ax, z: az, y: y0, apt: FD * 4 + k + 1, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
+    const apt = HOMEPOD ? 36 + (FD - 1) * 4 + k + 1 : FD * 4 + k + 1, mine = HOMEPOD && apt === 47 && F === 3;
+    doorsLive.push({ knock: true, party: k === pk && !mine, home: mine, label: mine ? 'E — домой, кв. 47' : undefined, x: ax, z: az, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
   });
   // щиток с проводами
   b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42])); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
@@ -1857,8 +1870,8 @@ function podSound() { if (!AC) return; const t = Math.random();
   else if (t < 0.75) { for (let k = 0; k < 6; k++) setTimeout(() => burst(0.08, 'bandpass', 700, 1.2, 0.08, 0.3), k * 520); }
   else if (t < 0.88) { for (let k = 0; k < 3; k++) setTimeout(() => { burst(0.12, 'bandpass', 520, 3, 0.12, -0.4); }, k * 300); }
   else { burst(0.9, 'lowpass', 120, 0.8, 0.35, Math.random() - 0.5); setTimeout(() => { for (let k = 0; k < 8; k++) setTimeout(() => burst(0.03, 'lowpass', 900, 0.8, 0.05), k * 70); }, 900); } }
-function podKnock(d) { if (d.party) { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['За дверью музыка и смех. «…С Новым годом!» — но не тебе.', 'Музыку сделали тише. Шаги к двери… и обратно.', '— Кто там? — Из-за двери пахнет мандаринами. Не открывают.'][(Math.random() * 3) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); return; } for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['Тишина.', 'За дверью кто-то есть. Но не открывают.', 'Никого.', 'Где-то за дверью работает телевизор.', 'Шаги… и снова тишина.'][(Math.random() * 5) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); }
-if (PODEZD) { P.x = PW / 2 + 0.3; P.z = -1.0; P.y = 0; P.yaw = Math.PI; ground.visible = false; grass.mesh.visible = false; }
+function podKnock(d) { if (d.home) { burst(0.3, 'lowpass', 500, 1, 0.5); goWorld('kvartira', 'Дверь квартиры не заперта.'); return; } if (d.party) { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['За дверью музыка и смех. «…С Новым годом!» — но не тебе.', 'Музыку сделали тише. Шаги к двери… и обратно.', '— Кто там? — Из-за двери пахнет мандаринами. Не открывают.'][(Math.random() * 3) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); return; } for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['Тишина.', 'За дверью кто-то есть. Но не открывают.', 'Никого.', 'Где-то за дверью работает телевизор.', 'Шаги… и снова тишина.'][(Math.random() * 5) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); }
+if (PODEZD) { P.x = PW / 2 + 0.3; P.z = -1.0; P.y = 0; P.yaw = Math.PI; if (HOMEPOD) setTimeout(() => toast('Твой подъезд.<br><span style="font-size:14px">Квартира 47 — на третьем этаже.</span>'), 2500); ground.visible = false; grass.mesh.visible = false; }
 
 // --- общие материалы подъезда ---
 const MPC = {
@@ -1948,7 +1961,7 @@ if (TEST && PODEZD) window.__lift = { LIFT, go: (T) => { liftIn.value = String(T
 
 // ===================== Сон: переходы между мирами, ключи, концовка =====================
 const WORLD_LIST = ['dvory', 'tishina', 'tropa', 'vorota', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'];
-const WORLD_NAMES = { dvory: 'Дворы', tishina: 'Тишина', tropa: 'Тропа', vorota: 'Ворота', dom: 'Дом', podezd: 'Подъезд', ostanovka: 'Остановка', shkola: 'Школа', bolnica: 'Поликлиника', metro: 'Метро', magazin: 'Универсам', plyazh: 'Пляж', lager: 'Пионерлагерь', pole: 'Поле', elektrichka: 'Электричка', stroyka: 'Стройка', zima: 'Аномальная зима' };
+const WORLD_NAMES = { kvartira: 'Квартира', dvory: 'Дворы', tishina: 'Тишина', tropa: 'Тропа', vorota: 'Ворота', dom: 'Дом', podezd: 'Подъезд', ostanovka: 'Остановка', shkola: 'Школа', bolnica: 'Поликлиника', metro: 'Метро', magazin: 'Универсам', plyazh: 'Пляж', lager: 'Пионерлагерь', pole: 'Поле', elektrichka: 'Электричка', stroyka: 'Стройка', zima: 'Аномальная зима' };
 const KEY_WORLDS = WORLD_LIST.filter((w) => w !== 'vorota');
 const INTER = [];
 function goWorld(id, text) {
@@ -2496,7 +2509,7 @@ if (STROY) {
 // ===================== ДВОРЫ: 415-й микрорайон, ул. Героев Тулы, 13. Ноябрь, 14:50 =====================
 // Сюжет: после школы ты дошёл до своего двора. Ключа нет, домофон молчит, часы стоят на 14:50.
 const DV_LORE = [
-  '«Обед на плите, разогрей. Ключ у тёти Вали из 47-й. Буду в шесть.<br><i>— Мама</i>»<br><br><span style="font-size:14px">На обороте твоим почерком: «Тёти Вали нет дома. Никого нет дома».</span>',
+  '«Обед на плите, разогрей. Ключ у тёти Вали из 45-й. Буду в шесть.<br><i>— Мама</i>»<br><br><span style="font-size:14px">На обороте твоим почерком: «Тёти Вали нет дома. Никого нет дома».</span>',
   'Если ты читаешь это — значит, ты опять стоишь во дворе в 14:50.<br>Ты приходишь сюда каждый раз, когда засыпаешь.<br>И каждый раз не помнишь.',
   'Часы здесь не идут. Без десяти три, ноябрь, дождь только что кончился.<br>Это не день. Это фотография дня.',
   'Помнишь лужу у третьего подъезда? В ней вся девятиэтажка — вверх ногами.<br>Ты думал, что там, внизу, второй город.',
@@ -2507,7 +2520,7 @@ const DV_LORE = [
   'В окнах горит свет. Из форточки первого этажа пахнет жареным луком.<br>Ни в одном окне тебя не ждут: там всё ещё 14:50.',
   'Один ключ — здесь, во дворах.<br>Ищи площадку, где у домика самая яркая крыша. Она к юго-западу: за детским садом, через дорогу.',
   'Бабушкины ворота на даче — единственная дверь, которая помнит, где ты живёшь на самом деле.',
-  'Когда соберёшь все ключи и откроешь ворота — вернись к своему подъезду.<br>Минута пойдёт дальше. Мама придёт в шесть. Ты проснёшься. Обещаю.<br><i>— Ты</i>',
+  'Когда соберёшь все ключи и откроешь ворота — поднимись домой и ляг на свою кровать.<br>Минута пойдёт дальше. Мама придёт в шесть. Ты проснёшься. Обещаю.<br><i>— Ты</i>',
 ];
 const DV_GREET = ['«Продам гараж. Звонить после шести».', '«Пропал кот. Серый, отзывается на Ваську. Нашедшему — спасибо».', '«Уважаемые жильцы! 15 ноября отключение горячей воды».', '«Куплю волосы, часы, значки». Телефон оторван.', '«Не ставьте машины на газон!!!» — буквы поплыли от дождя.'];
 const DV_STREETS = ['Героев Тулы', 'Академика Бардина', 'Менжинского', 'Жолудева', 'Николая Отрады', 'Мясникова', 'Луговского', 'Клименко'];
@@ -2643,7 +2656,7 @@ if (DVOR) {
       b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
       const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home === true && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), plate(String(i + 1))); const pp = b.world(lx, 2.2, fz + 0.03); pm.position.copy(pp); pm.rotation.y = ry; group.add(pm);
-      INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? (FINAL ? 'E — домой' : 'E — домофон, кв. 47') : 'E — домофон', act: () => dvDoor(isHome, open, id) });
+      INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? 'E — домой, кв. 47' : 'E — домофон', act: () => dvDoor(isHome, open, id) });
       if (isHome) smell(K, pn.x, pn.z - 1.5, 'Из форточки первого этажа пахнет жареным луком.');
       if (!isHome && r() < 0.5) { const bp = b.world(lx + 2.2, 0, fz + 1.6); b.pop(); bench(K, bp.x, bp.z, ry + Math.PI); b.push(cx, 0, cz, ry); }
     }
@@ -2712,7 +2725,7 @@ if (DVOR) {
   const INTERCOM = ['Домофон пищит. Никто не отвечает.', '— Кто там?.. — и короткие гудки.', 'В трубке шипит радио. Дверь не открывается.', 'Код не подходит. Ты точно помнил этот код.', 'Домофон играет мелодию. Долго. Слишком долго.', 'Тишина. Только капает с козырька.'];
   function dvDoor(isHome, open, id) {
     blip([1046, 784, 1046, 784], 0.25, 'square', 0.025);
-    if (isHome) { if (FINAL) dvFinal(); else toast(CARDS >= 1 ? 'Это твой подъезд. Домофон молчит.<br><span style="font-size:14px">Сначала — ключи. Потом — ворота.</span>' : 'Это твой подъезд. Кв. 47.<br><span style="font-size:14px">Домофон молчит. Ключа нет.</span>'); return; }
+    if (isHome) { try { sessionStorage.setItem('pod_home', '1'); } catch (e) {} setTimeout(() => goWorld('podezd', 'Домофон пискнул. Дверь открылась.<br><span style="font-size:14px">Твой подъезд.</span>'), 500); return; }
     if (open) { setTimeout(() => goWorld('podezd', 'Дверь подъезда поддалась.<br><span style="font-size:14px">Это не твой подъезд.</span>'), 500); return; }
     toast(INTERCOM[(ihash(id.length, Math.floor(clock * 3)) * INTERCOM.length) | 0]); }
   let clockStop = false;
@@ -2869,7 +2882,7 @@ if (DVOR) {
     if (wkT < 0) { const a = P.yaw + (Math.random() - 0.5) * 1.0, d = 34 + Math.random() * 16, x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d; if (dvRoadD(x, z) > 4.6 && dvRoadD(x, z) < 6.2) { walker.position.set(x, 0, z); wkA = a + (Math.random() - 0.5); walker.visible = true; wkT = 45; } else wkT = 1.5; } }
   // --- часы, запахи ---
   let secs = 0, lastS = -1, smT = 3, smLast = '', interT = 0;
-  if (FINAL) { const st = $('start'); const p = st && st.querySelector('p'); if (p) p.innerHTML = '<b>Ноябрь. 14:50:59.</b><br>Ворота открылись. Ты снова у своего подъезда. Минута вот-вот пойдёт дальше.'; }
+  if (FINAL) { const st = $('start'); const p = st && st.querySelector('p'); if (p) p.innerHTML = '<b>Ноябрь. 14:50:59.</b><br>Ворота открылись. Ты снова у своего подъезда. Поднимись домой.'; }
   WORLD_UPDATE = (dt) => {
     carsUpdate(dt); rainUpdate(dt); walkerUpdate(dt);
     if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
@@ -2877,13 +2890,13 @@ if (DVOR) {
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };
   if (TEST) window.__dv = { INTER, DC };
-  if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Твой подъезд.</b><br><span style="font-size:14px">Дверь за спиной. Подойди и нажми E.</span>'), 2500);
+  if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Ворота открылись.</b><br><span style="font-size:14px">Поднимись домой, в квартиру 47, и ляг спать.</span>'), 2500);
 }
 
 // ===================== FAR LANDS: перенос к самому краю мира (во всех мирах) =====================
 {
   const lim = WLIM - 0.5; let edgeToast = 0;
-  if (FAR) {
+  if (FAR && !KV) {
     const fx = WLIM - 150;
     if (PODEZD) { podBase = 2147483639; }                                   // этаж 2147483640: до переполнения int32 — семь этажей
     else if (TRAIN) { TR.x = fx - 300; P.x = TR.x + 46; }
@@ -2899,6 +2912,104 @@ if (DVOR) {
     if (!PODEZD && (Math.abs(P.x) > lim || Math.abs(P.z) > lim)) { P.x = clamp(P.x, -lim, lim); P.z = clamp(P.z, -lim, lim); if (TRAIN) { TR.v = 0; TR.st = 'stop'; TR.t = 1e9; }
       if (clock - edgeToast > 6 || !edgeToast) { edgeToast = clock || 0.01; toast('<b style="color:#ff9a7a">Край мира.</b><br><span style="font-size:14px">Дальше нет места для координат.</span>'); } }
     if (FAR) { const e = $('f_far'); if (e) { const t = PODEZD ? 'FAR LANDS' : `X ${Math.round(P.x)} · Z ${Math.round(P.z)}`; if (e.textContent !== t) e.textContent = t; } } };
+}
+
+// ===================== КВАРТИРА 47: Героев Тулы, 13, третий этаж. Ноябрь, 14:50 =====================
+const KV_IMG = /*KVIMG*/{};
+if (KV) {
+  ground.visible = false; grass.mesh.visible = false; torchOn = false;
+  hemi.intensity = 0.55; hemi.color.setHex(0xd8dce2); hemi.groundColor.setHex(0x6a5e52);
+  P.x = 0.9; P.z = 5.4; P.y = 0; P.yaw = 0; P.pitch = 0;
+  const FINAL = (() => { try { return localStorage.getItem('dream_final') === '1'; } catch (e) { return false; } })();
+  const H = 2.6, T = 0.12, group = new THREE.Group(), b = new Batch();
+  const cv = (w, h, draw) => texFrom(mkCanvas(w, h, draw));
+  const paper = (bg, draw, sx = 0.6, sy = 0.6) => { const t = cv(256, 256, (g, w, h) => { g.fillStyle = bg; g.fillRect(0, 0, w, h); draw(g, w, h); }); t.repeat.set(1 / sx, 1 / sy); return std({ map: t, roughness: 0.9 }); };
+  const W = {
+    hall: paper('#c8b48e', (g, w, h) => { for (let x = 0; x < w; x += 32) { g.fillStyle = 'rgba(120,80,40,0.18)'; g.fillRect(x, 0, 10, h); } }),
+    kitchen: paper('#bcd0b8', (g, w, h) => { g.strokeStyle = 'rgba(80,110,80,0.3)'; for (let y = 0; y < h; y += 64) for (let x = 0; x < w; x += 64) { g.beginPath(); g.arc(x + 32, y + 32, 14, 0, 6.28); g.stroke(); } }),
+    room: paper('#d8c8a8', (g, w, h) => { const r = rng(3); for (let i = 0; i < 18; i++) { const x = r() * w, y = r() * h; g.fillStyle = 'rgba(150,70,60,0.35)'; for (let k = 0; k < 5; k++) { g.beginPath(); g.ellipse(x + Math.cos(k * 1.26) * 9, y + Math.sin(k * 1.26) * 9, 7, 4, k * 1.26, 0, 6.28); g.fill(); } g.fillStyle = 'rgba(90,120,60,0.4)'; g.fillRect(x - 1, y + 10, 2, 18); } }),
+    bed: paper('#b8c8d8', (g, w, h) => { for (let y = 0; y < h; y += 24) { g.fillStyle = 'rgba(60,80,120,0.16)'; g.fillRect(0, y, w, 6); } }),
+  };
+  const parquet = std({ roughness: 0.55, map: (() => { const t = cv(256, 256, (g, w, h) => { const r = rng(9); for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) { const c = 110 + r() * 50; g.fillStyle = `rgb(${c},${c * 0.68},${c * 0.4})`; g.fillRect(x * 64 + (y % 2) * 32, y * 32, 63, 31); g.fillRect(x * 64 + (y % 2) * 32 - 256, y * 32, 63, 31); } }); t.repeat.set(1 / 1.6, 1 / 1.6); return t; })() });
+  const lino = std({ roughness: 0.4, map: (() => { const t = cv(128, 128, (g, w, h) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = (x + y) % 2 ? '#8a6a4a' : '#c8b08a'; g.fillRect(x * 32, y * 32, 32, 32); } }); t.repeat.set(1 / 1.2, 1 / 1.2); return t; })() });
+  const ceil = std({ color: 0xeeeeea, roughness: 0.95 });
+  const wood = std({ color: 0x6a3e22, roughness: 0.5 }), dark = std({ color: 0x2a2420, roughness: 0.6 }), white = std({ color: 0xe8e6e0, roughness: 0.5 }), metal = std({ color: 0xb8bcc0, roughness: 0.3, metalness: 0.7 });
+  const frameM = std({ color: 0xf0f0ec, roughness: 0.4 });
+  // стена с проёмами: ось 'x' — вдоль x на z = c; 'z' — вдоль z на x = c. holes: [a0, a1, y0, y1]
+  function wall(ax, c, a0, a1, mat, holes = []) {
+    const put = (p0, p1, y0, y1) => { if (p1 - p0 < 0.01 || y1 - y0 < 0.01) return; const m = (p0 + p1) / 2, L = p1 - p0, hy = y1 - y0;
+      if (ax === 'x') b.box(mat, m, (y0 + y1) / 2, c, L, hy, T); else b.box(mat, c, (y0 + y1) / 2, m, T, hy, L); };
+    const hs = holes.slice().sort((p, q) => p[0] - q[0]); let cur = a0;
+    for (const h of hs) { put(cur, h[0], 0, H); put(h[0], h[1], 0, h[2]); put(h[0], h[1], h[3], H); cur = h[1]; } put(cur, a1, 0, H);
+    let s0 = a0; const solid = (p0, p1) => { if (p1 - p0 < 0.01) return; const m = (p0 + p1) / 2; if (ax === 'x') b.cols.push({ x: m, z: c, hx: (p1 - p0) / 2, hz: 0.1, c: 1, s: 0 }); else b.cols.push({ x: c, z: m, hx: 0.1, hz: (p1 - p0) / 2, c: 1, s: 0 }); };
+    for (const h of hs) { if (h[2] < 0.01) { solid(s0, h[0]); s0 = h[1]; } } solid(s0, a1);
+  }
+  // окно с видом во двор (фото из настоящего окна)
+  const winMat = (k) => { const m = new THREE.MeshBasicMaterial({ color: 0xffffff }); if (KV_IMG[k]) new THREE.TextureLoader().load(KV_IMG[k], (t) => { t.colorSpace = THREE.SRGBColorSpace; m.map = t; m.needsUpdate = true; }); else m.color.setHex(0xc8ccd0); return m; };
+  function windowAt(ax, c, a, img, out) { const w = 1.4, y0 = 0.85, y1 = 2.3, m = new THREE.Mesh(new THREE.PlaneGeometry(w * 2.6, (y1 - y0) * 2.6), winMat(img));
+    if (ax === 'x') { m.position.set(a, (y0 + y1) / 2, c + out * 1.6); m.rotation.y = out > 0 ? Math.PI : 0; } else { m.position.set(c + out * 1.6, (y0 + y1) / 2, a); m.rotation.y = out > 0 ? -Math.PI / 2 : Math.PI / 2; }
+    group.add(m);
+    const fr = (x0, x1, yy0, yy1) => { if (ax === 'x') b.box(frameM, (x0 + x1) / 2, (yy0 + yy1) / 2, c, x1 - x0, yy1 - yy0, 0.16); else b.box(frameM, c, (yy0 + yy1) / 2, (x0 + x1) / 2, 0.16, yy1 - yy0, x1 - x0); };
+    fr(a - w / 2, a - w / 2 + 0.07, y0, y1); fr(a + w / 2 - 0.07, a + w / 2, y0, y1); fr(a - 0.035, a + 0.035, y0, y1); fr(a - w / 2, a + w / 2, y1 - 0.07, y1); fr(a - w / 2, a + w / 2, y0, y0 + 0.07); fr(a - w / 2, a + w / 2, y1 - 0.5, y1 - 0.45);
+    if (ax === 'x') { b.box(white, a, y0 - 0.02, c - out * 0.18, w + 0.3, 0.04, 0.3); for (let k = 0; k < 8; k++) b.box(white, a - 0.42 + k * 0.12, 0.45, c - out * 0.2, 0.08, 0.55, 0.1); }
+    else { b.box(white, c - out * 0.18, y0 - 0.02, a, 0.3, 0.04, w + 0.3); for (let k = 0; k < 8; k++) b.box(white, c - out * 0.2, 0.45, a - 0.42 + k * 0.12, 0.1, 0.55, 0.08); }
+    bulbAnchors.push({ x: ax === 'x' ? a : c - out * 0.6, y: 1.7, z: ax === 'x' ? c - out * 0.6 : a, fy: 0, group, mesh: null, color: 0xc8d2de, dist: 6, int: 3.5 });
+    return ax === 'x' ? [a, c - out * 0.6] : [c - out * 0.6, a]; }
+  const lamp = (x, z, int) => { b.cyl(white, x, H - 0.12, z, 0.22, 0.3, 0.14, 16); bulbAnchors.push({ x, y: H - 0.35, z, fy: 0, group, mesh: null, color: 0xffd8a0, dist: 6, int }); };
+  // --- пол, потолок ---
+  b.box(lino, 0.9, -0.05, 3, 1.8, 0.1, 6); b.box(lino, 3.2, -0.05, 1.5, 2.8, 0.1, 3); b.box(parquet, 3.9, -0.05, 5, 4.2, 0.1, 4); b.box(parquet, -1.6, -0.05, 1.8, 3.2, 0.1, 3.6);
+  b.box(ceil, 1.4, H + 0.05, 3.5, 9.4, 0.1, 7.2);
+  // --- стены ---
+  const DOOR = (a) => [a, a + 0.85, 0, 2.05];
+  wall('x', 0, -3.2, 0, W.bed, [[-2.3, -0.9, 0.85, 2.3]]); wall('x', 0, 1.8, 4.6, W.kitchen, [[2.5, 3.9, 0.85, 2.3]]); wall('x', 0, 0, 1.8, W.hall);
+  wall('z', -3.2, 0, 3.6, W.bed); wall('x', 3.6, -3.2, 0, W.bed); wall('z', 0, 0, 3.6, W.hall, [DOOR(1.0)]); wall('z', 0, 3.6, 6, W.hall);
+  wall('z', 1.8, 0, 7, W.hall, [DOOR(1.05), DOOR(4.05)]); wall('x', 6, 0, 1.8, W.hall, [[0.5, 1.35, 0, 2.05]]);
+  wall('z', 4.6, 0, 3, W.kitchen); wall('x', 3, 1.8, 6, W.room); wall('z', 6, 3, 7, W.room, [[4.3, 5.7, 0.85, 2.3]]); wall('x', 7, 1.8, 6, W.room);
+  const wk = windowAt('x', 0, 3.2, 'o1', -1), wr = windowAt('z', 6, 5.0, 'o2', 1), wb = windowAt('x', 0, -1.6, 'o1', -1);
+  // двери: входная (дерматин), в ванную (закрыта)
+  b.box(dark, 0.92, 1.02, 5.96, 0.85, 2.04, 0.05); b.box(metal, 1.2, 1.0, 5.9, 0.03, 0.15, 0.03); b.box(white, 0.06, 1.02, 4.8, 0.05, 2.04, 0.8);
+  // --- прихожая: вешалка, обувь, зеркало, телефон ---
+  b.box(wood, 1.7, 1.75, 4.6, 0.04, 0.08, 1.2); for (let k = 0; k < 3; k++) b.box(std({ color: [0x3a3f48, 0x6a4a3a, 0x2a4a6a][k], roughness: 0.9 }), 1.55, 1.25, 4.15 + k * 0.4, 0.22, 0.95, 0.38);
+  b.box(wood, 0.25, 0.25, 4.6, 0.3, 0.5, 0.9); for (let k = 0; k < 4; k++) b.box(dark, 0.3, 0.55, 4.25 + k * 0.22, 0.24, 0.1, 0.1);
+  b.box(std({ color: 0x9aa4ae, roughness: 0.05, metalness: 0.9 }), 0.07, 1.5, 2.6, 0.02, 0.9, 0.55); b.box(std({ color: 0xc8b8a0, roughness: 0.5 }), 1.72, 1.4, 2.2, 0.08, 0.2, 0.12);
+  // --- кухня: плита с кастрюлей, холодильник, стол, табуретки, часы ---
+  b.box(white, 4.3, 0.45, 0.4, 0.6, 0.9, 0.6); b.box(dark, 4.3, 0.91, 0.4, 0.58, 0.02, 0.58); for (const [dx, dz] of [[-0.14, -0.14], [0.14, 0.14]]) b.cyl(dark, 4.3 + dx, 0.93, 0.4 + dz, 0.1, 0.1, 0.02, 12);
+  b.cyl(std({ color: 0xc0302a, roughness: 0.4 }), 4.16, 1.02, 0.26, 0.13, 0.12, 0.18, 16); b.cyl(white, 4.16, 1.12, 0.26, 0.135, 0.135, 0.02, 16);
+  b.box(white, 4.25, 0.9, 1.25, 0.6, 1.8, 0.6); b.box(metal, 3.97, 1.2, 1.4, 0.02, 0.3, 0.03);
+  b.box(white, 2.4, 0.45, 0.35, 1.0, 0.9, 0.6); b.box(metal, 2.4, 0.9, 0.35, 0.45, 0.02, 0.35); b.box(white, 2.6, 1.9, 0.18, 1.6, 0.6, 0.32);
+  b.box(wood, 3.0, 0.74, 2.2, 1.0, 0.04, 0.7); for (const [dx, dz] of [[-0.45, -0.3], [0.45, -0.3], [-0.45, 0.3], [0.45, 0.3]]) b.box(wood, 3.0 + dx, 0.36, 2.2 + dz, 0.04, 0.72, 0.04); b.box(std({ color: 0xe8e0d0, roughness: 0.8 }), 3.0, 0.765, 2.2, 1.04, 0.01, 0.74);
+  for (const dx of [-0.75, 0.75]) { b.box(wood, 3.0 + dx, 0.45, 2.2, 0.32, 0.04, 0.32); b.box(wood, 3.0 + dx, 0.22, 2.2, 0.26, 0.44, 0.26); }
+  b.collide(3.0, 2.2, 0.55, 0.4); b.collide(4.3, 0.8, 0.32, 0.8); b.collide(2.4, 0.35, 0.5, 0.32);
+  b.box(std({ color: 0xf4f0e4, roughness: 0.9 }), 2.85, 0.775, 2.1, 0.15, 0.003, 0.2);   // записка на столе
+  const clock = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), std({ map: cv(128, 128, (g, w, h) => { g.fillStyle = '#f4f0e6'; g.beginPath(); g.arc(64, 64, 62, 0, 6.28); g.fill(); g.strokeStyle = '#222'; g.lineWidth = 3; g.stroke(); for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283; g.fillRect(64 + Math.sin(a) * 50 - 2, 64 - Math.cos(a) * 50 - 2, 4, 4); } const hand = (a, l, wd) => { g.lineWidth = wd; g.beginPath(); g.moveTo(64, 64); g.lineTo(64 + Math.sin(a) * l, 64 - Math.cos(a) * l); g.stroke(); }; hand((2 + 50 / 60) / 12 * 6.283, 30, 5); hand(50 / 60 * 6.283, 46, 3); }) }));
+  clock.position.set(4.54, 2.0, 2.2); clock.rotation.y = -Math.PI / 2; group.add(clock);
+  // --- зал: стенка, телевизор, диван, ковёр на стене, ковёр на полу, люстра ---
+  const carpet = (w, h, seed) => std({ roughness: 1, map: cv(256, 192, (g, W2, H2) => { const r = rng(seed); g.fillStyle = '#7a1e1a'; g.fillRect(0, 0, W2, H2); g.strokeStyle = '#d8b060'; g.lineWidth = 6; g.strokeRect(10, 10, W2 - 20, H2 - 20); g.strokeStyle = '#1a2a5a'; g.lineWidth = 4; g.strokeRect(22, 22, W2 - 44, H2 - 44);
+    for (let i = 0; i < 6; i++) { g.fillStyle = ['#d8b060', '#1a2a5a', '#e8e0c8', '#3a6a3a'][i % 4]; g.beginPath(); const cx = W2 / 2, cy = H2 / 2, s = 70 - i * 11; g.moveTo(cx, cy - s * 0.7); g.lineTo(cx + s, cy); g.lineTo(cx, cy + s * 0.7); g.lineTo(cx - s, cy); g.fill(); }
+    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '216,176,96' : '26,42,90'},0.7)`; g.fillRect(30 + r() * (W2 - 60), 30 + r() * (H2 - 60), 5, 5); } }) });
+  b.box(carpet(2.4, 1.6, 1), 1.87, 1.5, 5.4, 0.02, 1.5, 2.2); b.box(carpet(2.4, 1.6, 2), 3.9, 0.005, 5.0, 2.6, 0.01, 1.8);
+  b.box(wood, 3.9, 1.1, 6.75, 3.4, 2.2, 0.45); for (let k = 0; k < 4; k++) b.box(std({ color: 0x9ab0c0, roughness: 0.05, metalness: 0.6, transparent: true, opacity: 0.6 }), 2.6 + k * 0.85, 1.55, 6.52, 0.75, 0.7, 0.02);
+  b.box(dark, 3.9, 0.85, 6.4, 0.7, 0.55, 0.5); b.box(std({ color: 0x1a2028, roughness: 0.15, metalness: 0.3 }), 3.9, 0.87, 6.14, 0.5, 0.4, 0.02);
+  b.box(std({ color: 0x6a5a4a, roughness: 0.9 }), 3.9, 0.3, 3.55, 2.0, 0.45, 0.8); b.box(std({ color: 0x6a5a4a, roughness: 0.9 }), 3.9, 0.65, 3.25, 2.0, 0.5, 0.2);
+  b.collide(3.9, 6.7, 1.75, 0.3); b.collide(3.9, 3.5, 1.0, 0.45);
+  // --- твоя комната: кровать, стол с рюкзаком, плакат ---
+  b.box(wood, -2.55, 0.25, 1.6, 1.0, 0.5, 2.0); b.box(std({ color: 0x4a6a9a, roughness: 0.95 }), -2.55, 0.53, 1.75, 0.95, 0.08, 1.7); b.box(white, -2.55, 0.6, 0.75, 0.6, 0.12, 0.35); b.collide(-2.55, 1.6, 0.5, 1.0);
+  b.box(wood, -0.6, 0.74, 3.2, 1.1, 0.04, 0.55); b.box(wood, -0.6, 0.36, 3.2, 1.06, 0.72, 0.5); b.box(std({ color: 0x2a4a3a, roughness: 0.9 }), -0.3, 0.95, 3.25, 0.32, 0.4, 0.2); b.collide(-0.6, 3.2, 0.55, 0.3);
+  b.add(std({ map: cv(128, 180, (g, w, h) => { g.fillStyle = '#1a1a1a'; g.fillRect(0, 0, w, h); g.fillStyle = '#d82a2a'; g.font = 'bold 34px sans-serif'; g.textAlign = 'center'; g.fillText('КИНО', w / 2, 60); g.fillStyle = '#e8e0c8'; g.font = '15px sans-serif'; g.fillText('ГРУППА КРОВИ', w / 2, 100); }) }), new THREE.PlaneGeometry(0.5, 0.7), new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(-3.13, 1.6, 2.3));
+  lamp(0.9, 1.5, 2.2); lamp(3.2, 1.5, 2.6); lamp(3.9, 5.0, 3.0); lamp(-1.6, 1.8, 2.2);
+  b.build(group); scene.add(group); colliders.set('kv', b.cols);
+  // --- действия ---
+  const NOTE = '«Обед на плите, разогрей. Ключ у тёти Вали из 45-й. Буду в шесть.<br><i>— Мама</i>»<br><br><span style="font-size:14px">Ключа у тебя нет. А дверь почему-то была открыта.</span>';
+  INTER.push({ x: 0.9, z: 5.5, r: 0.9, label: 'E — выйти во двор', act: () => goWorld('dvory', 'Ты спустился во двор.') });
+  INTER.push({ x: 2.85, z: 2.1, r: 0.9, label: 'E — прочитать записку', act: () => showNote(NOTE) });
+  INTER.push({ x: 4.0, z: 0.9, r: 0.8, label: 'E — плита', act: () => toast('Суп ещё тёплый.<br><span style="font-size:14px">Как будто мама ушла минуту назад.</span>') });
+  INTER.push({ x: wk[0], z: wk[1], r: 0.9, label: 'E — посмотреть в окно', act: () => toast('Во дворе стоит белая «Волга».<br><span style="font-size:14px">Ни одного человека. 14:50.</span>') });
+  INTER.push({ x: wr[0], z: wr[1], r: 0.9, label: 'E — посмотреть в окно', act: () => toast('Площадка пустая. На качелях никого.<br><span style="font-size:14px">Но они качаются.</span>') });
+  INTER.push({ x: 3.9, z: 5.9, r: 0.8, label: 'E — включить телевизор', act: () => { burst(1.6, 'bandpass', 3000, 0.4, 0.2); toast('Помехи. Потом голос диктора: «…в Волгограде 14 часов 50 минут…»<br><span style="font-size:14px">И снова помехи.</span>'); } });
+  INTER.push({ x: -2.0, z: 1.6, r: 1.0, label: () => FINAL && allKeys() ? 'E — лечь и проснуться' : 'E — лечь спать', act: () => {
+    if (FINAL && allKeys()) { const day = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }); wakeUp(['Ты лёг на свою кровать и закрыл глаза.', 'Где-то хлопнула дверь. Часы на кухне щёлкнули: 14:51.', 'В прихожей зашуршали пакеты: «Я дома!»', 'Ты открыл глаза.', `Утро. ${day}. Будильник на семь.`, 'Ты проснулся.']); }
+    else goWorld(randomWorld(), 'Ты лёг на кровать и закрыл глаза.<br><span style="font-size:14px">Сон утащил тебя дальше.</span>'); } });
+  setTimeout(() => toast(FINAL ? '<b style="color:#ffd35a">Дома.</b><br><span style="font-size:14px">Ляг на свою кровать.</span>' : 'Дома. Пусто. Пахнет супом.'), 2600);
 }
 
 })();

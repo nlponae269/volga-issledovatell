@@ -1,7 +1,8 @@
 // ===================== «ПОДЪЕЗД»: бесконечная лестница =====================
 const FH = 2.8, PW = 2.7, PL = 2.7, WELL0 = 1.28, WELL1 = 1.42, MIDD = 1.5, LAND = 2.0, LX0 = -1.6, LX1 = 4.3;
 const EX0 = 2.95, EX1 = 4.15, EXC = (EX0 + EX1) / 2, EZ1 = -LAND - 1.45;   // лифт в торце площадки
-let podBase = 0;                                                               // «настоящий» номер этажа = podBase + n + 1
+let podBase = 0;
+const HOMEPOD = PODEZD && (() => { try { const v = sessionStorage.getItem('pod_home') === '1'; sessionStorage.removeItem('pod_home'); return v; } catch (e) { return false; } })();                                                               // «настоящий» номер этажа = podBase + n + 1
 const PLAF_GEO = new THREE.CylinderGeometry(0.2, 0.25, 0.08, 16);
 // высота поверхности в пределах этажного модуля (0..FH)
 function podLocal(x, z) {
@@ -105,7 +106,8 @@ function buildFloor(n) {
     if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
     else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
     const ax = side === 0 ? dx + 0.45 : dx + side * 0.3, az = side === 0 ? dz + 0.3 : dz;
-    doorsLive.push({ knock: true, party: k === pk, x: ax, z: az, y: y0, apt: FD * 4 + k + 1, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
+    const apt = HOMEPOD ? 36 + (FD - 1) * 4 + k + 1 : FD * 4 + k + 1, mine = HOMEPOD && apt === 47 && F === 3;
+    doorsLive.push({ knock: true, party: k === pk && !mine, home: mine, label: mine ? 'E — домой, кв. 47' : undefined, x: ax, z: az, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
   });
   // щиток с проводами
   b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42])); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
@@ -155,8 +157,8 @@ function podSound() { if (!AC) return; const t = Math.random();
   else if (t < 0.75) { for (let k = 0; k < 6; k++) setTimeout(() => burst(0.08, 'bandpass', 700, 1.2, 0.08, 0.3), k * 520); }
   else if (t < 0.88) { for (let k = 0; k < 3; k++) setTimeout(() => { burst(0.12, 'bandpass', 520, 3, 0.12, -0.4); }, k * 300); }
   else { burst(0.9, 'lowpass', 120, 0.8, 0.35, Math.random() - 0.5); setTimeout(() => { for (let k = 0; k < 8; k++) setTimeout(() => burst(0.03, 'lowpass', 900, 0.8, 0.05), k * 70); }, 900); } }
-function podKnock(d) { if (d.party) { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['За дверью музыка и смех. «…С Новым годом!» — но не тебе.', 'Музыку сделали тише. Шаги к двери… и обратно.', '— Кто там? — Из-за двери пахнет мандаринами. Не открывают.'][(Math.random() * 3) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); return; } for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['Тишина.', 'За дверью кто-то есть. Но не открывают.', 'Никого.', 'Где-то за дверью работает телевизор.', 'Шаги… и снова тишина.'][(Math.random() * 5) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); }
-if (PODEZD) { P.x = PW / 2 + 0.3; P.z = -1.0; P.y = 0; P.yaw = Math.PI; ground.visible = false; grass.mesh.visible = false; }
+function podKnock(d) { if (d.home) { burst(0.3, 'lowpass', 500, 1, 0.5); goWorld('kvartira', 'Дверь квартиры не заперта.'); return; } if (d.party) { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['За дверью музыка и смех. «…С Новым годом!» — но не тебе.', 'Музыку сделали тише. Шаги к двери… и обратно.', '— Кто там? — Из-за двери пахнет мандаринами. Не открывают.'][(Math.random() * 3) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); return; } for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 300, 1, 0.6), k * 180); setTimeout(() => toast(['Тишина.', 'За дверью кто-то есть. Но не открывают.', 'Никого.', 'Где-то за дверью работает телевизор.', 'Шаги… и снова тишина.'][(Math.random() * 5) | 0] + `<br><span style="font-size:13px;opacity:.6">кв. ${d.apt}</span>`), 900); }
+if (PODEZD) { P.x = PW / 2 + 0.3; P.z = -1.0; P.y = 0; P.yaw = Math.PI; if (HOMEPOD) setTimeout(() => toast('Твой подъезд.<br><span style="font-size:14px">Квартира 47 — на третьем этаже.</span>'), 2500); ground.visible = false; grass.mesh.visible = false; }
 
 // --- общие материалы подъезда ---
 const MPC = {

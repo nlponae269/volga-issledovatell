@@ -113,9 +113,17 @@ groundMat.onBeforeCompile = (sh) => {
         float wetAll = road*0.75 + walk*0.6;
         vec3 vd = normalize(cameraPosition - vW); float fr = pow(1.0 - max(vd.y, 0.0), 4.0);
         vec2 rip = (texture2D(tNoise, wp*0.9 + vec2(uTimeG*0.05, uTimeG*0.031)).rg - 0.5) * 0.005;
+        float rpl = 0.0;
+        if (pud > 0.02) { vec2 rc = wp * 2.2, ci = floor(rc), cf = fract(rc) - 0.5; vec2 rn = vec2(0.0);
+          for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { vec2 o = vec2(float(i), float(j)), id = ci + o;
+            float h = fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453), sp = 0.6 + h * 0.8;
+            float ph = fract(uTimeG * sp * 0.55 + h * 7.0); vec2 cc = o + vec2(fract(h * 13.1), fract(h * 7.7)) - 0.5, d = cf - cc; float r = length(d);
+            float ring = (1.0 - smoothstep(0.0, 0.045, abs(r - ph * 0.8))) * (1.0 - ph) * (1.0 - ph) * step(0.25, h);
+            rpl += ring; rn += d / max(r, 0.001) * ring; }
+          rip += rn * 0.018 * pud; }
         vec3 refl = texture2D(tRefl, vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y) + rip).rgb;
         dvK = uReflOn * (pud * mix(0.4, 0.96, fr) + (1.0 - pud) * wetAll * fr * 0.32);
-        dvRefl = refl * dvK;
+        dvRefl = refl * dvK + vec3(0.9, 0.92, 0.95) * rpl * pud * 0.22 * uReflOn;
         col = mix(col, col*0.5, pud);
         gRough = mix(mix(0.93, 0.42, wetAll), mix(0.05, 0.3, uReflOn), pud); gPath = max(road, walk); }` : ''}
       if (abs(vW.x) > 16777216.0 || abs(vW.z) > 16777216.0) discard;
@@ -316,6 +324,7 @@ let chunkQueue = [];
 let OUT_BUILD = null, EXTRA_BUILD = null;
 function keyInChunk(group, x0, z0, x1, z1) { const kp = KEY_POS[WORLD]; if (kp && kp[0] >= x0 && kp[0] < x1 && kp[2] >= z0 && kp[2] < z1) placeKey(group, kp[0], groundH(kp[0], kp[2]) + (kp[1] || 0), kp[2]); }
 function updateChunks(px, pz, force) {
+  if (KV) return;
   if (PODEZD) return podUpdate(force);
   if (METRO) return metroUpdate(force);
   const ccx = Math.floor(px / CS), ccz = Math.floor(pz / CS), want = new Set(), R = Q.R; chunkQueue = [];

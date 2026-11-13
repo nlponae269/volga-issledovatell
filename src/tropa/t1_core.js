@@ -10,6 +10,7 @@ if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass 
 if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }
 if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
+if (window.WORLD === 'kvartira') { Q.R = 0; Q.grass = 16; Q.fogSteps = 4; }
 if (window.WORLD === 'dvory') { Q.grass = MOBILE ? 4000 : 12000; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
@@ -38,7 +39,8 @@ const METRO = WORLD === 'metro', TRAIN = WORLD === 'elektrichka', STROY = WORLD 
 const DVOR = WORLD === 'dvory', ZIMA = WORLD === 'zima';
 const SNOW = ZIMA;
 const NIGHT = WORLD === 'lager', BEACH = WORLD === 'plyazh', FIELD = WORLD === 'pole', BUS = WORLD === 'ostanovka';
-const INDOOR = GRID || PODEZD || METRO;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
+const KV = WORLD === 'kvartira';
+const INDOOR = GRID || PODEZD || METRO || KV;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
 const DARK = INDOOR || NIGHT || SNOW;
 const ROADW = WORLD === 'tropa' || BUS;
 const PATH_ON = ['tropa', 'vorota', 'lager', 'pole', 'elektrichka'].includes(WORLD);

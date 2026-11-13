@@ -1,7 +1,7 @@
 // ===================== ДВОРЫ: 415-й микрорайон, ул. Героев Тулы, 13. Ноябрь, 14:50 =====================
 // Сюжет: после школы ты дошёл до своего двора. Ключа нет, домофон молчит, часы стоят на 14:50.
 const DV_LORE = [
-  '«Обед на плите, разогрей. Ключ у тёти Вали из 47-й. Буду в шесть.<br><i>— Мама</i>»<br><br><span style="font-size:14px">На обороте твоим почерком: «Тёти Вали нет дома. Никого нет дома».</span>',
+  '«Обед на плите, разогрей. Ключ у тёти Вали из 45-й. Буду в шесть.<br><i>— Мама</i>»<br><br><span style="font-size:14px">На обороте твоим почерком: «Тёти Вали нет дома. Никого нет дома».</span>',
   'Если ты читаешь это — значит, ты опять стоишь во дворе в 14:50.<br>Ты приходишь сюда каждый раз, когда засыпаешь.<br>И каждый раз не помнишь.',
   'Часы здесь не идут. Без десяти три, ноябрь, дождь только что кончился.<br>Это не день. Это фотография дня.',
   'Помнишь лужу у третьего подъезда? В ней вся девятиэтажка — вверх ногами.<br>Ты думал, что там, внизу, второй город.',
@@ -12,7 +12,7 @@ const DV_LORE = [
   'В окнах горит свет. Из форточки первого этажа пахнет жареным луком.<br>Ни в одном окне тебя не ждут: там всё ещё 14:50.',
   'Один ключ — здесь, во дворах.<br>Ищи площадку, где у домика самая яркая крыша. Она к юго-западу: за детским садом, через дорогу.',
   'Бабушкины ворота на даче — единственная дверь, которая помнит, где ты живёшь на самом деле.',
-  'Когда соберёшь все ключи и откроешь ворота — вернись к своему подъезду.<br>Минута пойдёт дальше. Мама придёт в шесть. Ты проснёшься. Обещаю.<br><i>— Ты</i>',
+  'Когда соберёшь все ключи и откроешь ворота — поднимись домой и ляг на свою кровать.<br>Минута пойдёт дальше. Мама придёт в шесть. Ты проснёшься. Обещаю.<br><i>— Ты</i>',
 ];
 const DV_GREET = ['«Продам гараж. Звонить после шести».', '«Пропал кот. Серый, отзывается на Ваську. Нашедшему — спасибо».', '«Уважаемые жильцы! 15 ноября отключение горячей воды».', '«Куплю волосы, часы, значки». Телефон оторван.', '«Не ставьте машины на газон!!!» — буквы поплыли от дождя.'];
 const DV_STREETS = ['Героев Тулы', 'Академика Бардина', 'Менжинского', 'Жолудева', 'Николая Отрады', 'Мясникова', 'Луговского', 'Клименко'];
@@ -148,7 +148,7 @@ if (DVOR) {
       b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
       const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home === true && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), plate(String(i + 1))); const pp = b.world(lx, 2.2, fz + 0.03); pm.position.copy(pp); pm.rotation.y = ry; group.add(pm);
-      INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? (FINAL ? 'E — домой' : 'E — домофон, кв. 47') : 'E — домофон', act: () => dvDoor(isHome, open, id) });
+      INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? 'E — домой, кв. 47' : 'E — домофон', act: () => dvDoor(isHome, open, id) });
       if (isHome) smell(K, pn.x, pn.z - 1.5, 'Из форточки первого этажа пахнет жареным луком.');
       if (!isHome && r() < 0.5) { const bp = b.world(lx + 2.2, 0, fz + 1.6); b.pop(); bench(K, bp.x, bp.z, ry + Math.PI); b.push(cx, 0, cz, ry); }
     }
@@ -217,7 +217,7 @@ if (DVOR) {
   const INTERCOM = ['Домофон пищит. Никто не отвечает.', '— Кто там?.. — и короткие гудки.', 'В трубке шипит радио. Дверь не открывается.', 'Код не подходит. Ты точно помнил этот код.', 'Домофон играет мелодию. Долго. Слишком долго.', 'Тишина. Только капает с козырька.'];
   function dvDoor(isHome, open, id) {
     blip([1046, 784, 1046, 784], 0.25, 'square', 0.025);
-    if (isHome) { if (FINAL) dvFinal(); else toast(CARDS >= 1 ? 'Это твой подъезд. Домофон молчит.<br><span style="font-size:14px">Сначала — ключи. Потом — ворота.</span>' : 'Это твой подъезд. Кв. 47.<br><span style="font-size:14px">Домофон молчит. Ключа нет.</span>'); return; }
+    if (isHome) { try { sessionStorage.setItem('pod_home', '1'); } catch (e) {} setTimeout(() => goWorld('podezd', 'Домофон пискнул. Дверь открылась.<br><span style="font-size:14px">Твой подъезд.</span>'), 500); return; }
     if (open) { setTimeout(() => goWorld('podezd', 'Дверь подъезда поддалась.<br><span style="font-size:14px">Это не твой подъезд.</span>'), 500); return; }
     toast(INTERCOM[(ihash(id.length, Math.floor(clock * 3)) * INTERCOM.length) | 0]); }
   let clockStop = false;
@@ -374,7 +374,7 @@ if (DVOR) {
     if (wkT < 0) { const a = P.yaw + (Math.random() - 0.5) * 1.0, d = 34 + Math.random() * 16, x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d; if (dvRoadD(x, z) > 4.6 && dvRoadD(x, z) < 6.2) { walker.position.set(x, 0, z); wkA = a + (Math.random() - 0.5); walker.visible = true; wkT = 45; } else wkT = 1.5; } }
   // --- часы, запахи ---
   let secs = 0, lastS = -1, smT = 3, smLast = '', interT = 0;
-  if (FINAL) { const st = $('start'); const p = st && st.querySelector('p'); if (p) p.innerHTML = '<b>Ноябрь. 14:50:59.</b><br>Ворота открылись. Ты снова у своего подъезда. Минута вот-вот пойдёт дальше.'; }
+  if (FINAL) { const st = $('start'); const p = st && st.querySelector('p'); if (p) p.innerHTML = '<b>Ноябрь. 14:50:59.</b><br>Ворота открылись. Ты снова у своего подъезда. Поднимись домой.'; }
   WORLD_UPDATE = (dt) => {
     carsUpdate(dt); rainUpdate(dt); walkerUpdate(dt);
     if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
@@ -382,5 +382,5 @@ if (DVOR) {
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };
   if (TEST) window.__dv = { INTER, DC };
-  if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Твой подъезд.</b><br><span style="font-size:14px">Дверь за спиной. Подойди и нажми E.</span>'), 2500);
+  if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Ворота открылись.</b><br><span style="font-size:14px">Поднимись домой, в квартиру 47, и ляг спать.</span>'), 2500);
 }
