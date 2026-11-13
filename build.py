@@ -29,6 +29,7 @@ for wid, w in WORLDS.items():
 print('миры:', len(WORLDS), 'по', len(page) // 1024, 'KB')
 import base64, json
 thumbs = {p.stem: 'data:image/jpeg;base64,' + base64.b64encode(p.read_bytes()).decode() for p in (root / 'src/menu').glob('*.jpg')}
-menu = (root / 'src/menu.html').read_text(encoding='utf-8').replace('/*THUMBS*/{}', json.dumps(thumbs)).replace('<!--MUSIC-->', MUSIC)
+blur = {p.stem: 'data:image/jpeg;base64,' + base64.b64encode(p.read_bytes()).decode() for p in (root / 'src/menu/blur').glob('*.jpg')}
+menu = (root / 'src/menu.html').read_text(encoding='utf-8').replace('/*THUMBS*/{}', json.dumps(thumbs)).replace('/*BLUR*/{}', json.dumps(blur)).replace('<!--MUSIC-->', MUSIC)
 (root / 'index.html').write_text(motion(menu), encoding='utf-8')
 print('index.html (меню)', len(menu) // 1024, 'KB')
