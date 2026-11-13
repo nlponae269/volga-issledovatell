@@ -89,24 +89,27 @@ groundMat.onBeforeCompile = (sh) => {
       as *= 1.0 - tr;
       col = mix(col, as, rm);
       gRough = mix(gRough, 0.82 - tr, rm);
-      ${DVOR ? `{ float ux = mod(wp.x - 48.0, 96.0), uz = mod(wp.y - 48.0, 96.0); float ax = min(ux, 96.0 - ux), az = min(uz, 96.0 - uz); float rd = min(ax, az);
+      ${DVOR ? `{ float ux = mod(wp.x - 48.0, 96.0), uz = mod(wp.y - 48.0, 96.0); bool sp = dvSup(wp); float ax = sp ? 99.0 : min(ux, 96.0 - ux), az = sp ? 99.0 : min(uz, 96.0 - uz); float av = abs(wp.x - ${DV_AVE.toFixed(1)}); float rd = min(min(ax, az), av - 6.0);
         float road = 1.0 - smoothstep(3.95, 4.05, rd);
         float curb = (1.0 - smoothstep(4.0, 4.3, rd)) * (1.0 - road);
         float walk = (1.0 - smoothstep(6.3, 6.6, rd + nB.r*0.4)) * (1.0 - road) * (1.0 - curb);
         vec3 as = texture2D(tAsph, wp/3.2).rgb * mix(0.5, 0.74, nB.g);                                   // мокрый асфальт
         float mkx = (1.0 - smoothstep(0.06, 0.09, ax)) * step(fract(wp.y/6.0), 0.5) * step(4.5, az);
         float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
-        as = mix(as, vec3(0.6,0.6,0.56), (mkx + mkz) * 0.5 * smoothstep(0.25, 0.7, nC.a));
+        float mka = step(av, 10.0) * ((1.0 - smoothstep(0.06, 0.09, abs(av - 0.25))) + (1.0 - smoothstep(0.06, 0.09, abs(av - 5.0))) * step(fract(wp.y / 9.0), 0.45));
+        as = mix(as, vec3(0.6,0.6,0.56), (mkx + mkz + mka) * 0.5 * smoothstep(0.25, 0.7, nC.a));
         vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
         vec3 mud = mix(dirt * vec3(0.9,0.84,0.76), vec3(0.42,0.39,0.34), 0.45) * (0.75 + 0.45*nC.r);                                        // разрытая земля
         float bare = smoothstep(0.18, 0.42, nA.g*0.6 + nB.r*0.55);
         vec3 yard = mix(col*0.82, mud, bare*0.88);
-        float drv = (1.0 - smoothstep(2.1, 2.3, abs(mod(wp.y - 48.0, 96.0) - 36.0))) * step(6.5, ax);
+        float drv = dvDrv(wp) * step(6.5, rd);
         walk = max(walk, drv * (1.0 - road));
+        float rl = 1.0 - smoothstep(9.0, 10.0, abs(wp.y - ${DV_RAIL.toFixed(1)}));                                     // железная дорога: щебень
+        yard = mix(yard, vec3(0.36,0.33,0.3) * (0.7 + 0.6*nC.r), rl * step(4.3, rd));
         col = yard; col = mix(col, wk, walk); col = mix(col, as * 1.05, drv * (1.0 - road)); col = mix(col, vec3(0.42,0.42,0.41)*(0.8+0.3*nC.g), curb); col = mix(col, as, road);
         // лужи: в выбоинах дороги, на тротуаре, в грязи
         float pn = texture2D(tNoise, wp*0.021 + 0.3).r*0.6 + texture2D(tNoise, wp*0.067).b*0.4;
-        float pud = smoothstep(0.615, 0.64, pn) * (road + walk*0.85 + (1.0-road)*(1.0-walk)*(1.0-curb)*bare*0.7);
+        float pud = smoothstep(0.615, 0.64, pn) * (road + walk*0.85 + (1.0-road)*(1.0-walk)*(1.0-curb)*bare*0.7) * (1.0 - rl);
         float wetAll = road*0.75 + walk*0.6;
         vec3 vd = normalize(cameraPosition - vW); float fr = pow(1.0 - max(vd.y, 0.0), 4.0);
         vec2 rip = (texture2D(tNoise, wp*0.9 + vec2(uTimeG*0.05, uTimeG*0.031)).rg - 0.5) * 0.005;
@@ -148,7 +151,7 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * ${DVOR ? 'smoothstep(2.4, 3.5, abs(mod(bp.y - 48.0, 96.0) - 36.0)) * 0.6 * smoothstep(6.6, 8.5, min(min(mod(bp.x - 48.0, 96.0), 96.0 - mod(bp.x - 48.0, 96.0)), min(mod(bp.y - 48.0, 96.0), 96.0 - mod(bp.y - 48.0, 96.0)))) * 0.75 *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * ${DVOR ? '(1.0 - dvDrv(bp)) * smoothstep(6.6, 8.5, dvGridD(bp)) * step(10.0, abs(bp.y - 162.0)) * 0.6 *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
         vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);

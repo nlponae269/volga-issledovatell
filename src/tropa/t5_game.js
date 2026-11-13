@@ -161,7 +161,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 || dvDriveD(x, z) < 2.2 ? 'asph' : 'grass'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 || dvDriveD(x, z) < 0.01 ? 'asph' : 'grass'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;

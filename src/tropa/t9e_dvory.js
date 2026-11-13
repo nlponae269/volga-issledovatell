@@ -10,7 +10,7 @@ const DV_LORE = [
   'Подъезды открываются не все.<br>Те, что открыты, ведут не домой.',
   'Не стой на дороге. Машины здесь не тормозят —<br>им не для кого.',
   'В окнах горит свет. Из форточки первого этажа пахнет жареным луком.<br>Ни в одном окне тебя не ждут: там всё ещё 14:50.',
-  'Один ключ — здесь, во дворах.<br>Ищи площадку, где у домика самая яркая крыша. Встань спиной к своему подъезду: два квартала влево и один квартал назад.',
+  'Один ключ — здесь, во дворах.<br>Ищи площадку, где у домика самая яркая крыша. Она к юго-западу: за детским садом, через дорогу.',
   'Бабушкины ворота на даче — единственная дверь, которая помнит, где ты живёшь на самом деле.',
   'Когда соберёшь все ключи и откроешь ворота — вернись к своему подъезду.<br>Минута пойдёт дальше. Мама придёт в шесть. Ты проснёшься. Обещаю.<br><i>— Ты</i>',
 ];
@@ -28,7 +28,7 @@ function dvAmbient() { if (!AC) return; const t = Math.random(), pan = Math.rand
 if (DVOR) {
   KEY_POS.dvory = [-187.5, 0, 100.5];
   const FINAL = dvLS('dream_final') === '1';
-  SPAWN = { x: DV_HOME.x, z: DV_HOME.z - 2.3, yaw: 0 };
+  SPAWN = { x: 8, z: 2, yaw: 0 };                       // спавн — во дворе дома № 13, лицом на север
   P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = SPAWN.yaw; P.pitch = 0.04;
   // --- фасады: серый кирпич, окна с тюлем, редкий тёплый свет ---
   function facade(seed, o) {
@@ -140,13 +140,13 @@ if (DVOR) {
     for (const s of [1, -1]) { const ncl = 2 + ((r() * 3) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
       for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2); b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } }
     // подъезды
-    const n = Math.max(1, Math.round(len / 12)); const street = home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = 13;
+    const AD = home && typeof home === 'object' ? home : null; const n = Math.max(1, Math.round(len / 12)); const street = AD ? AD.st : home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = AD ? AD.n : 13;
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
       b.box(M.metal, lx, 1.05, fz + 0.04, 1.1, 2.1, 0.08, lin([0.2, 0.17, 0.15])); b.box(M.metal, lx + 0.75, 1.3, fz + 0.06, 0.18, 0.3, 0.04, PAINT.galv); if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.09));
       b.box(M.conc, lx, 2.7, fz + 0.75, 2.4, 0.14, 1.6, shade(0.6)); b.box(M.conc, lx, 0.08, fz + 0.75, 2.4, 0.16, 1.5, shade(0.55)); for (const s of [-1.1, 1.1]) b.cyl(M.metal, lx + s, 1.35, fz + 1.45, 0.035, 0.035, 2.7, 6, PAINT.dark);
       for (let k = 0; k < 8; k++) b.box(M.paint, lx - 1.05 + k * 0.3, 2.86, fz + 0.8, 0.3, 0.03, 1.72, k % 2 ? CRM : RED, 0.1);                 // полосатый козырёк
       b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
-      const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
+      const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home === true && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), plate(String(i + 1))); const pp = b.world(lx, 2.2, fz + 0.03); pm.position.copy(pp); pm.rotation.y = ry; group.add(pm);
       INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? (FINAL ? 'E — домой' : 'E — домофон, кв. 47') : 'E — домофон', act: () => dvDoor(isHome, open, id) });
       if (isHome) smell(K, pn.x, pn.z - 1.5, 'Из форточки первого этажа пахнет жареным луком.');
@@ -225,14 +225,84 @@ if (DVOR) {
     const day = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
     setTimeout(() => wakeUp(['Домофон пискнул. Дверь открылась.', 'На лестнице пахло жареным луком.', 'Часы показали 14:51.', 'Ты поднялся на свой этаж, открыл дверь —', '— и открыл глаза.', `Утро. ${day}. Будильник на семь.`, 'Ты проснулся.']), 1200); }
 
+  // ================= реальная планировка (по спутниковой карте) =================
+  function rails(K) { const { b, x0, x1 } = K; for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) { b.box(M.conc, (x0 + x1) / 2, 0.1, zt, x1 - x0, 0.2, 3.4, lin([0.3, 0.28, 0.26]));
+      for (const s2 of [-0.76, 0.76]) b.box(M.metal, (x0 + x1) / 2, 0.32, zt + s2, x1 - x0, 0.14, 0.07, lin([0.32, 0.22, 0.16]));
+      for (let x = x0 + 0.3; x < x1; x += 0.6) b.box(M.plank, x, 0.22, zt, 0.24, 0.12, 2.6, shade(0.32)); }
+    for (let x = Math.ceil(x0 / 48) * 48; x < x1; x += 48) { b.cyl(M.metal, x, 4.5, DV_RAIL - 9, 0.12, 0.1, 9, 8, shade(0.35)); b.box(M.metal, x, 8.4, DV_RAIL - 2, 0.1, 0.1, 14, shade(0.35)); }
+    for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) b.lines.push(new V3(x0, 7.6, zt), new V3(x1, 7.6, zt), new V3(x0, 8.3, zt), new V3(x1, 8.3, zt)); }
+  function wing(K, x, z, L, D, Hh, ry, fac) { const { b } = K; b.push(x, 0, z, ry); b.box(M.conc, 0, Hh / 2, 0, L, Hh, D, fac.userData.wc); b.box(M.conc, 0, Hh + 0.1, 0, L + 0.3, 0.2, D + 0.3, shade(0.4));
+    for (const s2 of [1, -1]) { const g = new THREE.PlaneGeometry(L, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * L, uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s2 > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s2 * (D / 2 + 0.02))); }
+    b.collide(0, 0, L / 2, D / 2); b.pop(); }
+  const DVB = [], DVI = [];   // прямоугольники зданий и предметы района
+  const bld = (x, z, hx, hz) => DVB.push([x, z, hx, hz]);
+  const item = (x, z, f) => DVI.push({ x, z, f });
+  const SEC = (x, z, len, ry, fac, addr, fl = 9, dep = 13) => { const ns = Math.abs(Math.sin(ry)) > 0.5; bld(x, z, ns ? dep / 2 + 1.5 : len / 2 + 0.5, ns ? len / 2 + 0.5 : dep / 2 + 1.5); item(x, z, (K) => panel(K, x, z, len, dep, fl, ry, fac, addr)); };
+  const E = -Math.PI / 2, Wd = Math.PI / 2, N = Math.PI, S = 0;   // куда смотрит фасад со входами
+  // --- район А: двор дома № 13 ---
+  const A13 = { st: 'Героев Тулы', n: 13 };
+  [-102.75, -62.25, -21.75].forEach((z) => SEC(46, z, 40.5, E, FAC[0], A13)); SEC(46, 18.75, 40.5, E, FAC[0], true);           // восточный дом — твой (вход с запада, во двор)
+  [-117, -71, -25].forEach((z) => SEC(-39, z, 46, Wd, FAC[1], { st: 'Героев Тулы', n: 11 }));                                    // западный дом
+  [-36, 12].forEach((x) => SEC(x, -146, 48, S, FAC[1], { st: 'Героев Тулы', n: 9 }));                                              // северный дом
+  [74, 114].forEach((z) => SEC(40, z, 40, E, FAC[0], { st: 'Героев Тулы', n: 15 }));                                              // юго-восточный
+  [-97, -57].forEach((z) => SEC(-100, z, 40, Wd, FAC[2], { st: 'Академика Бардина', n: 17 }));
+  [-112, -72].forEach((x) => SEC(x, 128, 40, N, FAC[3], { st: 'Академика Бардина', n: 19 }, 5, 11));
+  for (const z of [56, 96]) { bld(-80, z - 2, 21, 9); item(-80, z, (K) => kindergarten(K, -80, z, N)); }
+  item(-80, 37, (K) => { const { b } = K; b.push(-80, 0, 37, 0); profFence(b, -30, 30, 0, 0); b.collide(-16.5, 0, 13.5, 0.1); b.collide(16.5, 0, 13.5, 0.1); b.pop();
+    for (const sx of [-110, -50]) { b.push(sx, 0, 37, Math.PI / 2); profFence(b, -75, 0, 0, 0); b.collide(-37.5, 0, 37.5, 0.1); b.pop(); } });
+  bld(-58, 24, 10, 6); item(-58, 24, (K) => pavilion(K, -58, 24, N, 'p', true));
+  item(8, -60, (K) => playground(K, 0, -60, false)); item(20, -28, (K) => playground(K, 20, -28, false)); bld(0, -60, 8, 8); bld(20, -28, 8, 8);
+  item(-8, -6, (K) => { volga(K, -8, -6, 0.35); fallenPole(K, -1, -14, -0.6); }); bld(-8, -6, 3, 3); bld(-1, -14, 3.5, 1.5);
+  item(30, 4, (K) => trashSite(K, 30, 4, 0)); bld(30, 4, 3, 1.5);
+  item(96, -20, (K) => busStop(K, 96, -20, Wd, 'ул. Героев Тулы')); bld(96, -20, 3, 3);
+  item(12, -4, (K) => addCard(K, 12, -4, 'cdHome'));
+  for (const x of [-28, -22, -16]) item(x, 6.4, (K) => parked(K, x, 6.4, 0));
+  for (let x = -26; x <= 26; x += 3.4) for (const z of [-118.5, -99.5]) if (ihash(x * 10, z, 4) < 0.55) item(x, z, (K) => parked(K, x, z, Math.PI / 2));
+  for (let z = -84; z <= 24; z += 6) if (ihash(z, 3, 5) < 0.45) item(68.2, z, (K) => parked(K, 68.2, z, Math.PI / 2));
+  const poleRun = (pts, ax, az) => pts.forEach((p, i) => item(p[0], p[1], (K) => { lampPole(K, p[0], p[1], ax, az); const q = pts[i + 1]; if (q) wire(K.b, new V3(p[0], 6.2, p[1]), new V3(q[0], 6.2, q[1]), 0.6); }));
+  poleRun([-120, -96, -72, -48, -24, 0, 24].map((x) => [x, 15.6]), 0, -1); poleRun([-180, -156, -132, -108, -84, -60, -36, -12, 12, 36, 60, 84, 108, 132].map((z) => [68.4, z]), 1, 0);
+  poleRun([-130, -106, -82, -58, -34, -10, 14, 38, 62, 86].map((x) => [x, -199]), 0, 1); poleRun([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120].map((z) => [97, z]), 1, 0);
+  for (let x = -132; x < 96; x += 21) item(x + 6, -216, (K) => { const { b, r } = K; house(b, r, x + 6, -216, ((r() * 2) | 0) * Math.PI); for (let k = 0; k < 9; k++) b.box(M.plank, x + 0.5 + k * 2.2, 0.8, -204, 2.1, 1.6, 0.04, shade(0.4 + r() * 0.3)); }), bld(x + 6, -216, 6, 6);
+  // --- район Б: новая школа № 121, дома рядом, частный сектор, гаражи ---
+  bld(1008, -94, 52, 41); bld(938, -100, 13, 18);
+  item(1008, -64.5, (K) => { schoolBody(K, 1008, -64.5, S, SCHOOL2, 'ШКОЛА № 121', 100, 18)(); wing(K, 1008, -123.5, 100, 18, 11.9, N, SCHOOL2); });
+  item(967, -94, (K) => { wing(K, 967, -94, 41, 18, 11.9, E, SCHOOL2); wing(K, 938, -100, 34, 24, 9, E, SCHOOL); K.b.box(M.paint, 938, 9.1, -100, 24.4, 0.2, 34.4, shade(0.95)); });
+  item(1049, -94, (K) => wing(K, 1049, -94, 41, 18, 11.9, Wd, SCHOOL2));
+  item(1088, -110, (K) => { const { b } = K; b.box(M.paint, 1088, 0.03, -110, 46, 0.06, 62, lin([0.6, 0.24, 0.18])); for (const [x, z, sx, sz] of [[1088, -140.5, 44, 0.12], [1088, -79.5, 44, 0.12], [1066.5, -110, 0.12, 61], [1109.5, -110, 0.12, 61], [1088, -110, 44, 0.12]]) b.box(M.paint, x, 0.065, z, sx, 0.02, sz, shade(0.92));
+    const ring = new THREE.TorusGeometry(7, 0.08, 4, 40).rotateX(Math.PI / 2); b.add(M.paint, ring, new THREE.Matrix4().makeTranslation(1088, 0.07, -110), shade(0.92));
+    for (const z of [-140, -80]) { for (const s2 of [-3.7, 3.7]) b.cyl(M.metal, 1088 + s2, 1.2, z, 0.06, 0.06, 2.4, 8, shade(0.95)); b.box(M.metal, 1088, 2.4, z, 7.5, 0.1, 0.1, shade(0.95)); } });
+  item(980, -152, (K) => { const { b } = K; b.box(M.paint, 980, 0.03, -152, 24, 0.06, 33, lin([0.55, 0.22, 0.2])); b.box(M.paint, 980, 0.05, -152, 20, 0.06, 28, lin([0.2, 0.45, 0.48]));
+    for (const z of [-165, -139]) { b.cyl(M.metal, 980, 1.6, z, 0.07, 0.07, 3.2, 8, shade(0.3)); b.box(M.paint, 980, 3.2, z + Math.sign(-152 - z) * -0.2, 1.8, 1.1, 0.06, shade(0.95)); } });
+  item(1078, -60, (K) => { for (const x of [1066, 1080, 1094]) { K.b.box(paverMat, x, 0.04, -60, 12, 0.08, 12); K.b.add(M.paint, new THREE.CylinderGeometry(3, 3, 0.1, 24), new THREE.Matrix4().makeTranslation(x, 0.06, -60), lin([0.7, 0.55, 0.3])); } });
+  item(1008, -172, (K) => { const { b } = K; b.push(1008, 0, -172, 0); fenceRun(b, -83, 110, 0, lin([0.3, 0.3, 0.32])); b.collide(13.5, 0, 96.5, 0.1); b.pop(); b.push(1008, 0, -46, 0); fenceRun(b, -83, -3, 0, lin([0.3, 0.3, 0.32])); fenceRun(b, 3, 110, 0, lin([0.3, 0.3, 0.32])); b.collide(-43, 0, 40, 0.1); b.collide(56.5, 0, 53.5, 0.1); b.pop();
+    for (const x of [925, 1118]) { b.push(x, 0, -109, Math.PI / 2); fenceRun(b, -63, 63, 0, lin([0.3, 0.3, 0.32])); b.collide(0, 0, 63, 0.1); b.pop(); } });
+  const B12 = { st: 'Академика Бардина', n: 23 };
+  SEC(922, 16, 40, Wd, FAC[4], B12); SEC(994, 16, 40, E, FAC[4], B12); SEC(958, 32, 56, N, FAC[2], B12, 9, 12); SEC(1062, 12, 44, Wd, FAC[4], { st: 'Академика Бардина', n: 25 }); SEC(1104, 20, 36, E, FAC[2], { st: 'Академика Бардина', n: 25 });
+  item(958, 8, (K) => playground(K, 958, 6, false)); bld(958, 6, 8, 8);
+  for (let x = 1008; x <= 1042; x += 3.4) for (const z of [-26, 36]) if (ihash(x * 10, z, 6) < 0.6) item(x, z, (K) => parked(K, x, z, Math.PI / 2));
+  for (let x = 884; x < 1032; x += 22) for (const z of [70, 98, 124]) if (ihash(x, z, 7) < 0.8) { item(x + 9, z, (K) => { const { b, r } = K; house(b, r, x + 9, z, ((r() * 2) | 0) * Math.PI); for (let k = 0; k < 9; k++) b.box(M.plank, x + 0.5 + k * 2.2, 0.8, z - 9, 2.1, 1.6, 0.04, shade(0.4 + r() * 0.3)); if (r() < 0.6) shed(b, r, x + 17, z + 5, r() * 6); }); bld(x + 9, z, 7, 7); }
+  for (let x = 1050; x < 1140; x += 19) for (const z of [62, 78, 98, 114]) { item(x, z, (K) => garages(K.b, K.r, x, z, z % 2 ? 0 : Math.PI)); bld(x, z, 9, 3.5); }
+  poleRun([884, 908, 932, 956, 980, 1004, 1028, 1052, 1076, 1100, 1124].map((x) => [x, -35]), 0, -1);
+  const DIST = (cx, cz) => (cx >= -3 && cx <= 2 && cz >= -5 && cz <= 2) || (cx >= 18 && cx <= 23 && cz >= -5 && cz <= 2);
+  const dvBldg = (x, z, pad) => { for (const q of DVB) if (Math.abs(x - q[0]) < q[2] + pad && Math.abs(z - q[1]) < q[3] + pad) return true; return false; };
+  function dvDistrict(cx, cz) {
+    const K = kit(cx, cz, 0xa1b2), { r } = K; K.block = (x, z, rad) => dvBldg(x, z, rad);
+    for (const it of DVI) if (K.inb(it.x, it.z)) it.f(K);
+    const fr = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 0.5 + rad;
+    for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5)) K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm0', 'elm1', 'shrubY0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5); }
+    if (r() < 0.35) for (let t = 0; t < 8; t++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } }
+    for (let i = 0; i < 4; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (r() < 0.6 && fr(x, z, 0.3)) addNut(K, x, z, `md${cx},${cz},${i}`); }
+    return K.finish(); }
+
   // --- чанк: квартал 96×96, дороги по краям; каждый чанк — четверть квартала ---
   OUT_BUILD = (cx, cz) => {
+    if (DIST(cx, cz)) return dvDistrict(cx, cz);
     const K = kit(cx, cz, 0xd0e1), { b, r } = K; const bx = Math.floor((cx + 1) / 2), bz = Math.floor((cz + 1) / 2), ex = cx - 2 * bx === 0 ? 1 : -1, ez = cz - 2 * bz === 0 ? 1 : -1;
     const X0 = bx * 96, Z0 = bz * 96, W = (a, c) => [X0 + ex * a, Z0 + ez * c];
-    const home = cx === 0 && cz === 0, keyQ = cx === -4 && cz === 2, shopQ = cx === -1 && cz === 0, oldQ = cx === 2 && cz === -2, newQ = cx === 20 && cz === 0, stopQ = cx === 4 && cz === 0;
+    const home = false, keyQ = cx === -4 && cz === 2, shopQ = false, oldQ = cx === -5 && cz === -1, newQ = false, stopQ = cx === 4 && cz === 0;
     const h = ihash(bx * 2 + (ex > 0), bz * 2 + (ez > 0), 77); const mode = bx === 0 && bz === 0 ? true : ihash(bx, bz, 3) < 0.5; const along = home || shopQ || oldQ || newQ ? true : mode ? ez > 0 : ez < 0;
-    const sadQ = cx === 0 && cz === -1;
-    const type = home ? 'p9' : keyQ ? 'p5' : shopQ ? 'shop' : sadQ ? 'sad' : oldQ ? 'school' : newQ ? 'school2' : bx <= -11 ? 'waste' : bx <= -6 ? 'private' : h < 0.5 ? 'p9' : h < 0.72 ? 'p5' : h < 0.86 ? 'shop' : h < 0.93 ? 'sad' : 'school';
+    const sadQ = false;
+    const type = home ? 'p9' : keyQ ? 'p5' : cx === 2 || cz === 3 ? 'strip' : shopQ ? 'shop' : sadQ ? 'sad' : oldQ ? 'school' : newQ ? 'school2' : bx <= -11 ? 'waste' : bx <= -6 ? 'private' : h < 0.5 ? 'p9' : h < 0.72 ? 'p5' : h < 0.86 ? 'shop' : h < 0.93 ? 'sad' : 'school';
     const ryA = Math.atan2(0, -ez), ryB = Math.atan2(-ex, 0);
     if (type === 'p9' || type === 'p5') { const nine = type === 'p9', len = 40, dep = nine ? 12 : 11, fl = nine ? 9 : 5, fac = nine ? FAC[home ? 0 : [0, 1, 2, 4][(ihash(bx, bz, 17 + (ez > 0)) * 4) | 0]] : FAC[3];
       if (along) { const [x, z] = W(20, 29.5); panel(K, x, z, len, dep, fl, ryA, fac, home); K.block = (px, pz) => Math.abs(px - x) < len / 2 + 1 && Math.abs(pz - z) < dep / 2 + 2; }
@@ -245,7 +315,8 @@ if (DVOR) {
       K.block = (px, pz) => { const a = (px - X0) * ex, c = (pz - Z0) * ez; return a > 0 && a < 44 && c > 15 && c < 41; }; }
     else if (type === 'private') { for (const [a, c] of [[12, 13], [34, 14], [14, 34], [35, 33]]) if (r() < 0.8) { const [x, z] = W(a + r() * 3, c + r() * 3); K.take(x, z, 8); house(b, r, x, z, ((r() * 4) | 0) * Math.PI / 2); if (r() < 0.6) { const [sx, sz] = W(a + 8, c + 7); if (K.free(sx, sz, 3)) { K.take(sx, sz, 3); shed(b, r, sx, sz, r() * 6); } } }
       for (let a = 2; a < 40; a += 2.2) { const [x, z] = W(a, 24); b.box(M.plank, x, 0.75, z, 0.1, 1.5, 0.03, shade(0.45 + r() * 0.3)); } }
-    const fb = K.block; const freeY = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 2.6 + rad;
+    const fb = K.block; const freeY = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 0.5 + rad && Math.abs(z - DV_RAIL) > 11 + rad;
+    if (cz === 3) rails(K); if (cx === 2) for (let z = K.z0 + 12; z < K.z1; z += 24) { lampPole(K, DV_AVE - 11.5, z, 1, 0); lampPole(K, DV_AVE + 11.5, z, -1, 0); }
     // столбы вдоль улиц и провода «сажей через небо»
     const tops = []; for (const c of [12, 36]) { const [x, z] = W(c, 42.6); lampPole(K, x, z, 0, ez); tops.push(new V3(x, 6.2, z)); const [x2, z2] = W(42.6, c); lampPole(K, x2, z2, ex, 0); tops.push(new V3(x2, 6.2, z2)); }
     wire(b, tops[0], tops[2], 0.7); wire(b, tops[1], tops[3], 0.7); { const [x, z] = W(60, 42.6), [x2, z2] = W(42.6, 60); wire(b, tops[2], new V3(x, 6.2, z), 0.7); wire(b, tops[3], new V3(x2, 6.2, z2), 0.7); }
@@ -273,12 +344,13 @@ if (DVOR) {
   const DC = []; for (let i = 0; i < (MOBILE ? 3 : 4); i++) { let c; if (i === 0) { c = makePaz(); c.g.visible = true; c.len = 7.6; c.wheels = []; } else { c = makeCar(); scene.add(c.g); } DC.push(Object.assign(c, { s: 0, lane: 0, ax: 0, dir: 1, v: 10, passed: false, honk: 0 })); }
   function carSpawn(c, first) { c.ax = Math.random() < 0.5 ? 0 : 1; c.dir = Math.random() < 0.5 ? 1 : -1; c.v = 8 + Math.random() * 6; c.passed = false;
     const k = Math.round(((c.ax ? P.x : P.z) - 48) / 96) + ((Math.random() * 3) | 0) - 1, line = 48 + k * 96, along = c.ax ? P.z : P.x;
-    c.lane = c.ax ? line - c.dir * 1.9 : line + c.dir * 1.9; c.s = first ? along + (Math.random() - 0.5) * 300 : along - c.dir * (140 + Math.random() * 120); }
+    c.av = c.ax && Math.random() < 0.55 && Math.abs(P.x - DV_AVE) < 260; c.lane = c.av ? DV_AVE - c.dir * (Math.random() < 0.5 ? 2.5 : 7.5) : c.ax ? line - c.dir * 1.9 : line + c.dir * 1.9; c.s = first ? along + (Math.random() - 0.5) * 300 : along - c.dir * (140 + Math.random() * 120); }
   DC.forEach((c) => carSpawn(c, true));
   function carsUpdate(dt) {
     for (const c of DC) { c.s += c.dir * c.v * dt; const along = c.ax ? P.z : P.x, side = c.ax ? P.x : P.z; if (c.dir * (c.s - along) > 170 || Math.abs(side - c.lane) > 280) carSpawn(c, false);
       if (c.ax) { c.g.position.set(c.lane, 0, c.s); c.g.rotation.y = -c.dir * Math.PI / 2; } else { c.g.position.set(c.s, 0, c.lane); c.g.rotation.y = c.dir > 0 ? 0 : Math.PI; }
       for (const w of c.wheels) w.rotation.z -= c.v * dt / 0.32;
+      c.g.visible = c.av || !dvSup(c.g.position.x, c.g.position.z); if (!c.g.visible) continue;
       if (!started || dead) continue; const da = (along - c.s) * c.dir, dl = Math.abs(side - c.lane), d = Math.hypot(da, dl);
       if (da > -c.len / 2 - 0.3 && da < c.len / 2 + 0.5 && dl < 1.3 && P.y < 1.2) { die(); continue; }
       if (da > 4 && da < 30 && dl < 2.5 && c.honk <= 0) { horn(); c.honk = 6; } c.honk -= dt;

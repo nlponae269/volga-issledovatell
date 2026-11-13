@@ -45,9 +45,18 @@ const PATH_ON = ['tropa', 'vorota', 'lager', 'pole', 'elektrichka'].includes(WOR
 const ROAD_C = ROADW ? -35 : -100000, ROAD_HW = 5;   // трасса: z ∈ [-40,-30]
 const FENCE = 44;
 // «Дворы»: дороги по линиям x,z = 48 + 96k; расстояние до оси ближайшей дороги
-function dvRoadD(x, z) { const u = ((x - 48) % 96 + 96) % 96, v = ((z - 48) % 96 + 96) % 96; return Math.min(Math.min(u, 96 - u), Math.min(v, 96 - v)); }
-// внутриквартальный проезд: вдоль x, на 12 м южнее центра квартала
-function dvDriveD(x, z) { return Math.abs((((z - 48) % 96) + 96) % 96 - 36); }
+// Реальная планировка (по спутниковой карте): район А — двор дома № 13 на Героев Тулы, район Б — новая школа № 121.
+// Внутри этих прямоугольников сетки дорог нет; вместо неё — свои проезды. Проспект x = 110 и железная дорога z ≈ 162 — бесконечные.
+const DV_SUP = [[-140, 140, -236, 140], [868, 1148, -236, 44], [868, 1148, 52, 140]];
+const DV_DRV = [
+  [-140, 38, 8.8, 13.2], [-57.2, -52.8, -188, 11], [70.8, 75.2, -188, 140], [-140, 100, -196, -188], [-30, 30, -122, -96], [-140, -52.8, -2, 2.4],
+  [880, 1140, -42.2, -37.8], [1005, 1045, -30, 40], [878.8, 883.2, -236, 44], [1128.8, 1133.2, -236, 44], [868, 1148, 136, 140],
+];
+const DV_AVE = 110, DV_RAIL = 162;
+function dvSup(x, z) { for (const r of DV_SUP) if (x > r[0] && x < r[1] && z > r[2] && z < r[3]) return true; return false; }
+function dvRoadD(x, z) { let d = Math.abs(x - DV_AVE) - 6; if (!dvSup(x, z)) { const u = ((x - 48) % 96 + 96) % 96, v = ((z - 48) % 96 + 96) % 96; d = Math.min(d, Math.min(u, 96 - u), Math.min(v, 96 - v)); } return d; }
+// проезды: внутриквартальный (вдоль x, на 12 м южнее центра квартала) и свои в районах А/Б; 0 — на проезде
+function dvDriveD(x, z) { let d = dvSup(x, z) ? 99 : Math.abs((((z - 48) % 96) + 96) % 96 - 36) - 2.2; for (const r of DV_DRV) d = Math.min(d, Math.hypot(Math.max(r[0] - x, 0, x - r[1]), Math.max(r[2] - z, 0, z - r[3]))); return d; }   // 0 — на проезде
 let SPAWN = null;
 // Far Lands: геометрия мира хранится в 32-битных числах; после 16 777 216 м в них не остаётся места даже для целых метров.
 // Это и есть край мира: дальше чанки не создаются. Режим просто переносит игрока к самому краю.
@@ -92,7 +101,12 @@ float bedM(vec2 p){
   if (mod(lz-1.5, 2.2) > 1.3) return 0.0;
   if (abs(p.y-pathC(p.x))<4.0 || abs(p.y)>${(FENCE - 3).toFixed(1)}) return 0.0;
   return 1.0;` : 'return 0.0;'}
-}`;
+}` + (DVOR ? `
+bool dvSup(vec2 p){ return ${DV_SUP.map((r) => `(p.x>${r[0].toFixed(1)}&&p.x<${r[1].toFixed(1)}&&p.y>${r[2].toFixed(1)}&&p.y<${r[3].toFixed(1)})`).join(' || ')}; }
+float dvGridD(vec2 p){ float ux = mod(p.x - 48.0, 96.0), uz = mod(p.y - 48.0, 96.0); float g = dvSup(p) ? 99.0 : min(min(ux, 96.0 - ux), min(uz, 96.0 - uz)); return min(g, abs(p.x - ${DV_AVE.toFixed(1)}) - 6.0); }
+float dvDrv(vec2 p){ float d = dvSup(p) ? 0.0 : 1.0 - smoothstep(2.1, 2.3, abs(mod(p.y - 48.0, 96.0) - 36.0));
+  ${DV_DRV.map((r) => `d = max(d, (1.0 - smoothstep(0.0, 0.2, max(${r[0].toFixed(1)} - p.x, p.x - ${r[1].toFixed(1)}))) * (1.0 - smoothstep(0.0, 0.2, max(${r[2].toFixed(1)} - p.y, p.y - ${r[3].toFixed(1)}))));`).join('\n  ')}
+  return d; }` : '');
 
 // ---------------- текстуры ----------------
 function mkCanvas(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h); return c; }
