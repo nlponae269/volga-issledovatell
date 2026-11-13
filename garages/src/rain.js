@@ -2,13 +2,13 @@
 import * as THREE from 'three';
 import * as L from './layout.js';
 
-const N = 2000, BOX = 26, TOP = 9, ROOF_Y = L.WallH + 0.18;
+const N = 450, BOX = 26, TOP = 9, ROOF_Y = L.WallH + 0.18;
 export class Rain {
   constructor(root) {
     this.pos = new Float32Array(N * 3); this.vel = new Float32Array(N * 3);
     this.geo = new THREE.BufferGeometry(); this.attr = new THREE.BufferAttribute(new Float32Array(N * 6), 3); this.attr.setUsage(THREE.DynamicDrawUsage);
     this.geo.setAttribute('position', this.attr);
-    this.mat = new THREE.LineBasicMaterial({ color: new THREE.Color().setRGB(.75, .8, .9, THREE.SRGBColorSpace), transparent: true, opacity: .2, depthWrite: false });
+    this.mat = new THREE.LineBasicMaterial({ color: new THREE.Color().setRGB(.75, .8, .9, THREE.SRGBColorSpace), transparent: true, opacity: .08, depthWrite: false });
     this.mesh = new THREE.LineSegments(this.geo, this.mat); this.mesh.frustumCulled = false; root.add(this.mesh);
     this.first = true;
   }

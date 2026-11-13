@@ -39,7 +39,7 @@ export class Player {
   update(dt) {
     let mx = this.controlsEnabled ? this.moveInput.x : 0, my = this.controlsEnabled ? this.moveInput.y : 0;
     const ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
-    if (this.controlsEnabled) { this.yaw += this.lookDelta.x; this.pitch = Math.min(80, Math.max(-80, this.pitch - this.lookDelta.y)); }
+    if (this.controlsEnabled) { this.yaw += this.lookDelta.x; this.pitch = Math.min(80, Math.max(-80, this.pitch + this.lookDelta.y));   // вверх — вверх, вниз — вниз }
     this.lookDelta.x = this.lookDelta.y = 0;
     const mag = Math.hypot(mx, my);
     const wantRun = this.runHeld && my > 0.2 && !this.exhausted;
