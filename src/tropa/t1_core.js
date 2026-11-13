@@ -39,7 +39,7 @@ const METRO = WORLD === 'metro', TRAIN = WORLD === 'elektrichka', STROY = WORLD 
 const DVOR = WORLD === 'dvory', ZIMA = WORLD === 'zima';
 const SNOW = ZIMA;
 const NIGHT = WORLD === 'lager', BEACH = WORLD === 'plyazh', FIELD = WORLD === 'pole', BUS = WORLD === 'ostanovka';
-const KV = WORLD === 'kvartira', GAR = WORLD === 'garazhi';
+const KV = WORLD === 'kvartira', GAR = false;
 const INDOOR = GRID || PODEZD || METRO || KV;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
 const DARK = INDOOR || NIGHT || SNOW;
 const ROADW = WORLD === 'tropa' || BUS;

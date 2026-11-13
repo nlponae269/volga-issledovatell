@@ -1,6 +1,6 @@
 // ===================== Сон: переходы между мирами, ключи, концовка =====================
-const WORLD_LIST = ['dvory', 'garazhi', 'tishina', 'tropa', 'vorota', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'];
-const WORLD_NAMES = { kvartira: 'Квартира', garazhi: 'Гаражи', dvory: 'Дворы', tishina: 'Тишина', tropa: 'Тропа', vorota: 'Ворота', dom: 'Дом', podezd: 'Подъезд', ostanovka: 'Остановка', shkola: 'Школа', bolnica: 'Поликлиника', metro: 'Метро', magazin: 'Универсам', plyazh: 'Пляж', lager: 'Пионерлагерь', pole: 'Поле', elektrichka: 'Электричка', stroyka: 'Стройка', zima: 'Аномальная зима' };
+const WORLD_LIST = ['dvory', 'tishina', 'tropa', 'vorota', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'];
+const WORLD_NAMES = { kvartira: 'Квартира', garages: 'Гаражи', dvory: 'Дворы', tishina: 'Тишина', tropa: 'Тропа', vorota: 'Ворота', dom: 'Дом', podezd: 'Подъезд', ostanovka: 'Остановка', shkola: 'Школа', bolnica: 'Поликлиника', metro: 'Метро', magazin: 'Универсам', plyazh: 'Пляж', lager: 'Пионерлагерь', pole: 'Поле', elektrichka: 'Электричка', stroyka: 'Стройка', zima: 'Аномальная зима' };
 const KEY_WORLDS = WORLD_LIST.filter((w) => w !== 'vorota');
 const INTER = [];
 function goWorld(id, text) {

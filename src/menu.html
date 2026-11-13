@@ -52,7 +52,7 @@ const WORLDS = [
   { id: 'vorota', name: 'ВОРОТА', desc: 'Дачный участок без конца. Найди ворота. Яблоки, груши, малина.', stat: () => { try { const f = JSON.parse(ls('vorota_fruit') || '{}'); const s = (f.apple || 0) + (f.pear || 0) + (f.plum || 0); return s || f.rasp ? `🍎 ${s} · малина ${f.rasp || 0}` : ''; } catch (e) { return ''; } } },
   { id: 'dom', name: 'ДОМ', desc: 'Тёмный дом без выхода. Двери, лестницы, мусор. Выход — в окно.', stat: () => { const t = +ls('dom_trash') || 0; return t ? `🗑 ${t}` : ''; } },
   { id: 'podezd', name: 'ПОДЪЕЗД', desc: 'Лестница вверх и вниз без конца. Стучи в двери — не откроют.', stat: () => { const t = +ls('podezd_trash') || 0; return t ? `🗑 ${t}` : ''; } },
-  { id: 'garazhi', name: 'ГАРАЖИ', desc: 'Бесконечный гаражный кооператив в тумане. Радио из открытых ворот, папина «Волга».', stat: its('garazhi', '🔩') },
+  { id: 'garages', name: 'ГАРАЖИ', tag: 'ХОРРОР', url: 'garages/index.html', desc: 'Отдельная игра. Ночь, дождь, гаражный кооператив. Ты здесь не один — продержись как можно дольше.', stat: () => { const b = +ls('best') || 0; return b ? `⏱ ${Math.floor(b)} с` : ''; } },
   { id: 'zima', name: 'АНОМАЛЬНАЯ ЗИМА', desc: 'Метель, малиновое небо, фонари. Чужие следы куда-то ведут.', stat: its('zima', '🧤') },
   { id: 'ostanovka', name: 'ОСТАНОВКА', desc: 'Остановка с мозаикой каждые 300 м. ПАЗик увезёт — неизвестно куда.', stat: its('ostanovka', '🎫') },
   { id: 'shkola', name: 'ШКОЛА', desc: 'Коридоры, классы, «Наши отличники». Звонок звенит — никто не выходит.', stat: its('shkola', '🎒') },
@@ -64,8 +64,8 @@ const WORLDS = [
   { id: 'pole', name: 'ПОЛЕ', desc: 'Поле без края и одна ЛЭП. Будка трансформатора открыта.', stat: its('pole', '💠') },
   { id: 'elektrichka', name: 'ЭЛЕКТРИЧКА', desc: 'Бесконечный поезд. Каждая станция — другой мир.', stat: () => '' },
   { id: 'stroyka', name: 'СТРОЙКА', desc: 'Плиты, арматура, туман внизу. Упадёшь — проснёшься в подъезде.', stat: its('stroyka', '⛑') },
-].map((w) => Object.assign(w, { url: w.id + '.html' }));
-const KEYW = ['dvory', 'garazhi', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'].filter((w) => w !== 'vorota');
+].map((w) => Object.assign({ url: w.id + '.html' }, w));
+const KEYW = ['dvory', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima'].filter((w) => w !== 'vorota');
 function keysTxt() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} const n = KEYW.filter((w) => k.includes(w)).length; return ls('dream_done') ? 'ты проснулся · сон пройден' : `ключи от ворот: ${n} / ${KEYW.length}` + (n >= KEYW.length ? ' — ворота ждут' : ''); }
 function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 document.getElementById('keys').textContent = keysTxt();
