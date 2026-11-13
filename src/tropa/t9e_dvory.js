@@ -281,6 +281,7 @@ if (DVOR) {
   item(958, 8, (K) => playground(K, 958, 6, false)); bld(958, 6, 8, 8);
   for (let x = 1008; x <= 1042; x += 3.4) for (const z of [-26, 36]) if (ihash(x * 10, z, 6) < 0.6) item(x, z, (K) => parked(K, x, z, Math.PI / 2));
   for (let x = 884; x < 1032; x += 22) for (const z of [70, 98, 124]) if (ihash(x, z, 7) < 0.8) { item(x + 9, z, (K) => { const { b, r } = K; house(b, r, x + 9, z, ((r() * 2) | 0) * Math.PI); for (let k = 0; k < 9; k++) b.box(M.plank, x + 0.5 + k * 2.2, 0.8, z - 9, 2.1, 1.6, 0.04, shade(0.4 + r() * 0.3)); if (r() < 0.6) shed(b, r, x + 17, z + 5, r() * 6); }); bld(x + 9, z, 7, 7); }
+  item(1046, 70, (K) => INTER.push({ x: 1046, z: 70, r: 3, group: K.group, label: 'E — в гаражный кооператив', act: () => goWorld('garazhi', 'Ворота кооператива открыты. Сторожа нет.') }));
   for (let x = 1050; x < 1140; x += 19) for (const z of [62, 78, 98, 114]) { item(x, z, (K) => garages(K.b, K.r, x, z, z % 2 ? 0 : Math.PI)); bld(x, z, 9, 3.5); }
   poleRun([884, 908, 932, 956, 980, 1004, 1028, 1052, 1076, 1100, 1124].map((x) => [x, -35]), 0, -1);
   const DIST = (cx, cz) => (cx >= -3 && cx <= 2 && cz >= -5 && cz <= 2) || (cx >= 18 && cx <= 23 && cz >= -5 && cz <= 2);

@@ -39,7 +39,7 @@ const METRO = WORLD === 'metro', TRAIN = WORLD === 'elektrichka', STROY = WORLD 
 const DVOR = WORLD === 'dvory', ZIMA = WORLD === 'zima';
 const SNOW = ZIMA;
 const NIGHT = WORLD === 'lager', BEACH = WORLD === 'plyazh', FIELD = WORLD === 'pole', BUS = WORLD === 'ostanovka';
-const KV = WORLD === 'kvartira';
+const KV = WORLD === 'kvartira', GAR = WORLD === 'garazhi';
 const INDOOR = GRID || PODEZD || METRO || KV;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
 const DARK = INDOOR || NIGHT || SNOW;
 const ROADW = WORLD === 'tropa' || BUS;
@@ -78,7 +78,7 @@ function bedM(x, z) {
 }
 function pathC(x) { if (TRAIN) return 0; return 2.2 * Math.sin(x * 0.011) + 0.9 * Math.sin(x * 0.037 + 1.3); }
 function groundH(x, z) {
-  if (INDOOR || STROY || TRAIN || DVOR) return 0;
+  if (INDOOR || STROY || TRAIN || DVOR || GAR) return 0;
   if (BEACH) { const sh = -9 + 2.5 * Math.sin(x * 0.017) + 1.2 * Math.sin(x * 0.051 + 1.0); return 0.12 * Math.sin(x * 0.07 + z * 0.05) + 0.08 * Math.sin(x * 0.19 - z * 0.13) + Math.min(0, z - sh + 3) * 0.09 + Math.max(0, z - 20) * 0.02; }
   let h = 0.22 * Math.sin(x * 0.061 + z * 0.043) + 0.15 * Math.sin(x * 0.137 - z * 0.089 + 2.0) + 0.08 * Math.sin(x * 0.29 + z * 0.31);
   const dp = Math.abs(z - pathC(x)); const pf = smooth(1.4, 3.6, dp); h = h * pf - 0.05 * (1 - pf);
@@ -88,7 +88,7 @@ function groundH(x, z) {
 const GLSL_WORLD = `
 float pathC(float x){ ${TRAIN ? 'return 0.0;' : ''} return 2.2*sin(x*0.011)+0.9*sin(x*0.037+1.3); }
 float groundH(vec2 p){
-  ${INDOOR || STROY || TRAIN || DVOR ? 'return 0.0;' : ''}
+  ${INDOOR || STROY || TRAIN || DVOR || GAR ? 'return 0.0;' : ''}
   ${BEACH ? 'float sh = -9.0 + 2.5*sin(p.x*0.017) + 1.2*sin(p.x*0.051+1.0); return 0.12*sin(p.x*0.07+p.y*0.05) + 0.08*sin(p.x*0.19-p.y*0.13) + min(0.0, p.y-sh+3.0)*0.09 + max(0.0, p.y-20.0)*0.02;' : ''}
   float h=0.22*sin(p.x*0.061+p.y*0.043)+0.15*sin(p.x*0.137-p.y*0.089+2.0)+0.08*sin(p.x*0.29+p.y*0.31);
   float dp=abs(p.y-pathC(p.x)); float pf=smoothstep(1.4,3.6,dp); h=h*pf-0.05*(1.0-pf);

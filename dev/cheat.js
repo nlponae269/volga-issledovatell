@@ -10,7 +10,7 @@
   [bFly, bMinus, bPlus].forEach((b) => (b.style.cssText = css)); bSpd.style.cssText = css + ';cursor:default;min-width:44px;text-align:center';
   bMinus.textContent = '−'; bPlus.textContent = '+';
   const bKeys = document.createElement('button'); bKeys.style.cssText = css; bKeys.textContent = '🔑';  bKeys.title = 'все ключи от ворот';
-  bKeys.addEventListener('click', (e) => { e.stopPropagation(); const all = ['dvory', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima']; try { localStorage.setItem('dream_keys', JSON.stringify(all)); } catch (er) {} bKeys.textContent = '🔑✓'; });
+  bKeys.addEventListener('click', (e) => { e.stopPropagation(); const all = ['dvory', 'garazhi', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola', 'bolnica', 'metro', 'magazin', 'plyazh', 'lager', 'pole', 'elektrichka', 'stroyka', 'zima']; try { localStorage.setItem('dream_keys', JSON.stringify(all)); } catch (er) {} bKeys.textContent = '🔑✓'; });
   const up = document.createElement('button'), dn = document.createElement('button');
   for (const [b, t, k] of [[up, '⬆', 'up'], [dn, '⬇', 'down']]) { b.textContent = t; b.style.cssText = css + ';position:fixed;right:110px;width:58px;height:58px;font-size:24px;border-radius:50%;display:none;z-index:100'; b.style.bottom = k === 'up' ? '170px' : '100px';
     const on = (e) => { e.preventDefault(); e.stopPropagation(); C[k] = true; }, off = (e) => { e.preventDefault(); C[k] = false; };

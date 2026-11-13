@@ -984,5 +984,5 @@ boot();
   const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({ color: 0xd9b24c, metalness: 1, roughness: 0.25, emissive: 0x6a4400, emissiveIntensity: 1.5 });
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 8, 20), mat); ring.position.y = 0.3; const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 8), mat); shaft.position.y = 0.13; const bit = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.022, 0.016), mat); bit.position.set(0.03, 0.04, 0);
   g.add(ring, shaft, bit); const glow = new THREE.PointLight(0xffd080, 2.5, 6, 2); glow.position.y = 0.4; g.add(glow); g.position.set(kx, ky + 0.05, kz); scene.add(g);
-  const tick = setInterval(() => { g.rotation.y += 0.12; if (!started) return; if (Math.hypot(P.x - kx, P.z - kz) < 1.3) { clearInterval(tick); scene.remove(g); got.push('tishina'); try { localStorage.setItem('dream_keys', JSON.stringify(got)); } catch (e) {} toast(`Ключ от ворот: ${got.filter((w) => w !== 'vorota').length} / 16`); } }, 100);
+  const tick = setInterval(() => { g.rotation.y += 0.12; if (!started) return; if (Math.hypot(P.x - kx, P.z - kz) < 1.3) { clearInterval(tick); scene.remove(g); got.push('tishina'); try { localStorage.setItem('dream_keys', JSON.stringify(got)); } catch (e) {} toast(`Ключ от ворот: ${got.filter((w) => w !== 'vorota').length} / 17`); } }, 100);
 })();

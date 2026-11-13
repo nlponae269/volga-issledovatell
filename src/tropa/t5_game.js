@@ -278,7 +278,7 @@ function frame(now) {
   } else if (!started) { P.yaw += dt * 0.02; }
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: SPAWN ? SPAWN.x : 0, z: SPAWN ? SPAWN.z : 0, y: 0, vy: 0, yaw: SPAWN ? SPAWN.yaw : -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else if (DVOR && Math.random() < 0.6) dvAmbient(); else crow(); } }
+  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else if ((DVOR || GAR) && Math.random() < 0.6) dvAmbient(); else crow(); } }
   autoQuality(dt);
   houseUpdate(dt); metaUpdate(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);
