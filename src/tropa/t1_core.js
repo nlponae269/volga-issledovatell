@@ -10,7 +10,7 @@ if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass 
 if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }
 if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
-if (window.WORLD === 'dvory') { Q.grass = MOBILE ? 5000 : 16000; }
+if (window.WORLD === 'dvory') { Q.grass = MOBILE ? 4000 : 12000; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
@@ -46,6 +46,8 @@ const ROAD_C = ROADW ? -35 : -100000, ROAD_HW = 5;   // трасса: z ∈ [-40
 const FENCE = 44;
 // «Дворы»: дороги по линиям x,z = 48 + 96k; расстояние до оси ближайшей дороги
 function dvRoadD(x, z) { const u = ((x - 48) % 96 + 96) % 96, v = ((z - 48) % 96 + 96) % 96; return Math.min(Math.min(u, 96 - u), Math.min(v, 96 - v)); }
+// внутриквартальный проезд: вдоль x, на 12 м южнее центра квартала
+function dvDriveD(x, z) { return Math.abs((((z - 48) % 96) + 96) % 96 - 36); }
 let SPAWN = null;
 // Far Lands: геометрия мира хранится в 32-битных числах; после 16 777 216 м в них не остаётся места даже для целых метров.
 // Это и есть край мира: дальше чанки не создаются. Режим просто переносит игрока к самому краю.

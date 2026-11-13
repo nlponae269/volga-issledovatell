@@ -66,7 +66,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.017 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.008 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -97,6 +97,7 @@ const post = (() => {
       float T = exp(-od);
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
+      ${DVOR ? 'fogC = vec3(0.74,0.75,0.76) + vec3(-0.04,-0.035,-0.025)*(1.0-smoothstep(-0.1,0.3,rdir.y));' : ''}
       ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);
@@ -160,7 +161,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 ? 'asph' : 'grass'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 || dvDriveD(x, z) < 2.2 ? 'asph' : 'grass'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;

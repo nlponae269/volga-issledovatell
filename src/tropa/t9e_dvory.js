@@ -16,7 +16,7 @@ const DV_LORE = [
 ];
 const DV_GREET = ['«Продам гараж. Звонить после шести».', '«Пропал кот. Серый, отзывается на Ваську. Нашедшему — спасибо».', '«Уважаемые жильцы! 15 ноября отключение горячей воды».', '«Куплю волосы, часы, значки». Телефон оторван.', '«Не ставьте машины на газон!!!» — буквы поплыли от дождя.'];
 const DV_STREETS = ['Героев Тулы', 'Академика Бардина', 'Менжинского', 'Жолудева', 'Николая Отрады', 'Мясникова', 'Луговского', 'Клименко'];
-const DV_HOME = { x: 10, z: 23.5 };
+const DV_HOME = { x: 20 - 40 / 3, z: 23.5 };
 function dvLS(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 // звуки района: собака, трамвай с Тракторозаводской, скрип качелей, капли
 function dvAmbient() { if (!AC) return; const t = Math.random(), pan = Math.random() * 2 - 1;
@@ -43,8 +43,16 @@ if (DVOR) {
     g.fillStyle = o.plinth; g.fillRect(0, Y(o.base), W, o.base * my);
     g.strokeStyle = 'rgba(0,0,0,0.22)'; g.lineWidth = 2; for (let f = 0; f <= o.floors; f++) { g.beginPath(); g.moveTo(0, Y(o.base + f * o.fh)); g.lineTo(W, Y(o.base + f * o.fh)); g.stroke(); }
     const ACC = ['#2f6fb0', '#e08a2a', '#6aa84f', '#c94a3a'];
+    if (o.panel) { for (let x = 0; x < 36; x += 12) { g.fillStyle = (x / 12) % 2 ? 'rgba(255,255,255,0.12)' : 'rgba(120,90,40,0.06)'; g.fillRect(x * mx, 0, 12 * mx, Y(o.base)); }
+      g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 2; for (let x = 0; x <= 36; x += 3) { g.beginPath(); g.moveTo(x * mx, 0); g.lineTo(x * mx, Y(o.base)); g.stroke(); } }
     for (let f = 0; f < o.floors; f++) for (let c = 0; c < 36 / o.cw; c++) {
-      const tall = o.balc && c % 4 === 1, ww = o.ww * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - o.ww) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
+      if (o.balc && c % 4 === 1) { // лоджия: ниша на всю ячейку, остеклённая или открытая
+        const lx0 = c * o.cw * mx + 3, lw = o.cw * mx - 6, ly0 = Y(o.base + (f + 1) * o.fh) + 3, lh = o.fh * my - 6, glz = r() < 0.65;
+        g.fillStyle = '#3a3c3f'; g.fillRect(lx0, ly0, lw, lh); g.fillStyle = o.wall; g.fillRect(lx0, ly0 + lh * 0.55, lw, lh * 0.45); g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(lx0, ly0 + lh * 0.55, lw, 3);
+        if (glz) { const gr = g.createLinearGradient(lx0, ly0, lx0 + lw, ly0 + lh * 0.55); gr.addColorStop(0, '#9aa6b2'); gr.addColorStop(1, '#5c6874'); g.fillStyle = gr; g.fillRect(lx0 + 2, ly0 + 2, lw - 4, lh * 0.55 - 2); g.fillStyle = '#f0f0ec'; for (let k = 0; k <= 4; k++) g.fillRect(lx0 + k * (lw - 4) / 4, ly0, 4, lh * 0.55); g.fillRect(lx0, ly0, lw, 4); g.fillRect(lx0, ly0 + lh * 0.55 - 3, lw, 4); }
+        else if (r() < 0.5) for (let k = 0; k < 4; k++) { g.fillStyle = ['#c84a4a', '#4a7ac8', '#e8e0c8', '#3a9a5a', '#d8b040'][(r() * 5) | 0]; g.fillRect(lx0 + 6 + k * lw / 4.4, ly0 + 10, lw / 6, lh * 0.25); }
+        continue; }
+      const tall = false, ww = o.ww * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - o.ww) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
       if (o.accent && r() < 0.3) { g.fillStyle = ACC[(r() * 4) | 0]; g.fillRect(c * o.cw * mx + 2, Y(o.base + (f + 1) * o.fh) + 2, o.cw * mx - 4, o.fh * my - 4); }
       g.fillStyle = 'rgba(25,22,18,0.12)'; g.fillRect(x + ww * 0.2, y + wh, ww * 0.6, 14 + r() * 40);                          // потёк под подоконником
       const lit = r() < o.lit, t = r(), glow = t < 0.08 ? '#a8c0ff' : t < 0.3 ? '#ffe6c0' : t < 0.7 ? '#ffcf8a' : '#ffbe6a';
@@ -61,12 +69,14 @@ if (DVOR) {
     const mk = (c) => { const t = texFrom(c, true); t.repeat.set(1 / 36, 1 / 28); return t; };
     const m = std({ map: mk(cc), emissiveMap: mk(ec), emissive: 0xffffff, emissiveIntensity: o.ei || 1.3, roughness: 0.92 }); m.userData.wc = lin(hexc(parseInt(o.wall.slice(1), 16), 0.8)); return m;
   }
-  const FAC = [
-    facade(11, { wall: '#aeada6', plinth: '#63605b', frame: '#e6e4dc', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.13, balc: true, brick: true }),
-    facade(23, { wall: '#9d9c97', plinth: '#5a5752', frame: '#d8d6ce', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.16, balc: true, brick: true }),
-    facade(37, { wall: '#b5b0a2', plinth: '#625c52', frame: '#7a5a3a', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.11, balc: true, brick: true }),
-    facade(41, { wall: '#b9b4a8', plinth: '#5e574e', frame: '#e0dcd0', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.14, balc: false, brick: true }),
+  const FAC = [  // светлый силикатный кирпич (как дом № 13), кремовые панельки, пятиэтажка
+    facade(11, { wall: '#cdcac2', plinth: '#8a8278', frame: '#f4f4f0', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, brick: true }),
+    facade(23, { wall: '#c4c1b9', plinth: '#7e776e', frame: '#f2f2ee', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.12, balc: true, brick: true }),
+    facade(37, { wall: '#e0d6bd', plinth: '#8a8070', frame: '#f4f2ea', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
+    facade(41, { wall: '#c9c4b8', plinth: '#7a7268', frame: '#f0efe8', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.12, balc: true, brick: true }),
+    facade(47, { wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
   ];
+  const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const SCHOOL = facade(53, { wall: '#a8553c', plinth: '#6a6a66', frame: '#e8e4dc', base: 1.0, fh: 3.6, floors: 3, cw: 3, ww: 2.2, wh: 2.2, sill: 0.9, lit: 0.1, balc: false, brick: true, ei: 1.1 });
   const SCHOOL2 = facade(67, { wall: '#ecebe6', plinth: '#8a8d90', frame: '#3a4046', base: 0.8, fh: 3.6, floors: 3, cw: 3, ww: 2.5, wh: 2.1, sill: 0.9, lit: 0.3, balc: false, accent: true, ei: 1.0 });
   const lampOff = std({ color: 0x9a9a94, roughness: 0.5 });
@@ -97,6 +107,7 @@ if (DVOR) {
     for (const s of [-0.68, 0.68]) { b.cyl(M.metal, 2.46, 0.72, s, 0.11, 0.11, 0.05, 12, lin([0.9, 0.9, 0.85]), 0, Math.PI / 2); b.box(M.paint, -2.46, 0.72, s, 0.04, 0.14, 0.34, lin([0.5, 0.06, 0.05])); }
     for (const sx of [-1.5, 1.55]) for (const sz of [-0.82, 0.82]) { b.cyl(M.rubber, sx, 0.33, sz, 0.33, 0.33, 0.22, 12, null, Math.PI / 2); b.cyl(M.metal, sx, 0.33, sz * 1.14, 0.17, 0.17, 0.02, 10, ch, Math.PI / 2); }
     b.collide(0, 0, 2.5, 0.95); b.pop(); K.take(x, z, 2.8); }
+  function fallenPole(K, x, z, ry) { const { b } = K; b.push(x, 0, z, ry); b.cyl(M.conc, 0, 0.16, 0, 0.13, 0.18, 6.5, 10, shade(0.75), 0, Math.PI / 2); b.box(M.conc, -3.6, 0.12, 0.3, 1.6, 0.24, 0.9, shade(0.7), 0, 0.3, 0); b.box(M.conc, -2.9, 0.35, -0.1, 0.5, 0.5, 0.5, shade(0.65), 0, 0.5, 0.1); b.collide(0, 0, 3.3, 0.22); b.pop(); K.take(x, z, 3.5); }
   // детская площадка с облезлой краской: горка, качели-балансиры, качели, песочница, домик с цветной крышей
   function playground(K, x, z, bright) { const { b, r } = K; K.take(x, z, 8);
     b.push(x - 4, 0, z - 1, r() * 0.4); for (const sx of [-0.4, 0.4]) for (const sz of [-0.4, 0.4]) b.cyl(M.metal, sx, 0.8, sz, 0.04, 0.04, 1.6, 6, peel(RED, r));
@@ -128,9 +139,6 @@ if (DVOR) {
     // кондиционеры гроздьями
     for (const s of [1, -1]) { const ncl = 2 + ((r() * 3) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
       for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2); b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } }
-    // балконы со стороны двора
-    if (floors === 9) for (let c = 0; c < len / 3; c++) { const col = Math.floor((c * 3 + uo) / 3) % 12; if (col % 4 !== 1) continue; const lx = -len / 2 + c * 3 + 1.5; if (lx > len / 2 - 1) continue;
-      for (let f = 1; f < floors; f++) { const y = 1.6 + f * 2.8; b.box(M.conc, lx, y, dep / 2 + 0.55, 2.8, 0.14, 1.1, shade(0.7)); const gl = ((c * 7 + f * 3) % 5) < 3; b.box(M.conc, lx, y + 0.5, dep / 2 + 1.08, 2.8, 0.95, 0.06, shade(0.62 + r() * 0.2, [1, 0.98, 0.92])); if (gl) { b.box(M.glass, lx, y + 1.65, dep / 2 + 1.08, 2.8, 1.35, 0.04); b.box(M.paint, lx, y + 1.65, dep / 2 + 1.1, 0.05, 1.35, 0.03, shade(0.85)); } for (const s of [-1.4, 1.4]) b.box(M.conc, lx + s, y + 0.5, dep / 2 + 0.55, 0.06, 0.95, 1.1, shade(0.65)); } }
     // подъезды
     const n = Math.max(1, Math.round(len / 12)); const street = home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = 13;
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
@@ -167,6 +175,18 @@ if (DVOR) {
     const sm = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.9), sign(name, fac === SCHOOL2 ? '#2f6fb0' : '#e8e4d8', fac === SCHOOL2 ? '#ffffff' : '#1a3a7a')); const sp = b.world(0, 4.3, D / 2 + 0.04); sm.position.copy(sp); sm.rotation.y = ry; group.add(sm);
     const dp = b.world(0, 0, D / 2 + 1.4); INTER.push({ x: dp.x, z: dp.z, r: 1.8, group, label: 'E — войти в школу', act: () => goWorld('shkola', fac === SCHOOL2 ? 'Новая школа. Внутри пахнет краской и резиной. Коридоры те же.' : 'Дверь школы не заперта. Уроки давно кончились.') });
     return () => b.pop(); }
+  const paverMat = rep(std({ roughness: 0.8, map: texFrom(mkCanvas(256, 256, (g, w, h) => { const r = rng(83); g.fillStyle = '#6a625a'; g.fillRect(0, 0, w, h); for (let y = 0; y < 16; y++) for (let x = 0; x < 8; x++) { g.fillStyle = ['#b8a89a', '#a89688', '#c6b8a8', '#9a7a6a', '#b0a090'][(r() * 5) | 0]; g.fillRect(x * 32 + (y % 2) * 16 + 1, y * 16 + 1, 30, 14); } })) }), 2, 2);
+  function kindergarten(K, cx, cz, ry) { const { b, r } = K, L = 40, D = 12, Hh = 0.6 + 2 * 3.3 + 0.5, OR = lin([0.82, 0.42, 0.22]), WH = shade(0.92);
+    b.push(cx, 0, cz, ry); b.box(M.conc, 0, Hh / 2, 0, L, Hh, D, SAD.userData.wc); b.box(M.conc, 0, Hh + 0.1, 0, L + 0.4, 0.22, D + 0.4, shade(0.35));
+    for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(L, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * L, uv.getY(i) * Hh); b.add(SAD, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (D / 2 + 0.02))); }
+    b.collide(0, 0, L / 2, D / 2);
+    for (const sx of [-13, 0, 13]) { b.box(M.paint, sx, 3.4, D / 2 + 1.2, 3.2, 6.8, 2.4, OR); b.box(M.paint, sx - 1.0, 1.0, D / 2 + 3.0, 1.2, 2.0, 1.4, OR);   // оранжевые лестничные блоки
+      for (const q of [-0.5, 0.5]) b.pipe(M.metal, new V3(sx + 1.6 + q * 0.3, 0.2, D / 2 + 4.4), new V3(sx + 1.6 + q * 0.3, 3.6, D / 2 + 1.2), 0.05, WH); b.box(M.paint, sx + 1.6, 1.9, D / 2 + 2.8, 0.5, 0.1, 3.6, WH, Math.atan2(3.4, 3.2)); b.collide(sx, D / 2 + 2.2, 1.9, 2.2); }
+    // площадка с плиткой, газон-овал, веранды
+    b.box(paverMat, 0, 0.03, D / 2 + 5.7, L - 4, 0.06, 10); const lawn = new THREE.CylinderGeometry(1, 1, 0.08, 24); b.add(M.paint, lawn, new THREE.Matrix4().compose(new V3(-6, 0.06, D / 2 + 7.5), new THREE.Quaternion(), new V3(6.5, 1, 2.6)), lin([0.3, 0.42, 0.2]));
+    for (const [px, pc] of [[10, lin([0.55, 0.22, 0.2])], [-16, lin([0.42, 0.24, 0.18])], [3, lin([0.6, 0.6, 0.62])]]) { const pz = D / 2 + 6.5 + r() * 1.5; for (const dx of [-2, 2]) for (const dz of [-1.5, 1.5]) b.box(M.metal, px + dx, 1.2, pz + dz, 0.08, 2.4, 0.08, shade(0.3)); b.box(M.prof, px, 2.45, pz, 4.6, 0.06, 3.6, pc, 0.06); b.collide(px, pz, 2.3, 1.8); }
+    b.pop(); }
+  function profFence(b, x0, x1, z, gap) { for (let x = x0; x < x1 - 0.1; x += 2.5) { if (gap && Math.abs(x + 1.25 - gap) < 2) continue; b.box(M.prof, x + 1.25, 1.0, z, 2.45, 2.0, 0.04, lin([0.16, 0.36, 0.26])); b.box(M.metal, x, 1.05, z, 0.06, 2.1, 0.06, shade(0.25)); } }
   function fenceRun(b, x0, x1, z, c) { for (let x = x0; x < x1 - 0.1; x += 2.5) { b.box(M.metal, x, 0.8, z, 0.05, 1.6, 0.05, c); b.box(M.metal, x + 1.25, 1.5, z, 2.5, 0.04, 0.04, c); b.box(M.metal, x + 1.25, 0.3, z, 2.5, 0.04, 0.04, c); for (let k = 1; k < 8; k++) b.box(M.metal, x + 0.31 * k, 0.9, z, 0.02, 1.2, 0.02, c); } }
   function school(K, cx, cz, ry, num) { const end = schoolBody(K, cx, cz, ry, SCHOOL, `ШКОЛА № ${num}`, 36, 14), { b } = K; fenceRun(b, -21, 21, -12, GRN); fenceRun(b, -21, -3, 15, GRN); fenceRun(b, 3, 21, 15, GRN); b.collide(-12, 15, 9, 0.1); b.collide(12, 15, 9, 0.1); b.collide(0, -12, 21, 0.1); end(); }
   // новая школа № 121: светлые панели с цветными вставками и резиновый стадион
@@ -210,36 +230,39 @@ if (DVOR) {
     const K = kit(cx, cz, 0xd0e1), { b, r } = K; const bx = Math.floor((cx + 1) / 2), bz = Math.floor((cz + 1) / 2), ex = cx - 2 * bx === 0 ? 1 : -1, ez = cz - 2 * bz === 0 ? 1 : -1;
     const X0 = bx * 96, Z0 = bz * 96, W = (a, c) => [X0 + ex * a, Z0 + ez * c];
     const home = cx === 0 && cz === 0, keyQ = cx === -4 && cz === 2, shopQ = cx === -1 && cz === 0, oldQ = cx === 2 && cz === -2, newQ = cx === 20 && cz === 0, stopQ = cx === 4 && cz === 0;
-    const h = ihash(bx * 2 + (ex > 0), bz * 2 + (ez > 0), 77); const along = home || shopQ || oldQ || newQ ? true : ihash(bx, bz, 3) < 0.5 ? (ex * ez > 0) : (ex * ez < 0);
-    const type = home ? 'p9' : keyQ ? 'p5' : shopQ ? 'shop' : oldQ ? 'school' : newQ ? 'school2' : bx <= -11 ? 'waste' : bx <= -6 ? 'private' : h < 0.47 ? 'p9' : h < 0.75 ? 'p5' : h < 0.94 ? 'shop' : 'school';
+    const h = ihash(bx * 2 + (ex > 0), bz * 2 + (ez > 0), 77); const mode = bx === 0 && bz === 0 ? true : ihash(bx, bz, 3) < 0.5; const along = home || shopQ || oldQ || newQ ? true : mode ? ez > 0 : ez < 0;
+    const sadQ = cx === 0 && cz === -1;
+    const type = home ? 'p9' : keyQ ? 'p5' : shopQ ? 'shop' : sadQ ? 'sad' : oldQ ? 'school' : newQ ? 'school2' : bx <= -11 ? 'waste' : bx <= -6 ? 'private' : h < 0.5 ? 'p9' : h < 0.72 ? 'p5' : h < 0.86 ? 'shop' : h < 0.93 ? 'sad' : 'school';
     const ryA = Math.atan2(0, -ez), ryB = Math.atan2(-ex, 0);
-    if (type === 'p9' || type === 'p5') { const nine = type === 'p9', len = 36, dep = nine ? 12 : 11, fl = nine ? 9 : 5, fac = nine ? FAC[home ? 0 : (r() * 3) | 0] : FAC[3];
-      if (along) { const [x, z] = W(22, 29.5); panel(K, x, z, len, dep, fl, ryA, fac, home); K.block = (px, pz) => Math.abs(px - x) < len / 2 + 1 && Math.abs(pz - z) < dep / 2 + 2; }
-      else { const [x, z] = W(29.5, 22); panel(K, x, z, len, dep, fl, ryB, fac, false); K.block = (px, pz) => Math.abs(px - x) < dep / 2 + 2 && Math.abs(pz - z) < len / 2 + 1; } }
+    if (type === 'p9' || type === 'p5') { const nine = type === 'p9', len = 40, dep = nine ? 12 : 11, fl = nine ? 9 : 5, fac = nine ? FAC[home ? 0 : [0, 1, 2, 4][(ihash(bx, bz, 17 + (ez > 0)) * 4) | 0]] : FAC[3];
+      if (along) { const [x, z] = W(20, 29.5); panel(K, x, z, len, dep, fl, ryA, fac, home); K.block = (px, pz) => Math.abs(px - x) < len / 2 + 1 && Math.abs(pz - z) < dep / 2 + 2; }
+      else { const [x, z] = W(29.5, 20); panel(K, x, z, len, dep, fl, ryB, fac, false); K.block = (px, pz) => Math.abs(px - x) < dep / 2 + 2 && Math.abs(pz - z) < len / 2 + 1; } }
     else if (type === 'shop') { const kinds = ['5', 'm', '5', 'm', 'p', 'a', 'f']; const kind = shopQ ? 'p' : kinds[(r() * kinds.length) | 0];
       if (along) { const [x, z] = W(22, 33.5); pavilion(K, x, z, Math.atan2(0, ez), kind, shopQ); K.block = (px, pz) => Math.abs(px - x) < 16 && Math.abs(pz - z) < 11; }
       else { const [x, z] = W(33.5, 22); pavilion(K, x, z, Math.atan2(ex, 0), kind, false); K.block = (px, pz) => Math.abs(px - x) < 7.5 && Math.abs(pz - z) < 10; } }
     else if (type === 'school' || type === 'school2') { const [x, z] = W(22, type === 'school2' ? 31 : 24); if (type === 'school2') school2(K, x, z, Math.atan2(0, ez)); else school(K, x, z, Math.atan2(0, ez), oldQ ? 87 : 3 + ((r() * 80) | 0)); K.block = (px, pz) => { const a = (px - X0) * ex, c = (pz - Z0) * ez; return a > 0 && a < 44 && c > (type === 'school2' ? 1 : 11) && c < 41; }; }
+    else if (type === 'sad') { const [x, z] = W(22, 33); kindergarten(K, x, z, Math.atan2(0, -ez)); const { b: bb } = K; bb.push(X0, 0, Z0 + ez * 15.6, 0); profFence(bb, ex > 0 ? 1 : -44, ex > 0 ? 44 : -1, 0, ex * 30); bb.collide(ex * 22.5, 0, 21.5, 0.1); bb.pop();
+      K.block = (px, pz) => { const a = (px - X0) * ex, c = (pz - Z0) * ez; return a > 0 && a < 44 && c > 15 && c < 41; }; }
     else if (type === 'private') { for (const [a, c] of [[12, 13], [34, 14], [14, 34], [35, 33]]) if (r() < 0.8) { const [x, z] = W(a + r() * 3, c + r() * 3); K.take(x, z, 8); house(b, r, x, z, ((r() * 4) | 0) * Math.PI / 2); if (r() < 0.6) { const [sx, sz] = W(a + 8, c + 7); if (K.free(sx, sz, 3)) { K.take(sx, sz, 3); shed(b, r, sx, sz, r() * 6); } } }
       for (let a = 2; a < 40; a += 2.2) { const [x, z] = W(a, 24); b.box(M.plank, x, 0.75, z, 0.1, 1.5, 0.03, shade(0.45 + r() * 0.3)); } }
-    const fb = K.block; const freeY = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad;
+    const fb = K.block; const freeY = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 2.6 + rad;
     // столбы вдоль улиц и провода «сажей через небо»
     const tops = []; for (const c of [12, 36]) { const [x, z] = W(c, 42.6); lampPole(K, x, z, 0, ez); tops.push(new V3(x, 6.2, z)); const [x2, z2] = W(42.6, c); lampPole(K, x2, z2, ex, 0); tops.push(new V3(x2, 6.2, z2)); }
     wire(b, tops[0], tops[2], 0.7); wire(b, tops[1], tops[3], 0.7); { const [x, z] = W(60, 42.6), [x2, z2] = W(42.6, 60); wire(b, tops[2], new V3(x, 6.2, z), 0.7); wire(b, tops[3], new V3(x2, 6.2, z2), 0.7); }
-    if (type === 'p9' || type === 'p5') { const [x, z] = along ? W(22, 29.5) : W(29.5, 22); wire(b, tops[0], new V3(x, type === 'p9' ? 27 : 15.5, z), 1.2); }
+    if (type === 'p9' || type === 'p5') { const [x, z] = along ? W(20, 29.5) : W(29.5, 20); wire(b, tops[0], new V3(x, type === 'p9' ? 27 : 15.5, z), 1.2); }
     if (stopQ || (type !== 'school' && type !== 'school2' && ihash(cx, cz, 91) < 0.1)) { const [x, z] = W(14, 43.3); if (K.free(x, z, 3)) busStop(K, x, z, Math.atan2(0, ez), stopQ ? 'ул. Героев Тулы' : 'ул. ' + DV_STREETS[1 + ((r() * 7) | 0)]); }
-    if (home) { const [x, z] = W(31, 44.0); volga(K, x, z, 0); }
+    if (home) { const [x, z] = W(13, 9); volga(K, x, z, 0.35); const [px, pz] = W(19, 5); fallenPole(K, px, pz, -0.6); }
     // двор
-    if (type === 'p9' || type === 'p5' || type === 'shop') {
+    if (type === 'p9' || type === 'p5' || type === 'shop' || type === 'sad') {
       if (keyQ) playground(K, -189, 98, true);
-      else if (home) playground(K, 24, 9, false);
+      else if (home) playground(K, 30, 9, false);
       else if (r() < 0.5) { const [x, z] = W(16 + r() * 10, 9 + r() * 4); if (freeY(x, z, 8)) playground(K, x, z, false); }
       if (r() < 0.45) { const [x, z] = W(36 + r() * 3, 6 + r() * 6); if (freeY(x, z, 3.2)) trashSite(K, x, z, Math.atan2(-ex, 0)); }
       const nc = home ? 2 : (r() * 3) | 0; for (let i = 0; i < nc; i++) { const a = (home ? 27 : 9) + i * 5.2 + r() * 0.6, c = 19; const [x, z] = along ? W(a, c) : W(c, a); if (freeY(x, z, 2.2)) parked(K, x, z, along ? Math.PI / 2 : 0); }
       for (let i = 0; i < 2; i++) { const [x, z] = W(5 + r() * 34, 3 + r() * 14); if (freeY(x, z, 1.1)) bench(K, x, z, r() * 6.28); }
     }
     const nt = type === 'waste' ? 5 : type === 'private' ? 12 : 8;
-    for (let i = 0; i < nt; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1.2)) { if (K.plant(K.pick(['poplar0', 'poplar1', 'sticks0', 'sticks1', 'elm1', 'elm1', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5) && i === 0) smell(K, x, z, 'Пахнет мокрой землёй и тополиной гнилью.'); } }
+    for (let i = 0; i < nt; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1.2)) { if (K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm0', 'elm1', 'shrubY0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5) && i === 0) smell(K, x, z, 'Пахнет мокрой землёй и тополиной гнилью.'); } }
     if (type === 'waste') for (let i = 0; i < 3; i++) { const [x, z] = W(5 + r() * 36, 5 + r() * 36); if (freeY(x, z, 2)) b.box(M.conc, x, 0.15, z, 3, 0.3, 1.2, shade(0.6 + r() * 0.2), 0, r() * 3, (r() - 0.5) * 0.2); }
     // находки
     if (r() < 0.45 || home) { for (let t = 0; t < 8; t++) { const [x, z] = home ? W(13 + r() * 5, 14 + r() * 3) : W(4 + r() * 36, 3 + r() * 16); if (freeY(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } } }
