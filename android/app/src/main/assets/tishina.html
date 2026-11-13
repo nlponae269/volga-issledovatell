@@ -1875,21 +1875,7 @@ boot();
 /* --- меню --- */
 .mm header .sub,.mm header #far,.mm footer{opacity:0;animation:mRise .9s var(--out) forwards}
 .mm header .sub{animation-delay:.55s}.mm header #keys{animation-delay:.7s}.mm header #far{animation-delay:.85s}.mm footer{animation-delay:1.4s}
-.mm #row{perspective:900px}
-.mm .card{opacity:0;animation:mCard .9s var(--out) forwards;transition:transform .45s var(--spring),border-color .3s,box-shadow .45s,opacity .3s,filter .3s!important;will-change:transform}
-.mm .card .img{transition:transform 1.2s var(--out),filter .5s;transform-origin:center}
-.mm .card.sel .img,.mm .card:hover .img{transform:scale(1.07);filter:saturate(1.05)}
-.mm .card::before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);transform:translateX(-130%) skewX(-18deg)}
-.mm .card{position:relative}
-.mm .card.sel::before{animation:mShine 1.1s var(--out) .05s}
-.mm .card.sel{transform:translateY(-8px) scale(1.035)!important}
-.mm .card:active{transform:translateY(-3px) scale(.97)!important;transition-duration:.12s!important}
-.mm .card .tag{animation:mTag 2.6s ease-in-out infinite}
-.mm .card .name{transition:letter-spacing .5s var(--out),color .3s}
-.mm .card.sel .name{letter-spacing:.3em;color:#fff}
-.mm.leaving .card:not(.sel){opacity:.15!important;transform:scale(.92)!important;filter:blur(2px)}
-.mm.leaving .card.sel{transform:scale(1.12)!important;z-index:5}
-#mWipe{position:fixed;inset:0;background:#000;z-index:50;pointer-events:none;clip-path:circle(0 at 50% 50%);transition:clip-path .75s cubic-bezier(.7,0,.3,1)}
+.mm .card{animation:mCard .9s var(--out) backwards}
 /* --- заставка мира --- */
 .mw #start{transition:opacity .55s ease,transform .7s var(--out),filter .55s}
 .mw #start.mLeave{opacity:0;transform:scale(1.08);filter:blur(10px);pointer-events:none}
@@ -1906,7 +1892,7 @@ boot();
 .tb{transition:transform .2s var(--spring),background .2s,box-shadow .2s}
 .tb:active{background:#fff3!important;box-shadow:0 0 18px rgba(255,255,255,.35)}
 #knob{transition:transform .08s linear}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.mL,.mm .card,.mm header .sub,.mm footer,.mw #start p,.mw #start>div{opacity:1!important}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.mL,.mm header .sub,.mm footer,.mw #start p,.mw #start>div{opacity:1!important}}
 </style>
 <script>
 (() => {
@@ -1918,13 +1904,6 @@ boot();
     document.body.classList.add('mm'); letters($('header h1'), 0.1, 0.07);
     const cards = () => [...$('#row').children]; const go = () => cards().forEach((c, i) => { c.style.animationDelay = (0.35 + i * 0.06) + 's'; });
     go(); new MutationObserver(go).observe($('#row'), { childList: true });
-    const wipe = document.createElement('div'); wipe.id = 'mWipe'; document.body.appendChild(wipe);
-    // вход в мир: карточка увеличивается, остальные уходят, экран закрывается кругом из карточки
-    const fade = $('#fade'); if (fade) new MutationObserver(() => { if (fade.style.opacity === '1' && !document.body.classList.contains('leaving')) {
-      document.body.classList.add('leaving'); const s = $('.card.sel'), r = s ? s.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
-      wipe.style.transition = 'none'; wipe.style.clipPath = `circle(0 at ${r.left + r.width / 2}px ${r.top + r.height / 2}px)`; void wipe.offsetWidth;
-      wipe.style.transition = ''; wipe.style.clipPath = `circle(150% at ${r.left + r.width / 2}px ${r.top + r.height / 2}px)`; } }).observe(fade, { attributes: true, attributeFilter: ['style'] });
-    addEventListener('pageshow', () => { document.body.classList.remove('leaving'); wipe.style.clipPath = 'circle(0 at 50% 50%)'; });
     return; }
   if (!$('#start')) return;
   // ---------- заставка и интерфейс мира ----------

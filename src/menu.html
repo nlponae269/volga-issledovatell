@@ -33,8 +33,53 @@ h1{margin:0;font-weight:300;letter-spacing:.42em;font-size:clamp(26px,6.2vh,58px
 footer{text-align:center;color:rgba(255,255,255,.32);font-size:11px;letter-spacing:.08em;margin-top:clamp(4px,1.5vh,14px);padding:0 16px}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .7s}
 @media (max-height:430px){.card .desc{display:none}.card{width:clamp(150px,26vw,210px)}.card .body{padding:8px 10px 10px}}
+
+/* ===== градиентный дизайн меню ===== */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+:root{--c1:#d9b45a;--c2:#5a7ad9}
+#mesh{position:fixed;inset:-20%;pointer-events:none;opacity:.9;mix-blend-mode:screen;transition:opacity 1s}
+#mesh i{position:absolute;width:65vmax;height:65vmax;border-radius:50%;will-change:transform}
+#mesh i:nth-child(1){left:-5%;top:10%;background:radial-gradient(circle,var(--c1),transparent 62%);animation:blob1 18s ease-in-out infinite alternate}
+#mesh i:nth-child(2){right:-10%;top:-10%;background:radial-gradient(circle,var(--c2),transparent 62%);animation:blob2 22s ease-in-out infinite alternate}
+#mesh i:nth-child(3){left:30%;bottom:-25%;background:radial-gradient(circle,color-mix(in srgb,var(--c1) 50%,var(--c2)),transparent 60%);animation:blob3 26s ease-in-out infinite alternate}
+@keyframes blob1{to{transform:translate(25vw,10vh) scale(1.2)}}@keyframes blob2{to{transform:translate(-20vw,25vh) scale(.85)}}@keyframes blob3{to{transform:translate(-15vw,-20vh) scale(1.25)}}
+#bg,#bg2{filter:blur(18px) saturate(.9) brightness(.42)!important}
+.vig{background:radial-gradient(ellipse at center,transparent 30%,rgba(5,3,10,.85) 100%)!important}
+h1{background:linear-gradient(100deg,#fff 0%,var(--c1) 30%,#fff 50%,var(--c2) 70%,#fff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:title 7s linear infinite;filter:drop-shadow(0 4px 24px rgba(0,0,0,.7))}
+h1 .mL{background:inherit;-webkit-background-clip:text;background-clip:text}
+@keyframes title{to{background-position:-250% 0}}
+.sub#keys{background:linear-gradient(90deg,var(--c1),#fff,var(--c2));-webkit-background-clip:text;background-clip:text;color:transparent!important}
+#far{border-image:none!important;background:linear-gradient(#0008,#0008) padding-box,linear-gradient(90deg,var(--c1),var(--c2)) border-box!important;border:1px solid transparent!important;border-radius:20px!important}
+#row{perspective:1100px;padding-top:22px!important;padding-bottom:26px!important}
+.card{background:linear-gradient(160deg,color-mix(in srgb,var(--a1) 22%,transparent),rgba(10,10,14,.55) 45%,color-mix(in srgb,var(--a2) 28%,transparent))!important;border:0!important;border-radius:18px!important;overflow:visible!important;
+  transform:translateY(var(--ty,0)) scale(var(--s,1)) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.9,.25,1.2),box-shadow .5s,filter .4s,opacity .4s!important;box-shadow:0 10px 30px rgba(0,0,0,.45)!important}
+.card::after{content:"";position:absolute;inset:0;border-radius:18px;padding:1.5px;background:conic-gradient(from var(--ang),var(--a1),var(--a2),#fff8,var(--a1));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.35;transition:opacity .4s;animation:spin 6s linear infinite;pointer-events:none;z-index:4}
+@keyframes spin{to{--ang:360deg}}
+.card .img{border-radius:17px 17px 0 0;overflow:hidden}
+.card .img::after{background:linear-gradient(to bottom,transparent 35%,color-mix(in srgb,var(--a2) 35%,rgba(8,8,12,.9)))!important}
+.card .holo{position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:3;mix-blend-mode:overlay;opacity:0;transition:opacity .4s;
+  background:radial-gradient(circle at var(--mx,50%) var(--my,30%),rgba(255,255,255,.55),transparent 45%),linear-gradient(115deg,transparent 20%,var(--a1) 40%,var(--a2) 60%,transparent 80%);background-size:100% 100%,250% 250%;background-position:0 0,var(--mx,50%) var(--my,50%)}
+.card.sel{--ty:-12px;--s:1.06;box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 50px color-mix(in srgb,var(--a1) 45%,transparent)!important}
+.card.sel::after{opacity:1}.card.sel .holo,.card:hover .holo{opacity:.55}
+.card:hover{--ty:-8px}
+.card:active{--s:.96}
+.card .name{background:linear-gradient(90deg,#fff,var(--a1));-webkit-background-clip:text;background-clip:text;color:transparent!important}
+.card .stat{color:var(--a1)!important}
+.card .go{color:#fff!important;background:linear-gradient(90deg,var(--a1),var(--a2));padding:5px 10px;border-radius:12px;font-weight:700;text-shadow:0 1px 3px #0006;transform:translateY(6px);transition:opacity .3s,transform .4s cubic-bezier(.2,.9,.25,1.3)!important}
+.card.sel .go{transform:none}
+.card .tag{background:linear-gradient(90deg,var(--a1),var(--a2))!important;color:#fff!important;text-shadow:0 1px 2px #0007}
+/* переход в мир: картинка карточки раскрывается на весь экран */
+#zoom{position:fixed;z-index:60;border-radius:18px;overflow:hidden;background-size:cover;background-position:center;pointer-events:none;transition:all .85s cubic-bezier(.75,0,.2,1)}
+#zoom::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--a1),transparent 45%,var(--a2));mix-blend-mode:color;opacity:.85}
+#zoom::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 20%,#000 85%)}
+#zoom b{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%) scale(.6);opacity:0;text-align:center;z-index:2;font:300 clamp(30px,9vw,96px)/1 system-ui;letter-spacing:.35em;text-indent:.35em;
+  background:linear-gradient(90deg,#fff,var(--a1),#fff,var(--a2),#fff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;transition:all .9s cubic-bezier(.16,1,.3,1) .35s;animation:title 3s linear infinite}
+#zoom.full{inset:0!important;width:100%!important;height:100%!important;left:0!important;top:0!important;border-radius:0}
+#zoom.full b{opacity:1;transform:translateY(-50%) scale(1);letter-spacing:.2em}
+#zoom.dark{filter:brightness(0);transition:filter .5s ease-in}
+@media (prefers-reduced-motion:reduce){#mesh i,h1,.card::after{animation:none!important}}
 </style></head><body>
-<div id="bg"></div><div id="bg2"></div><div class="fog"></div><canvas id="grain"></canvas><div class="vig"></div>
+<div id="bg"></div><div id="bg2"></div><div id="mesh"><i></i><i></i><i></i></div><div class="fog"></div><canvas id="grain"></canvas><div class="vig"></div>
 <div id="wrap">
   <header><h1>ТИШИНА</h1><div class="sub">выбери, куда проснуться</div><div class="sub" id="keys" style="color:#d9b45a;margin-top:4px"></div><button id="far" style="margin-top:8px;background:none;border:1px solid #666;color:#aaa;font:600 11px system-ui;letter-spacing:2px;padding:6px 12px;border-radius:14px;cursor:pointer"></button></header>
   <div id="row"></div>
@@ -97,5 +142,21 @@ if (matchMedia('(pointer:coarse)').matches) document.querySelector('footer').tex
 const gc = document.getElementById('grain'), gx = gc.getContext('2d'); gc.width = 200; gc.height = 120; const im = gx.createImageData(200, 120);
 (function grain() { for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } gx.putImageData(im, 0, 0); setTimeout(() => requestAnimationFrame(grain), 70); })();
 addEventListener('pageshow', () => { document.getElementById('fade').style.opacity = 0; document.getElementById('keys').textContent = keysTxt(); [...row.children].forEach((c, k) => { c.querySelector('.stat').textContent = WORLDS[k].stat(); }); });
+
+const PAL = { dvory: ['#ff7a59', '#7b5cff'], kvartira: ['#ffb36b', '#6b8cff'], tishina: ['#e8a96d', '#3d8ab8'], tropa: ['#b9d4a0', '#5a7a9a'], vorota: ['#d8e05a', '#e0566b'], dom: ['#d88a3a', '#4a3a9a'], podezd: ['#3fd8e0', '#2a5ad8'], garages: ['#ff3b3b', '#8a1aff'],
+  zima: ['#ff4fc8', '#2be0e0'], ostanovka: ['#f0a030', '#3a6ad8'], shkola: ['#3a9ae8', '#e8c840'], bolnica: ['#5ae0c0', '#7ab0ff'], metro: ['#e8b84a', '#c82a3a'], magazin: ['#ff5a5a', '#ffd040'], plyazh: ['#4ac0f0', '#f0c890'], lager: ['#ff5040', '#4060c0'],
+  pole: ['#f8c840', '#4aa0f0'], elektrichka: ['#4ae070', '#4ab0e0'], stroyka: ['#ff8a20', '#8a9aa8'] };
+const pal = (id) => PAL[id] || ['#d9b45a', '#5a7ad9'];
+[...row.children].forEach((c, i) => { const [a1, a2] = pal(WORLDS[i].id); c.style.setProperty('--a1', a1); c.style.setProperty('--a2', a2); const h = document.createElement('div'); h.className = 'holo'; c.appendChild(h);
+  c.addEventListener('pointermove', (e) => { const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; c.style.setProperty('--ry', ((x - 0.5) * 14) + 'deg'); c.style.setProperty('--rx', ((0.5 - y) * 12) + 'deg'); c.style.setProperty('--mx', x * 100 + '%'); c.style.setProperty('--my', y * 100 + '%'); });
+  c.addEventListener('pointerleave', () => { c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); }); });
+const _sel = select; select = function (i, sc) { _sel(i, sc); const [a1, a2] = pal(WORLDS[i].id); document.documentElement.style.setProperty('--c1', a1); document.documentElement.style.setProperty('--c2', a2); };
+enter = function (i) { const w = WORLDS[i]; try { localStorage.setItem('menu_last', w.id); } catch (e) {} if (document.getElementById('zoom')) return;
+  const c = row.children[i], r = c.getBoundingClientRect(), z = document.createElement('div'); z.id = 'zoom'; const [a1, a2] = pal(w.id); z.style.setProperty('--a1', a1); z.style.setProperty('--a2', a2);
+  z.style.cssText += `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;background:${IMG[w.id] ? `url(${IMG[w.id]}) center/cover,` : ''}linear-gradient(135deg,${a1},#111 50%,${a2})`; z.innerHTML = `<b>${w.name}</b>`; document.body.appendChild(z);
+  c.style.opacity = 0; requestAnimationFrame(() => requestAnimationFrame(() => z.classList.add('full')));
+  setTimeout(() => z.classList.add('dark'), 1350); setTimeout(() => { location.href = w.url; }, 1800); };
+addEventListener('pageshow', () => { const z = document.getElementById('zoom'); if (z) z.remove(); [...row.children].forEach((c) => (c.style.opacity = '')); });
+select(sel, false);
 </script>
 </body></html>
