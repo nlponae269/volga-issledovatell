@@ -130,4 +130,90 @@ const gc = document.getElementById('grain'), gx = gc.getContext('2d'); gc.width 
 (function grain() { for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } gx.putImageData(im, 0, 0); setTimeout(() => requestAnimationFrame(grain), 70); })();
 addEventListener('pageshow', () => { document.getElementById('fade').style.opacity = 0; document.getElementById('keys').textContent = keysTxt(); [...row.children].forEach((c, k) => { c.querySelector('.stat').textContent = WORLDS[k].stat(); }); });
 </script>
+<style>
+/* ===== Motion design: общий слой анимаций интерфейса (меню, заставки миров, HUD, подсказки) ===== */
+:root{--spring:cubic-bezier(.2,.9,.25,1.25);--out:cubic-bezier(.16,1,.3,1)}
+@keyframes mLetter{from{opacity:0;transform:translateY(.45em) scale(.9);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mRise{from{opacity:0;transform:translateY(18px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mPop{0%{opacity:0;transform:scale(.8)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes mCard{from{opacity:0;transform:translateY(40px) rotateX(18deg) scale(.94)}to{opacity:1;transform:none}}
+@keyframes mShine{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(230%) skewX(-18deg)}}
+@keyframes mToast{0%{transform:translate(-50%,-50%) scale(.9);filter:blur(6px);letter-spacing:.12em}60%{transform:translate(-50%,-50%) scale(1.03);filter:none}100%{transform:translate(-50%,-50%) scale(1);letter-spacing:normal}}
+@keyframes mPrompt{from{transform:translate(-50%,10px);opacity:.2}to{transform:translateX(-50%);opacity:1}}
+@keyframes mBump{0%{transform:scale(1)}35%{transform:scale(1.45);color:#ffd35a;text-shadow:0 0 12px rgba(255,211,90,.8)}100%{transform:scale(1)}}
+@keyframes mPaper{0%{opacity:0;transform:perspective(700px) rotateX(-75deg) translateY(-30px) scale(.9)}65%{opacity:1;transform:perspective(700px) rotateX(8deg) rotate(-1deg)}100%{transform:perspective(700px) rotateX(0) rotate(-1deg)}}
+@keyframes mFadeText{from{opacity:0;letter-spacing:.35em;filter:blur(6px)}to{opacity:1;letter-spacing:normal;filter:none}}
+@keyframes mBreath{0%,100%{opacity:.85}50%{opacity:1}}
+@keyframes mTag{0%,100%{box-shadow:0 0 0 0 rgba(201,164,58,.0)}50%{box-shadow:0 0 0 4px rgba(201,164,58,.25)}}
+.mL{display:inline-block;opacity:0;animation:mLetter .9s var(--out) forwards;white-space:pre}
+/* --- меню --- */
+.mm header .sub,.mm header #far,.mm footer{opacity:0;animation:mRise .9s var(--out) forwards}
+.mm header .sub{animation-delay:.55s}.mm header #keys{animation-delay:.7s}.mm header #far{animation-delay:.85s}.mm footer{animation-delay:1.4s}
+.mm #row{perspective:900px}
+.mm .card{opacity:0;animation:mCard .9s var(--out) forwards;transition:transform .45s var(--spring),border-color .3s,box-shadow .45s,opacity .3s,filter .3s!important;will-change:transform}
+.mm .card .img{transition:transform 1.2s var(--out),filter .5s;transform-origin:center}
+.mm .card.sel .img,.mm .card:hover .img{transform:scale(1.07);filter:saturate(1.05)}
+.mm .card::before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);transform:translateX(-130%) skewX(-18deg)}
+.mm .card{position:relative}
+.mm .card.sel::before{animation:mShine 1.1s var(--out) .05s}
+.mm .card.sel{transform:translateY(-8px) scale(1.035)!important}
+.mm .card:active{transform:translateY(-3px) scale(.97)!important;transition-duration:.12s!important}
+.mm .card .tag{animation:mTag 2.6s ease-in-out infinite}
+.mm .card .name{transition:letter-spacing .5s var(--out),color .3s}
+.mm .card.sel .name{letter-spacing:.3em;color:#fff}
+.mm.leaving .card:not(.sel){opacity:.15!important;transform:scale(.92)!important;filter:blur(2px)}
+.mm.leaving .card.sel{transform:scale(1.12)!important;z-index:5}
+#mWipe{position:fixed;inset:0;background:#000;z-index:50;pointer-events:none;clip-path:circle(0 at 50% 50%);transition:clip-path .75s cubic-bezier(.7,0,.3,1)}
+/* --- заставка мира --- */
+.mw #start{transition:opacity .55s ease,transform .7s var(--out),filter .55s}
+.mw #start.mLeave{opacity:0;transform:scale(1.08);filter:blur(10px);pointer-events:none}
+.mw #start p,.mw #start>div{opacity:0;animation:mRise .9s var(--out) forwards}
+.mw #start .b{animation:mPop .7s var(--spring) both;transition:transform .25s var(--spring),box-shadow .3s,background .3s}
+.mw #start .b:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 24px rgba(201,164,58,.35)}
+.mw #start .b:active,.tb:active,#toggle:active{transform:scale(.9)!important;transition-duration:.08s}
+.mw #start .b:disabled{animation:mPop .7s var(--spring) both,mBreath 1.4s ease-in-out infinite}
+.mw #toast.mT{animation:mToast .55s var(--spring)}
+.mw #prompt.mP{animation:mPrompt .35s var(--out)}
+.mw #hud span.mB{display:inline-block;animation:mBump .5s var(--spring)}
+.mw #note[style*="flex"] p{animation:mPaper .7s var(--out)}
+.mw #fade>*{animation:mFadeText 1.2s var(--out)}
+.tb{transition:transform .2s var(--spring),background .2s,box-shadow .2s}
+.tb:active{background:#fff3!important;box-shadow:0 0 18px rgba(255,255,255,.35)}
+#knob{transition:transform .08s linear}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.mL,.mm .card,.mm header .sub,.mm footer,.mw #start p,.mw #start>div{opacity:1!important}}
+</style>
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches, $ = (s) => document.querySelector(s);
+  // заголовок по буквам
+  const letters = (el, d0, step) => { if (!el || reduce) return; const t = el.textContent; el.textContent = ''; [...t].forEach((ch, i) => { const s = document.createElement('span'); s.className = 'mL'; s.textContent = ch; s.style.animationDelay = (d0 + i * step) + 's'; el.appendChild(s); }); };
+  const restart = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+  if ($('#row')) { // ---------- меню ----------
+    document.body.classList.add('mm'); letters($('header h1'), 0.1, 0.07);
+    const cards = () => [...$('#row').children]; const go = () => cards().forEach((c, i) => { c.style.animationDelay = (0.35 + i * 0.06) + 's'; });
+    go(); new MutationObserver(go).observe($('#row'), { childList: true });
+    const wipe = document.createElement('div'); wipe.id = 'mWipe'; document.body.appendChild(wipe);
+    // вход в мир: карточка увеличивается, остальные уходят, экран закрывается кругом из карточки
+    const fade = $('#fade'); if (fade) new MutationObserver(() => { if (fade.style.opacity === '1' && !document.body.classList.contains('leaving')) {
+      document.body.classList.add('leaving'); const s = $('.card.sel'), r = s ? s.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
+      wipe.style.transition = 'none'; wipe.style.clipPath = `circle(0 at ${r.left + r.width / 2}px ${r.top + r.height / 2}px)`; void wipe.offsetWidth;
+      wipe.style.transition = ''; wipe.style.clipPath = `circle(150% at ${r.left + r.width / 2}px ${r.top + r.height / 2}px)`; } }).observe(fade, { attributes: true, attributeFilter: ['style'] });
+    addEventListener('pageshow', () => { document.body.classList.remove('leaving'); wipe.style.clipPath = 'circle(0 at 50% 50%)'; });
+    return; }
+  if (!$('#start')) return;
+  // ---------- заставка и интерфейс мира ----------
+  document.body.classList.add('mw'); const st = $('#start');
+  letters(st.querySelector('h1'), 0.15, 0.08);
+  [...st.querySelectorAll('p, :scope > div')].forEach((el, i) => { el.style.animationDelay = (0.5 + i * 0.12) + 's'; });
+  // старт: заставка растворяется вместо мгновенного исчезновения
+  let busy = false; const mo = new MutationObserver(() => { if (busy) return; const hidden = st.style.display === 'none';
+    if (hidden && !st.classList.contains('mLeave')) { busy = true; st.style.display = ''; st.classList.add('mLeave'); setTimeout(() => { st.style.display = 'none'; busy = false; }, 600); }
+    else if (!hidden && st.classList.contains('mLeave') && st.style.display !== '') { st.classList.remove('mLeave'); } });
+  mo.observe(st, { attributes: true, attributeFilter: ['style'] });
+  const obs = (sel, fn, opt) => { const el = $(sel); if (el) new MutationObserver(() => fn(el)).observe(el, opt); };
+  obs('#toast', (el) => { if (!reduce) restart(el, 'mT'); }, { childList: true, characterData: true, subtree: true });
+  let lastP = ''; obs('#prompt', (el) => { if (el.textContent && el.textContent !== lastP && !reduce) restart(el, 'mP'); lastP = el.textContent; }, { childList: true, characterData: true, subtree: true });
+  const hud = $('#hud'); if (hud) new MutationObserver((ms) => { if (reduce) return; for (const m of ms) { const sp = m.target.nodeType === 3 ? m.target.parentElement : m.target; if (sp && sp.tagName === 'SPAN' && sp.id !== 'f_clock') restart(sp, 'mB'); } }).observe(hud, { childList: true, characterData: true, subtree: true });
+})();
+</script>
 </body></html>
