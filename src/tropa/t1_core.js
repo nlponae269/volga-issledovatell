@@ -10,7 +10,7 @@ if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass 
 if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }
 if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
-if (window.WORLD === 'dvory') { Q.grass = 16; }
+if (window.WORLD === 'dvory') { Q.grass = MOBILE ? 5000 : 16000; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
@@ -36,7 +36,7 @@ const PODEZD = WORLD === 'podezd';
 const GRID = ['dom', 'shkola', 'bolnica', 'magazin'].includes(WORLD);   // мир-сетка комнат
 const METRO = WORLD === 'metro', TRAIN = WORLD === 'elektrichka', STROY = WORLD === 'stroyka';
 const DVOR = WORLD === 'dvory', ZIMA = WORLD === 'zima';
-const SNOW = ZIMA || DVOR;
+const SNOW = ZIMA;
 const NIGHT = WORLD === 'lager', BEACH = WORLD === 'plyazh', FIELD = WORLD === 'pole', BUS = WORLD === 'ostanovka';
 const INDOOR = GRID || PODEZD || METRO;                                 // тёмный интерьер: фонарик, лампы, тёмный туман
 const DARK = INDOOR || NIGHT || SNOW;
@@ -52,39 +52,8 @@ let SPAWN = null;
 const WLIM = 16777216;
 const FAR = (() => { try { return localStorage.getItem('farlands') === '1'; } catch (e) { return false; } })();
 function inWorld(a0, a1) { return a0 >= -WLIM && a1 <= WLIM; }
-// «Дворы»: каждый уличный фонарь светит по-настоящему. Фонари стоят на регулярной решётке вдоль дорог,
-// поэтому свет ближайших считается прямо в шейдере (диффуз + блик на мокром асфальте), без лимита на число ламп.
-if (DVOR) {
-  THREE.ShaderChunk.lights_pars_begin += `
-#ifdef STANDARD
-void dvLamp( vec3 wp, vec3 lp, float w, out IncidentLight l ) {
-  vec3 d = lp - wp; float d2 = dot( d, d ); float q = d2 / 676.0; float a = clamp( 1.0 - q * q, 0.0, 1.0 );
-  float cone = smoothstep( -0.05, 0.45, d.y * inversesqrt( max( d2, 0.01 ) ) );
-  l.color = vec3( 1.0, 0.5, 0.16 ) * ( 34.0 * w * a * a * cone / max( d2, 1.0 ) );
-  l.direction = normalize( mat3( viewMatrix ) * d ); l.visible = true;
-}
-#endif`;
-  const call = (pos, w) => `dvLamp( dvW, ${pos}, ${w}, dvL ); RE_Direct( dvL, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );`;
-  THREE.ShaderChunk.lights_fragment_begin += `
-#if defined( STANDARD ) && defined( RE_Direct )
-{ vec3 dvW = cameraPosition + geometryPosition * mat3( viewMatrix ); IncidentLight dvL;
-  float lx = floor( dvW.x / 24.0 ) * 24.0 + 12.0, lz = floor( dvW.z / 24.0 ) * 24.0 + 12.0;
-  float rz = floor( ( dvW.z - 48.0 ) / 96.0 + 0.5 ) * 96.0 + 48.0, rx = floor( ( dvW.x - 48.0 ) / 96.0 + 0.5 ) * 96.0 + 48.0;
-  ${MOBILE ? `
-  float wx = smoothstep( 12.5, 8.0, abs( dvW.x - lx ) ), wz = smoothstep( 12.5, 8.0, abs( dvW.z - lz ) );
-  ${call('vec3( lx, 6.2, rz )', '2.0 * wx')}
-  ${call('vec3( rx, 6.2, lz )', '2.0 * wz')}` : `
-  float sz = dvW.z < rz ? -1.0 : 1.0, sx = dvW.x < rx ? -1.0 : 1.0;
-  float nx = lx + ( dvW.x < lx ? -24.0 : 24.0 ), nz = lz + ( dvW.z < lz ? -24.0 : 24.0 );
-  ${call('vec3( lx, 6.2, rz + 4.0 * sz )', '1.0')}
-  ${call('vec3( lx, 6.2, rz - 4.0 * sz )', '1.0')}
-  ${call('vec3( nx, 6.2, rz )', '2.0')}
-  ${call('vec3( rx + 4.0 * sx, 6.2, lz )', '1.0')}
-  ${call('vec3( rx - 4.0 * sx, 6.2, lz )', '1.0')}
-  ${call('vec3( rx, 6.2, nz )', '2.0')}`}
-}
-#endif`;
-}
+// отражения в лужах (мир «Дворы»): сцена дополнительно рисуется зеркальной камерой в небольшую текстуру
+const REFL = { tex: { value: null }, res: { value: new THREE.Vector2(1, 1) }, on: { value: 0 }, use: DVOR, rt: null, hide: [] };
 const GROUND_Y = HOUSE ? -6 : STROY ? -42 : 0;                     // в «Доме» земля — во дворах-колодцах, на 6 м ниже пола                                      // забор участка (мир «Ворота»): z = ±44
 // грядки: клетки 24×16 м, детерминированный узор (одинаковый в JS и GLSL)
 function bedM(x, z) {

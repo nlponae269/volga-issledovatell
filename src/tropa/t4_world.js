@@ -10,7 +10,7 @@ const skyMat = new THREE.ShaderMaterial({
     void main(){ vec3 d = normalize(vD); float y = max(d.y, 0.0);
       vec2 cp = d.xz / (y + 0.12) * 0.09;
       float c = texture2D(tN, cp + vec2(uTime*0.0012, uTime*0.0005)).r*0.6 + texture2D(tN, cp*2.7 - vec2(uTime*0.002, 0.0)).g*0.4;
-      vec3 hor = ${NIGHT ? 'vec3(0.045,0.05,0.07)' : DVOR ? 'vec3(0.075,0.05,0.04)' : ZIMA ? 'vec3(0.95,0.16,0.62)' : 'vec3(0.60, 0.62, 0.64)'}, zen = ${NIGHT ? 'vec3(0.012,0.016,0.03)' : DVOR ? 'vec3(0.004,0.005,0.01)' : ZIMA ? 'vec3(0.62,0.05,0.4)' : 'vec3(0.40, 0.43, 0.47)'};
+      vec3 hor = ${NIGHT ? 'vec3(0.045,0.05,0.07)' : ZIMA ? 'vec3(0.95,0.16,0.62)' : 'vec3(0.60, 0.62, 0.64)'}, zen = ${NIGHT ? 'vec3(0.012,0.016,0.03)' : ZIMA ? 'vec3(0.62,0.05,0.4)' : 'vec3(0.40, 0.43, 0.47)'};
       vec3 col = mix(hor, zen, pow(y, 0.6));
       col *= mix(1.08, 0.78, smoothstep(0.35, 0.8, c));
       float s = max(dot(d, sunDir), 0.0); col += vec3(0.20, 0.18, 0.14) * pow(s, 6.0) * 0.6 + vec3(0.25,0.22,0.18)*pow(s, 60.0)*0.5;
@@ -23,10 +23,11 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), skyMat); sky.f
   const gnd = new THREE.Mesh(new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3a3a2c })); gnd.position.y = -2; envScene.add(gnd);
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(envScene, 0.02).texture; pm.dispose(); }
 const ENV_TEX = scene.environment; if (INDOOR) scene.environment = null;
-if (NIGHT || DVOR) { scene.environment = null; skyU.night = true; }
-const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGHT ? 0.09 : DVOR ? 0.2 : SNOW ? 0.5 : 0.35); scene.add(hemi);
+if (NIGHT) { scene.environment = null; skyU.night = true; }
+const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGHT ? 0.09 : DVOR ? 0.72 : SNOW ? 0.5 : 0.35); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
 sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; if (SNOW) { sun.intensity = 0; sun.castShadow = false; if (ZIMA) { hemi.color.setHex(0xff5ac8); hemi.groundColor.setHex(0x6a3a5a); } else { hemi.color.setHex(0x9aa4d0); hemi.groundColor.setHex(0x40343a); } }
+if (DVOR) { sun.intensity = 0.32; sun.castShadow = false; hemi.color.setHex(0xd2d8de); hemi.groundColor.setHex(0x5a554e); }
 if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
@@ -35,14 +36,14 @@ scene.add(sun, sun.target);
 const GS = MOBILE ? 180 : 260, GSEG = MOBILE ? 90 : 130;
 const groundMat = std({ map: TX.grass, normalMap: TX.leavesN, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 1 });
 groundMat.onBeforeCompile = (sh) => {
-  Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tNoise: { value: TX.noise } });
+  Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tNoise: { value: TX.noise }, tRefl: REFL.tex, uRes: REFL.res, uReflOn: REFL.on, uTimeG: SHARED.uTime });
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW;\n' + GLSL_WORLD)
     .replace('#include <beginnormal_vertex>', `
        vec3 objectNormal = normalize(vec3(h0-groundH(wp0.xz+vec2(0.5,0.0)), 0.5, h0-groundH(wp0.xz+vec2(0.0,0.5))));`)
     .replace('#include <begin_vertex>', 'vec3 transformed = vec3(position.x, h0, position.z); vW = vec3(wp0.x, h0, wp0.z);')
     .replace('#include <uv_vertex>', '#include <uv_vertex>\n vec3 wp0 = (modelMatrix*vec4(position,1.0)).xyz; float h0 = groundH(wp0.xz); vMapUv = wp0.xz; vNormalMapUv = wp0.xz/2.0;');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-    varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tNoise; float gRough = 1.0; float gPath = 0.0;\n` + GLSL_WORLD)
+    varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tNoise, tRefl; uniform vec2 uRes; uniform float uReflOn, uTimeG; float gRough = 1.0; float gPath = 0.0; vec3 dvRefl = vec3(0.0); float dvK = 0.0;\n` + GLSL_WORLD)
     .replace('#include <map_fragment>', `
       vec2 wp = vW.xz;
       vec4 nA = texture2D(tNoise, wp*0.0105), nB = texture2D(tNoise, wp*0.043+0.31), nC = texture2D(tNoise, wp*0.17+0.77);
@@ -89,26 +90,32 @@ groundMat.onBeforeCompile = (sh) => {
       col = mix(col, as, rm);
       gRough = mix(gRough, 0.82 - tr, rm);
       ${DVOR ? `{ float ux = mod(wp.x - 48.0, 96.0), uz = mod(wp.y - 48.0, 96.0); float ax = min(ux, 96.0 - ux), az = min(uz, 96.0 - uz); float rd = min(ax, az);
-        vec3 as = texture2D(tAsph, wp/3.2).rgb * mix(0.55, 0.8, nB.g) * vec3(0.95,0.97,1.0);
-        float slush = smoothstep(0.7, 0.95, nC.r*0.7 + nB.b*0.5) * 0.45 + smoothstep(3.2, 4.0, rd)*0.6;
-        float mkx = (1.0 - smoothstep(0.06, 0.09, ax)) * step(fract(wp.y/6.0), 0.5) * step(4.5, az);
-        float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
-        as = mix(as, vec3(0.62,0.6,0.55), (mkx + mkz) * 0.6);
-        as = mix(as, vec3(0.62,0.62,0.66)*(0.85+0.2*nC.g), clamp(slush, 0.0, 0.85));
         float road = 1.0 - smoothstep(3.95, 4.05, rd);
         float curb = (1.0 - smoothstep(4.0, 4.3, rd)) * (1.0 - road);
         float walk = (1.0 - smoothstep(6.3, 6.6, rd + nB.r*0.4)) * (1.0 - road) * (1.0 - curb);
-        vec3 snowC = vec3(0.86,0.9,1.0) * (0.9 + 0.12*nC.g) - vec3(0.05)*smoothstep(0.6,0.9,nB.r);
-        vec3 tro = mix(vec3(0.42,0.42,0.44), snowC, 0.35 + 0.4*smoothstep(0.4, 0.8, nC.b)) * (0.8 + 0.3*nB.g);
-        col = snowC; col = mix(col, tro, walk); col = mix(col, vec3(0.5,0.5,0.5), curb); col = mix(col, as, road);
-        // искры на снегу: вспыхивают только под светом и зависят от угла взгляда
-        vec2 sg = floor(wp * 70.0); float sh = fract(sin(dot(sg, vec2(12.9898, 78.233))) * 43758.5453);
-        vec3 vd = normalize(cameraPosition - vW); float tw = pow(max(0.0, sin(dot(vd, vec3(sh * 37.0, 3.0, sh * 53.0)) * 30.0 + sh * 6.283)), 10.0);
-        float dsp = 1.0 / (1.0 + dot(cameraPosition - vW, cameraPosition - vW) * 0.004);
-        col += vec3(5.0) * step(0.985, sh) * tw * (1.0 - road) * dsp;
-        gRough = mix(0.9, mix(0.22, 0.75, clamp(slush,0.0,1.0)), road); }` : ''}
+        vec3 as = texture2D(tAsph, wp/3.2).rgb * mix(0.5, 0.74, nB.g);                                   // мокрый асфальт
+        float mkx = (1.0 - smoothstep(0.06, 0.09, ax)) * step(fract(wp.y/6.0), 0.5) * step(4.5, az);
+        float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
+        as = mix(as, vec3(0.6,0.6,0.56), (mkx + mkz) * 0.5 * smoothstep(0.25, 0.7, nC.a));
+        vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
+        vec3 mud = dirt * vec3(0.66,0.6,0.54) * (0.72 + 0.5*nC.r);                                        // разрытая земля
+        float bare = smoothstep(0.34, 0.6, nA.g*0.6 + nB.r*0.55);
+        vec3 yard = mix(col*0.82, mud, bare*0.88);
+        col = yard; col = mix(col, wk, walk); col = mix(col, vec3(0.42,0.42,0.41)*(0.8+0.3*nC.g), curb); col = mix(col, as, road);
+        // лужи: в выбоинах дороги, на тротуаре, в грязи
+        float pn = texture2D(tNoise, wp*0.021 + 0.3).r*0.6 + texture2D(tNoise, wp*0.067).b*0.4;
+        float pud = smoothstep(0.55, 0.585, pn) * (road + walk*0.85 + (1.0-road)*(1.0-walk)*(1.0-curb)*bare*0.9);
+        float wetAll = road*0.75 + walk*0.6;
+        vec3 vd = normalize(cameraPosition - vW); float fr = pow(1.0 - max(vd.y, 0.0), 4.0);
+        vec2 rip = (texture2D(tNoise, wp*0.9 + vec2(uTimeG*0.05, uTimeG*0.031)).rg - 0.5) * 0.005;
+        vec3 refl = texture2D(tRefl, vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y) + rip).rgb;
+        dvK = uReflOn * (pud * mix(0.4, 0.96, fr) + (1.0 - pud) * wetAll * fr * 0.32);
+        dvRefl = refl * dvK;
+        col = mix(col, col*0.5, pud);
+        gRough = mix(mix(0.93, 0.42, wetAll), mix(0.05, 0.3, uReflOn), pud); gPath = max(road, walk); }` : ''}
       if (abs(vW.x) > 16777216.0 || abs(vW.z) > 16777216.0) discard;
       diffuseColor.rgb *= col;
+      ${DVOR ? 'diffuseColor.rgb *= (1.0 - dvK); totalEmissiveRadiance += dvRefl;' : ''}
       ${HOUSE ? 'totalEmissiveRadiance += diffuseColor.rgb * 0.5;' : ''}
     `)
     .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = gRough;');
@@ -139,7 +146,7 @@ const grass = (() => {
         float roadM = smoothstep(${(ROAD_HW + 0.8).toFixed(1)}, ${(ROAD_HW + 1.8).toFixed(1)}, abs(bp.y - (${ROAD_C.toFixed(1)})));
         float fade = 1.0 - smoothstep(uS*0.3, uS*0.47, length(bp - uC.xz));
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
-        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
+        float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * ${DVOR ? 'smoothstep(6.6, 8.5, min(min(mod(bp.x - 48.0, 96.0), 96.0 - mod(bp.x - 48.0, 96.0)), min(mod(bp.y - 48.0, 96.0), 96.0 - mod(bp.y - 48.0, 96.0)))) * 0.75 *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
         vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);

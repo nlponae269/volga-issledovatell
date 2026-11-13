@@ -54,18 +54,19 @@ function updateCars(dt, px) {
 // ---------------- постобработка: AO, объёмный туман, свечение, плёнка ----------------
 const post = (() => {
   const VS = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
-  const BLOOM_IT = MOBILE ? 3 : 4, BLOOM_K = DVOR ? 0.6 : DARK ? 0.48 : 0.38;
+  const BLOOM_IT = MOBILE ? 3 : 4, BLOOM_K = DARK ? 0.48 : 0.38;
   const HF = THREE.HalfFloatType;
   const main = new THREE.WebGLRenderTarget(4, 4, { type: HF, samples: Q.msaa, depthTexture: new THREE.DepthTexture(4, 4) });
   const bA = new THREE.WebGLRenderTarget(4, 4, { type: HF }), bB = new THREE.WebGLRenderTarget(4, 4, { type: HF });
   const qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), qg = new THREE.PlaneGeometry(2, 2);
+  const reflCam = new THREE.PerspectiveCamera(); if (REFL.use) { REFL.rt = new THREE.WebGLRenderTarget(4, 4, { type: HF, depthBuffer: true }); REFL.tex.value = REFL.rt.texture; REFL.on.value = 1; }
   const mk = (fs, u) => { const m = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: fs, depthTest: false, depthWrite: false }); const sc = new THREE.Scene(); const me = new THREE.Mesh(qg, m); me.frustumCulled = false; sc.add(me); return { m, sc }; };
   const bright = mk(`varying vec2 vUv; uniform sampler2D t; void main(){ vec3 c=texture2D(t,vUv).rgb; float l=dot(c,vec3(0.2126,0.7152,0.0722)); gl_FragColor=vec4(min(c, vec3(40.0))*smoothstep(0.9,2.5,l),1.0); }`, { t: { value: main.texture } });
   const blurFS = `varying vec2 vUv; uniform sampler2D t; uniform vec2 dir; void main(){ vec3 c=texture2D(t,vUv).rgb*0.227; c+=(texture2D(t,vUv+dir*1.385).rgb+texture2D(t,vUv-dir*1.385).rgb)*0.316; c+=(texture2D(t,vUv+dir*3.231).rgb+texture2D(t,vUv-dir*3.231).rgb)*0.07; gl_FragColor=vec4(c,1.0); }`;
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.016 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.017 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -96,7 +97,7 @@ const post = (() => {
       float T = exp(-od);
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}${DVOR ? 'fogC = vec3(0.07,0.05,0.042)*(isSky ? 1.0 : 0.9);' : ''}
+      ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);
       col = aces(col*expo);
@@ -112,9 +113,15 @@ const post = (() => {
   return {
     U,
     resize(W, H) { const pr = renderer.getPixelRatio(), w = Math.floor(W * pr), h = Math.floor(H * pr); main.setSize(w, h); main.depthTexture.image.width = w; main.depthTexture.image.height = h;
-      const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2); bA.setSize(bw, bh); bB.setSize(bw, bh); blurH.m.uniforms.dir.value.set(1 / bw, 0); blurV.m.uniforms.dir.value.set(0, 1 / bh); U.res.value.set(w, h); },
+      const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2); bA.setSize(bw, bh); bB.setSize(bw, bh); blurH.m.uniforms.dir.value.set(1 / bw, 0); blurV.m.uniforms.dir.value.set(0, 1 / bh); U.res.value.set(w, h); if (REFL.rt) { const k = MOBILE ? 3 : 2; REFL.rt.setSize(Math.max(1, Math.floor(w / k)), Math.max(1, Math.floor(h / k))); REFL.res.value.set(w, h); } },
     render(t) {
       U.time.value = t; U.invProj.value.copy(camera.projectionMatrixInverse); U.camW.value.copy(camera.matrixWorld); U.camPos.value.copy(camera.position);
+      if (REFL.rt && REFL.on.value > 0 && (!MOBILE || (REFL.flip = !REFL.flip))) {
+        reflCam.fov = camera.fov; reflCam.aspect = camera.aspect; reflCam.near = camera.near; reflCam.far = camera.far; reflCam.updateProjectionMatrix();
+        reflCam.position.set(camera.position.x, 2 * GROUND_Y - camera.position.y, camera.position.z); reflCam.rotation.set(-camera.rotation.x, camera.rotation.y, -camera.rotation.z, 'YXZ'); reflCam.updateMatrixWorld();
+        ground.visible = false; grass.mesh.visible = false; for (const o of REFL.hide) o.visible = false;
+        renderer.setRenderTarget(REFL.rt); renderer.render(scene, reflCam);
+        ground.visible = true; grass.mesh.visible = true; for (const o of REFL.hide) o.visible = true; }
       renderer.setRenderTarget(main); renderer.render(scene, camera);
       renderer.setRenderTarget(bA); renderer.render(bright.sc, qc);
       for (let i = 0; i < BLOOM_IT; i++) { const k = 1 + i * 1.6; blurH.m.uniforms.dir.value.set(k / bA.width, 0); blurV.m.uniforms.dir.value.set(0, k / bA.height); renderer.setRenderTarget(bB); renderer.render(blurH.sc, qc); renderer.setRenderTarget(bA); renderer.render(blurV.sc, qc); }
@@ -153,7 +160,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR && dvRoadD(x, z) < 6.4) return 'asph'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 ? 'asph' : 'grass'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -236,6 +243,7 @@ function autoQuality(dt) {
   const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;
   if (fps > 40) { if (AQ.t > 12) AQ.level = 4; return; }
   AQ.level++;
+  if (REFL.on.value > 0) { REFL.on.value = 0; return; }           // первым делом отключаем отражения в лужах
   if (AQ.level === 1 && Q.shadows) { Q.shadows = false; sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
   else if (AQ.level <= 2) { post.U.aoOn.value = 0; renderer.setPixelRatio(Math.max(0.7, renderer.getPixelRatio() * 0.75)); resize(); }
   else if (AQ.level === 3) { Q.R = 1; grass.mesh.geometry.instanceCount = Math.floor(Q.grass * 0.5); }
@@ -269,7 +277,7 @@ function frame(now) {
   } else if (!started) { P.yaw += dt * 0.02; }
   if (dead) { dead -= dt; flash = Math.max(0, flash - dt * 2.5); if (dead <= 0) { dead = 0; Object.assign(P, { x: SPAWN ? SPAWN.x : 0, z: SPAWN ? SPAWN.z : 0, y: 0, vy: 0, yaw: SPAWN ? SPAWN.yaw : -Math.PI / 2 + 0.2, pitch: -0.03, speed: 0 }); hitCar = null; const f = $('fade'); f.style.transition = 'opacity 1.6s'; f.style.opacity = 0; f.innerHTML = ''; } }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else if (DVOR) petard(); else crow(); } }
+  if (started) { crowT -= dt; if (crowT < 0) { crowT = 18 + Math.random() * 35; if ((GARDEN && Math.random() < 0.45) || (INDOOR && Math.random() < 0.8)) (PODEZD && Math.random() < 0.5 ? podSound() : creak()); else if (DVOR && Math.random() < 0.6) dvAmbient(); else crow(); } }
   autoQuality(dt);
   houseUpdate(dt); metaUpdate(dt);
   updateCars(dt, P.x); updateChunks(P.x, P.z, false);

@@ -46,7 +46,7 @@ footer{text-align:center;color:rgba(255,255,255,.32);font-size:11px;letter-spaci
 const IMG = /*THUMBS*/{};
 const its = (w, ic) => () => { const n = +ls(w + '_items') || 0; return n ? `${ic} ${n}` : ''; };
 const WORLDS = [
-  { id: 'dvory', name: 'ДВОРЫ', tag: 'СЮЖЕТ', desc: '01.01.2017, 00:24. Ты вышел посмотреть салют — и не можешь вернуться домой. Главная история.', stat: () => { const c = Math.min(12, +ls('dvory_cards') || 0), m = +ls('dvory_mand') || 0; return (c ? `✉ ${c}/12 ` : '') + (m ? `🍊 ${m}` : ''); } },
+  { id: 'dvory', name: 'ДВОРЫ', tag: 'СЮЖЕТ', desc: '415-й микрорайон, Героев Тулы, 13. Ноябрь, 14:50, после дождя. Ключа нет, домофон молчит. Главная история.', stat: () => { const c = Math.min(12, +ls('dvory_cards') || 0), m = +ls('dvory_mand') || 0; return (c ? `✉ ${c}/12 ` : '') + (m ? `🌰 ${m}` : ''); } },
   { id: 'tishina', name: 'ТИШИНА', desc: 'Волга, осень, костёр. Горы, лес, брошенные деревни. 10 записок.', stat: () => '' },
   { id: 'tropa', name: 'ТРОПА', desc: 'Бесконечная тропа вдоль трассы. Туман, тополя, магазины с монетами.', stat: () => { const m = +ls('tropa_money') || 0; return m ? `🪙 ${m}` : ''; } },
   { id: 'vorota', name: 'ВОРОТА', desc: 'Дачный участок без конца. Найди ворота. Яблоки, груши, малина.', stat: () => { try { const f = JSON.parse(ls('vorota_fruit') || '{}'); const s = (f.apple || 0) + (f.pear || 0) + (f.plum || 0); return s || f.rasp ? `🍎 ${s} · малина ${f.rasp || 0}` : ''; } catch (e) { return ''; } } },
