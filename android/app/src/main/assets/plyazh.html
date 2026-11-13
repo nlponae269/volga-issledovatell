@@ -3018,16 +3018,16 @@ if (KV) {
 <style>
 /* ===== Motion design: общий слой анимаций интерфейса (меню, заставки миров, HUD, подсказки) ===== */
 :root{--spring:cubic-bezier(.2,.9,.25,1.25);--out:cubic-bezier(.16,1,.3,1)}
-@keyframes mLetter{from{opacity:0;transform:translateY(.45em) scale(.9);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
-@keyframes mRise{from{opacity:0;transform:translateY(18px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mLetter{from{opacity:0;transform:translateY(.45em) scale(.9)}to{opacity:1;transform:none}}
+@keyframes mRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes mPop{0%{opacity:0;transform:scale(.8)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}
 @keyframes mCard{from{opacity:0;transform:translateY(40px) rotateX(18deg) scale(.94)}to{opacity:1;transform:none}}
 @keyframes mShine{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(230%) skewX(-18deg)}}
-@keyframes mToast{0%{transform:translate(-50%,-50%) scale(.9);filter:blur(6px);letter-spacing:.12em}60%{transform:translate(-50%,-50%) scale(1.03);filter:none}100%{transform:translate(-50%,-50%) scale(1);letter-spacing:normal}}
+@keyframes mToast{0%{transform:translate(-50%,-50%) scale(.9)}60%{transform:translate(-50%,-50%) scale(1.03)}100%{transform:translate(-50%,-50%) scale(1)}}
 @keyframes mPrompt{from{transform:translate(-50%,10px);opacity:.2}to{transform:translateX(-50%);opacity:1}}
-@keyframes mBump{0%{transform:scale(1)}35%{transform:scale(1.45);color:#ffd35a;text-shadow:0 0 12px rgba(255,211,90,.8)}100%{transform:scale(1)}}
+@keyframes mBump{0%{transform:scale(1)}35%{transform:scale(1.45);color:#ffd35a}100%{transform:scale(1)}}
 @keyframes mPaper{0%{opacity:0;transform:perspective(700px) rotateX(-75deg) translateY(-30px) scale(.9)}65%{opacity:1;transform:perspective(700px) rotateX(8deg) rotate(-1deg)}100%{transform:perspective(700px) rotateX(0) rotate(-1deg)}}
-@keyframes mFadeText{from{opacity:0;letter-spacing:.35em;filter:blur(6px)}to{opacity:1;letter-spacing:normal;filter:none}}
+@keyframes mFadeText{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:none}}
 @keyframes mBreath{0%,100%{opacity:.85}50%{opacity:1}}
 @keyframes mTag{0%,100%{box-shadow:0 0 0 0 rgba(201,164,58,.0)}50%{box-shadow:0 0 0 4px rgba(201,164,58,.25)}}
 .mL{display:inline-block;opacity:0;animation:mLetter .9s var(--out) forwards;white-space:pre}
@@ -3036,13 +3036,13 @@ if (KV) {
 .mm header .sub{animation-delay:.55s}.mm header #keys{animation-delay:.7s}.mm header #far{animation-delay:.85s}.mm footer{animation-delay:1.4s}
 .mm .card{animation:mCard .9s var(--out) backwards}
 /* --- заставка мира --- */
-.mw #start{transition:opacity .55s ease,transform .7s var(--out),filter .55s}
-.mw #start.mLeave{opacity:0;transform:scale(1.08);filter:blur(10px);pointer-events:none}
+.mw #start{transition:opacity .55s ease,transform .7s var(--out)}
+.mw #start.mLeave{opacity:0;transform:scale(1.08);pointer-events:none}
 .mw #start p,.mw #start>div{opacity:0;animation:mRise .9s var(--out) forwards}
 .mw #start .b{animation:mPop .7s var(--spring) both;transition:transform .25s var(--spring),box-shadow .3s,background .3s}
 .mw #start .b:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 24px rgba(201,164,58,.35)}
 .mw #start .b:active,.tb:active,#toggle:active{transform:scale(.9)!important;transition-duration:.08s}
-.mw #start .b:disabled{animation:mPop .7s var(--spring) both,mBreath 1.4s ease-in-out infinite}
+.mw #start .b:disabled{animation:mPop .7s var(--spring) both}
 .mw #toast.mT{animation:mToast .55s var(--spring)}
 .mw #prompt.mP{animation:mPrompt .35s var(--out)}
 .mw #hud span.mB{display:inline-block;animation:mBump .5s var(--spring)}
@@ -3077,7 +3077,7 @@ if (KV) {
   const obs = (sel, fn, opt) => { const el = $(sel); if (el) new MutationObserver(() => fn(el)).observe(el, opt); };
   obs('#toast', (el) => { if (!reduce) restart(el, 'mT'); }, { childList: true, characterData: true, subtree: true });
   let lastP = ''; obs('#prompt', (el) => { if (el.textContent && el.textContent !== lastP && !reduce) restart(el, 'mP'); lastP = el.textContent; }, { childList: true, characterData: true, subtree: true });
-  const hud = $('#hud'); if (hud) new MutationObserver((ms) => { if (reduce) return; for (const m of ms) { const sp = m.target.nodeType === 3 ? m.target.parentElement : m.target; if (sp && sp.tagName === 'SPAN' && sp.id !== 'f_clock') restart(sp, 'mB'); } }).observe(hud, { childList: true, characterData: true, subtree: true });
+  const hud = $('#hud'); if (hud) new MutationObserver((ms) => { if (reduce) return; for (const m of ms) { const sp = m.target.nodeType === 3 ? m.target.parentElement : m.target; if (sp && sp.tagName === 'SPAN' && sp.id !== 'f_clock' && sp.id !== 'f_floor' && !(sp._mt > performance.now() - 300)) { sp._mt = performance.now(); restart(sp, 'mB'); } } }).observe(hud, { childList: true, characterData: true, subtree: true });
 })();
 </script>
 </body></html>

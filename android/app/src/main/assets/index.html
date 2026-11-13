@@ -5,13 +5,13 @@
 :root{--ink:#e9e3d4;--dim:#9b9586;--acc:#d9b45a;--bg:#0b0c0b}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
-#bg{position:fixed;inset:-6%;background-size:cover;background-position:center;filter:blur(14px) saturate(.7) brightness(.55);transform:scale(1.08);transition:background-image .8s;animation:drift 38s ease-in-out infinite alternate}
+#bg{position:fixed;inset:-6%;background-size:cover;background-position:center;filter:blur(14px) saturate(.7) brightness(.55);transform:scale(1.08);transition:background-image .8s}
 #bg2{position:fixed;inset:-6%;background-size:cover;background-position:center;filter:blur(14px) saturate(.7) brightness(.55);opacity:0;transition:opacity .9s}
 @keyframes drift{from{transform:scale(1.08) translate(-1.5%,0)}to{transform:scale(1.16) translate(1.5%,-1%)}}
 .fog{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 20% 80%,rgba(200,205,210,.10),transparent 60%),radial-gradient(ellipse at 80% 30%,rgba(200,205,210,.08),transparent 55%);animation:fog 22s ease-in-out infinite alternate}
 @keyframes fog{from{transform:translateX(-4%)}to{transform:translateX(4%)}}
 .vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.75) 100%)}
-#grain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:.10;mix-blend-mode:overlay}
+#grain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;opacity:.05}
 #wrap{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;padding:max(14px,env(safe-area-inset-top)) 0 max(12px,env(safe-area-inset-bottom))}
 header{text-align:center;margin-bottom:clamp(10px,3vh,28px);padding:0 16px}
 h1{margin:0;font-weight:300;letter-spacing:.42em;font-size:clamp(26px,6.2vh,58px);text-indent:.42em;text-shadow:0 4px 30px rgba(0,0,0,.8)}
@@ -37,15 +37,15 @@ footer{text-align:center;color:rgba(255,255,255,.32);font-size:11px;letter-spaci
 /* ===== градиентный дизайн меню ===== */
 @property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
 :root{--c1:#d9b45a;--c2:#5a7ad9}
-#mesh{position:fixed;inset:-20%;pointer-events:none;opacity:.9;mix-blend-mode:screen;transition:opacity 1s}
+#mesh{position:fixed;inset:-20%;pointer-events:none;opacity:.5;transition:opacity 1s;contain:strict}
 #mesh i{position:absolute;width:65vmax;height:65vmax;border-radius:50%;will-change:transform}
 #mesh i:nth-child(1){left:-5%;top:10%;background:radial-gradient(circle,var(--c1),transparent 62%);animation:blob1 18s ease-in-out infinite alternate}
 #mesh i:nth-child(2){right:-10%;top:-10%;background:radial-gradient(circle,var(--c2),transparent 62%);animation:blob2 22s ease-in-out infinite alternate}
-#mesh i:nth-child(3){left:30%;bottom:-25%;background:radial-gradient(circle,color-mix(in srgb,var(--c1) 50%,var(--c2)),transparent 60%);animation:blob3 26s ease-in-out infinite alternate}
+#mesh i:nth-child(3){display:none;left:30%;bottom:-25%;background:radial-gradient(circle,color-mix(in srgb,var(--c1) 50%,var(--c2)),transparent 60%);animation:blob3 26s ease-in-out infinite alternate}
 @keyframes blob1{to{transform:translate(25vw,10vh) scale(1.2)}}@keyframes blob2{to{transform:translate(-20vw,25vh) scale(.85)}}@keyframes blob3{to{transform:translate(-15vw,-20vh) scale(1.25)}}
 #bg,#bg2{filter:blur(18px) saturate(.9) brightness(.42)!important}
 .vig{background:radial-gradient(ellipse at center,transparent 30%,rgba(5,3,10,.85) 100%)!important}
-h1{background:linear-gradient(100deg,#fff 0%,var(--c1) 30%,#fff 50%,var(--c2) 70%,#fff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:title 7s linear infinite;filter:drop-shadow(0 4px 24px rgba(0,0,0,.7))}
+h1{background:linear-gradient(100deg,#fff 0%,var(--c1) 30%,#fff 50%,var(--c2) 70%,#fff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:title 2.4s ease-out 1;text-shadow:none}
 h1 .mL{background:inherit;-webkit-background-clip:text;background-clip:text}
 @keyframes title{to{background-position:-250% 0}}
 .sub#keys{background:linear-gradient(90deg,var(--c1),#fff,var(--c2));-webkit-background-clip:text;background-clip:text;color:transparent!important}
@@ -53,14 +53,14 @@ h1 .mL{background:inherit;-webkit-background-clip:text;background-clip:text}
 #row{perspective:1100px;padding-top:22px!important;padding-bottom:26px!important}
 .card{background:linear-gradient(160deg,color-mix(in srgb,var(--a1) 22%,transparent),rgba(10,10,14,.55) 45%,color-mix(in srgb,var(--a2) 28%,transparent))!important;border:0!important;border-radius:18px!important;overflow:visible!important;
   transform:translateY(var(--ty,0)) scale(var(--s,1)) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.9,.25,1.2),box-shadow .5s,filter .4s,opacity .4s!important;box-shadow:0 10px 30px rgba(0,0,0,.45)!important}
-.card::after{content:"";position:absolute;inset:0;border-radius:18px;padding:1.5px;background:conic-gradient(from var(--ang),var(--a1),var(--a2),#fff8,var(--a1));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.35;transition:opacity .4s;animation:spin 6s linear infinite;pointer-events:none;z-index:4}
+.card::after{content:"";position:absolute;inset:0;border-radius:18px;padding:1.5px;background:conic-gradient(from var(--ang),var(--a1),var(--a2),#fff8,var(--a1));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.35;transition:opacity .4s;pointer-events:none;z-index:4}
 @keyframes spin{to{--ang:360deg}}
 .card .img{border-radius:17px 17px 0 0;overflow:hidden}
 .card .img::after{background:linear-gradient(to bottom,transparent 35%,color-mix(in srgb,var(--a2) 35%,rgba(8,8,12,.9)))!important}
-.card .holo{position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:3;mix-blend-mode:overlay;opacity:0;transition:opacity .4s;
+.card .holo{position:absolute;inset:0;border-radius:18px;pointer-events:none;z-index:3;opacity:0;transition:opacity .4s;
   background:radial-gradient(circle at var(--mx,50%) var(--my,30%),rgba(255,255,255,.55),transparent 45%),linear-gradient(115deg,transparent 20%,var(--a1) 40%,var(--a2) 60%,transparent 80%);background-size:100% 100%,250% 250%;background-position:0 0,var(--mx,50%) var(--my,50%)}
 .card.sel{--ty:-12px;--s:1.06;box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 50px color-mix(in srgb,var(--a1) 45%,transparent)!important}
-.card.sel::after{opacity:1}.card.sel .holo,.card:hover .holo{opacity:.55}
+.card.sel::after{opacity:1}.card.sel .holo{opacity:.22}
 .card:hover{--ty:-8px}
 .card:active{--s:.96}
 .card .name{background:linear-gradient(90deg,#fff,var(--a1));-webkit-background-clip:text;background-clip:text;color:transparent!important}
@@ -69,11 +69,11 @@ h1 .mL{background:inherit;-webkit-background-clip:text;background-clip:text}
 .card.sel .go{transform:none}
 .card .tag{background:linear-gradient(90deg,var(--a1),var(--a2))!important;color:#fff!important;text-shadow:0 1px 2px #0007}
 /* переход в мир: картинка карточки раскрывается на весь экран */
-#zoom{position:fixed;z-index:60;border-radius:18px;overflow:hidden;background-size:cover;background-position:center;pointer-events:none;transition:all .85s cubic-bezier(.75,0,.2,1)}
-#zoom::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--a1),transparent 45%,var(--a2));mix-blend-mode:color;opacity:.85}
+#zoom{position:fixed;z-index:60;border-radius:18px;overflow:hidden;background-size:cover;background-position:center;pointer-events:none;transition:left .85s cubic-bezier(.75,0,.2,1),top .85s cubic-bezier(.75,0,.2,1),width .85s cubic-bezier(.75,0,.2,1),height .85s cubic-bezier(.75,0,.2,1),border-radius .85s,filter .5s}
+#zoom::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--a1),transparent 45%,var(--a2));opacity:.45}
 #zoom::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 20%,#000 85%)}
 #zoom b{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%) scale(.6);opacity:0;text-align:center;z-index:2;font:300 clamp(30px,9vw,96px)/1 system-ui;letter-spacing:.35em;text-indent:.35em;
-  background:linear-gradient(90deg,#fff,var(--a1),#fff,var(--a2),#fff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;transition:all .9s cubic-bezier(.16,1,.3,1) .35s;animation:title 3s linear infinite}
+  background:linear-gradient(90deg,#fff,var(--a1),#fff,var(--a2),#fff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;transition:opacity .9s cubic-bezier(.16,1,.3,1) .35s,transform .9s cubic-bezier(.16,1,.3,1) .35s}
 #zoom.full{inset:0!important;width:100%!important;height:100%!important;left:0!important;top:0!important;border-radius:0}
 #zoom.full b{opacity:1;transform:translateY(-50%) scale(1);letter-spacing:.2em}
 #zoom.dark{filter:brightness(0);transition:filter .5s ease-in}
@@ -172,7 +172,7 @@ select(sel, true);
 if (matchMedia('(pointer:coarse)').matches) document.querySelector('footer').textContent = 'листай карточки · нажми, чтобы войти · ♪ — музыка';
 // плёночное зерно
 const gc = document.getElementById('grain'), gx = gc.getContext('2d'); gc.width = 200; gc.height = 120; const im = gx.createImageData(200, 120);
-(function grain() { for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } gx.putImageData(im, 0, 0); setTimeout(() => requestAnimationFrame(grain), 70); })();
+for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } gx.putImageData(im, 0, 0);
 addEventListener('pageshow', () => { document.getElementById('fade').style.opacity = 0; document.getElementById('keys').textContent = keysTxt(); [...row.children].forEach((c, k) => { c.querySelector('.stat').textContent = WORLDS[k].stat(); }); });
 
 const PAL = { dvory: ['#ff7a59', '#7b5cff'], kvartira: ['#ffb36b', '#6b8cff'], tishina: ['#e8a96d', '#3d8ab8'], tropa: ['#b9d4a0', '#5a7a9a'], vorota: ['#d8e05a', '#e0566b'], dom: ['#d88a3a', '#4a3a9a'], podezd: ['#3fd8e0', '#2a5ad8'], garages: ['#ff3b3b', '#8a1aff'],
@@ -180,7 +180,7 @@ const PAL = { dvory: ['#ff7a59', '#7b5cff'], kvartira: ['#ffb36b', '#6b8cff'], t
   pole: ['#f8c840', '#4aa0f0'], elektrichka: ['#4ae070', '#4ab0e0'], stroyka: ['#ff8a20', '#8a9aa8'] };
 const pal = (id) => PAL[id] || ['#d9b45a', '#5a7ad9'];
 [...row.children].forEach((c, i) => { const [a1, a2] = pal(WORLDS[i].id); c.style.setProperty('--a1', a1); c.style.setProperty('--a2', a2); const h = document.createElement('div'); h.className = 'holo'; c.appendChild(h);
-  c.addEventListener('pointermove', (e) => { const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; c.style.setProperty('--ry', ((x - 0.5) * 14) + 'deg'); c.style.setProperty('--rx', ((0.5 - y) * 12) + 'deg'); c.style.setProperty('--mx', x * 100 + '%'); c.style.setProperty('--my', y * 100 + '%'); });
+  let raf = 0; c.addEventListener('pointermove', (e) => { if (raf || e.pointerType === 'touch') return; raf = requestAnimationFrame(() => (raf = 0)); const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; c.style.setProperty('--ry', ((x - 0.5) * 14) + 'deg'); c.style.setProperty('--rx', ((0.5 - y) * 12) + 'deg'); c.style.setProperty('--mx', x * 100 + '%'); c.style.setProperty('--my', y * 100 + '%'); });
   c.addEventListener('pointerleave', () => { c.style.setProperty('--rx', '0deg'); c.style.setProperty('--ry', '0deg'); }); });
 const _sel = select; select = function (i, sc) { _sel(i, sc); const [a1, a2] = pal(WORLDS[i].id); document.documentElement.style.setProperty('--c1', a1); document.documentElement.style.setProperty('--c2', a2); };
 enter = function (i) { const w = WORLDS[i]; try { localStorage.setItem('menu_last', w.id); } catch (e) {} if (document.getElementById('zoom')) return;
@@ -194,16 +194,16 @@ select(sel, false);
 <style>
 /* ===== Motion design: общий слой анимаций интерфейса (меню, заставки миров, HUD, подсказки) ===== */
 :root{--spring:cubic-bezier(.2,.9,.25,1.25);--out:cubic-bezier(.16,1,.3,1)}
-@keyframes mLetter{from{opacity:0;transform:translateY(.45em) scale(.9);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
-@keyframes mRise{from{opacity:0;transform:translateY(18px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mLetter{from{opacity:0;transform:translateY(.45em) scale(.9)}to{opacity:1;transform:none}}
+@keyframes mRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes mPop{0%{opacity:0;transform:scale(.8)}70%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}
 @keyframes mCard{from{opacity:0;transform:translateY(40px) rotateX(18deg) scale(.94)}to{opacity:1;transform:none}}
 @keyframes mShine{from{transform:translateX(-130%) skewX(-18deg)}to{transform:translateX(230%) skewX(-18deg)}}
-@keyframes mToast{0%{transform:translate(-50%,-50%) scale(.9);filter:blur(6px);letter-spacing:.12em}60%{transform:translate(-50%,-50%) scale(1.03);filter:none}100%{transform:translate(-50%,-50%) scale(1);letter-spacing:normal}}
+@keyframes mToast{0%{transform:translate(-50%,-50%) scale(.9)}60%{transform:translate(-50%,-50%) scale(1.03)}100%{transform:translate(-50%,-50%) scale(1)}}
 @keyframes mPrompt{from{transform:translate(-50%,10px);opacity:.2}to{transform:translateX(-50%);opacity:1}}
-@keyframes mBump{0%{transform:scale(1)}35%{transform:scale(1.45);color:#ffd35a;text-shadow:0 0 12px rgba(255,211,90,.8)}100%{transform:scale(1)}}
+@keyframes mBump{0%{transform:scale(1)}35%{transform:scale(1.45);color:#ffd35a}100%{transform:scale(1)}}
 @keyframes mPaper{0%{opacity:0;transform:perspective(700px) rotateX(-75deg) translateY(-30px) scale(.9)}65%{opacity:1;transform:perspective(700px) rotateX(8deg) rotate(-1deg)}100%{transform:perspective(700px) rotateX(0) rotate(-1deg)}}
-@keyframes mFadeText{from{opacity:0;letter-spacing:.35em;filter:blur(6px)}to{opacity:1;letter-spacing:normal;filter:none}}
+@keyframes mFadeText{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:none}}
 @keyframes mBreath{0%,100%{opacity:.85}50%{opacity:1}}
 @keyframes mTag{0%,100%{box-shadow:0 0 0 0 rgba(201,164,58,.0)}50%{box-shadow:0 0 0 4px rgba(201,164,58,.25)}}
 .mL{display:inline-block;opacity:0;animation:mLetter .9s var(--out) forwards;white-space:pre}
@@ -212,13 +212,13 @@ select(sel, false);
 .mm header .sub{animation-delay:.55s}.mm header #keys{animation-delay:.7s}.mm header #far{animation-delay:.85s}.mm footer{animation-delay:1.4s}
 .mm .card{animation:mCard .9s var(--out) backwards}
 /* --- заставка мира --- */
-.mw #start{transition:opacity .55s ease,transform .7s var(--out),filter .55s}
-.mw #start.mLeave{opacity:0;transform:scale(1.08);filter:blur(10px);pointer-events:none}
+.mw #start{transition:opacity .55s ease,transform .7s var(--out)}
+.mw #start.mLeave{opacity:0;transform:scale(1.08);pointer-events:none}
 .mw #start p,.mw #start>div{opacity:0;animation:mRise .9s var(--out) forwards}
 .mw #start .b{animation:mPop .7s var(--spring) both;transition:transform .25s var(--spring),box-shadow .3s,background .3s}
 .mw #start .b:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 24px rgba(201,164,58,.35)}
 .mw #start .b:active,.tb:active,#toggle:active{transform:scale(.9)!important;transition-duration:.08s}
-.mw #start .b:disabled{animation:mPop .7s var(--spring) both,mBreath 1.4s ease-in-out infinite}
+.mw #start .b:disabled{animation:mPop .7s var(--spring) both}
 .mw #toast.mT{animation:mToast .55s var(--spring)}
 .mw #prompt.mP{animation:mPrompt .35s var(--out)}
 .mw #hud span.mB{display:inline-block;animation:mBump .5s var(--spring)}
@@ -253,7 +253,7 @@ select(sel, false);
   const obs = (sel, fn, opt) => { const el = $(sel); if (el) new MutationObserver(() => fn(el)).observe(el, opt); };
   obs('#toast', (el) => { if (!reduce) restart(el, 'mT'); }, { childList: true, characterData: true, subtree: true });
   let lastP = ''; obs('#prompt', (el) => { if (el.textContent && el.textContent !== lastP && !reduce) restart(el, 'mP'); lastP = el.textContent; }, { childList: true, characterData: true, subtree: true });
-  const hud = $('#hud'); if (hud) new MutationObserver((ms) => { if (reduce) return; for (const m of ms) { const sp = m.target.nodeType === 3 ? m.target.parentElement : m.target; if (sp && sp.tagName === 'SPAN' && sp.id !== 'f_clock') restart(sp, 'mB'); } }).observe(hud, { childList: true, characterData: true, subtree: true });
+  const hud = $('#hud'); if (hud) new MutationObserver((ms) => { if (reduce) return; for (const m of ms) { const sp = m.target.nodeType === 3 ? m.target.parentElement : m.target; if (sp && sp.tagName === 'SPAN' && sp.id !== 'f_clock' && sp.id !== 'f_floor' && !(sp._mt > performance.now() - 300)) { sp._mt = performance.now(); restart(sp, 'mB'); } } }).observe(hud, { childList: true, characterData: true, subtree: true });
 })();
 </script>
 </body></html>
