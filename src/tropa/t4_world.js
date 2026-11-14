@@ -28,7 +28,7 @@ const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGH
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
 sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; if (SNOW) { sun.intensity = 0; sun.castShadow = false; if (ZIMA) { hemi.color.setHex(0xff5ac8); hemi.groundColor.setHex(0x6a3a5a); } else { hemi.color.setHex(0x9aa4d0); hemi.groundColor.setHex(0x40343a); } }
 if (DVOR) { sun.intensity = 0.32; sun.castShadow = false; hemi.color.setHex(0xd2d8de); hemi.groundColor.setHex(0x5a554e); }
-if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(ULTRA ? 3072 : 2048, ULTRA ? 3072 : 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
 

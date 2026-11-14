@@ -13,7 +13,8 @@ import { R, perlin } from './rng.js';
 
 const D2R = Math.PI / 180, PI = Math.PI;
 const params = new URLSearchParams(location.search);
-const mobile = matchMedia('(pointer:coarse)').matches;
+const ultra = (() => { try { return (localStorage.getItem('gfx') || 'ultra') === 'ultra'; } catch (e) { return true; } })();
+const mobile = matchMedia('(pointer:coarse)').matches && !ultra;   // «Ультра» — графика как на компьютере
 const lerp = (a, b, t) => a + (b - a) * Math.min(1, Math.max(0, t));
 const moveToward = (a, b, d) => Math.abs(b - a) <= d ? b : a + Math.sign(b - a) * d;
 
@@ -76,7 +77,7 @@ async function main() {
   setRes(pr);
   // автонастройка под телефон: держим ~55+ FPS, меняя разрешение, а в крайнем случае выключаем свечение
   const AQ = { t: 0, n: 0, warm: 2.5 };
-  function autoQ(dt) { if (params.get('pr')) return; AQ.warm -= dt; if (AQ.warm > 0) return; AQ.t += dt; AQ.n++; if (AQ.t < 2) return;
+  function autoQ(dt) { if (params.get('pr') || ultra) return; AQ.warm -= dt; if (AQ.warm > 0) return; AQ.t += dt; AQ.n++; if (AQ.t < 2) return;
     const fps = AQ.n / AQ.t; AQ.t = 0; AQ.n = 0;
     if (fps < 50 && pr > 0.55) setRes(Math.max(0.55, pr * 0.85));
     else if (fps < 42 && post.bloom.enabled) post.bloom.enabled = false;

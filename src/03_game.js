@@ -3,6 +3,7 @@
 // ============================================================
 const $ = (id) => document.getElementById(id);
 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const LOWQ = isTouch && !(() => { try { return (localStorage.getItem('gfx') || 'ultra') === 'ultra'; } catch (e) { return true; } })();   // «Ультра» — полная графика и на телефоне
 let VIEW_R = 3;
 
 // ---------------- Цвета земли ----------------
@@ -260,8 +261,8 @@ function disposeChunk(ch) {
 
 // ---------------- Three.js сцена ----------------
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 1.75));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LOWQ, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LOWQ ? 1.5 : 1.75));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(72, 1, 0.15, 1800);
 camera.rotation.order = 'YXZ';
@@ -346,7 +347,7 @@ MAT.grass.color.setScalar(0.8);
 MAT.grass.onBeforeCompile = (sh) => { // нормаль травы всегда вверх (без чёрной изнанки)
   sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);');
 };
-const SHADOWS = !isTouch;
+const SHADOWS = !LOWQ;
 if (SHADOWS) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
@@ -446,7 +447,7 @@ for (let i = 0; i < 14; i++) {
 }
 
 // падающие листья
-const LF_N = isTouch ? 90 : 180, lfPos = new Float32Array(LF_N * 3), lfCol = new Float32Array(LF_N * 3), lfPh = new Float32Array(LF_N);
+const LF_N = LOWQ ? 90 : 180, lfPos = new Float32Array(LF_N * 3), lfCol = new Float32Array(LF_N * 3), lfPh = new Float32Array(LF_N);
 {
   const lc = new THREE.Color();
   for (let i = 0; i < LF_N; i++) {
@@ -776,7 +777,7 @@ function applyViewDistance() {
 const post = (() => {
   const VS = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
   const HF = THREE.HalfFloatType;
-  const main = new THREE.WebGLRenderTarget(4, 4, { type: HF, samples: isTouch ? 0 : 4, depthTexture: new THREE.DepthTexture(4, 4) });
+  const main = new THREE.WebGLRenderTarget(4, 4, { type: HF, samples: LOWQ ? 0 : isTouch ? 2 : 4, depthTexture: new THREE.DepthTexture(4, 4) });
   const bA = new THREE.WebGLRenderTarget(4, 4, { type: HF }), bB = new THREE.WebGLRenderTarget(4, 4, { type: HF });
   const qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), qg = new THREE.PlaneGeometry(2, 2);
   const mk = (fs, u) => { const m = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: fs, depthTest: false, depthWrite: false }); const sc = new THREE.Scene(); const me = new THREE.Mesh(qg, m); me.frustumCulled = false; sc.add(me); return { m, sc }; };
@@ -882,7 +883,7 @@ function frame(now) {
     sun.target.position.set(cx, camera.position.y, cz);
     sun.position.copy(skyU.sunDir.value.y >= -0.05 ? skyU.sunDir.value : skyU.sunDir.value.clone().negate()).multiplyScalar(200).add(sun.target.position); }
   // LOD мелких деталей
-  const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = isTouch ? 1.2 : 1.7;
+  const pcx = Math.floor(P.x / CH), pcz = Math.floor(P.z / CH), gr = LOWQ ? 1.2 : 1.7;
   for (const ch of chunks.values()) if (ch.grass) ch.grass.visible = Math.hypot(ch.cx - pcx, ch.cz - pcz) <= gr;
   // костёр
   fireT += dt;

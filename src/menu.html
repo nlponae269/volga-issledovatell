@@ -23,7 +23,9 @@ html,body{height:100%;overflow:hidden;background:#07070a;color:var(--ink);font-f
 .bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ffd35a,var(--a1),var(--a2));transform-origin:left;transform:scaleX(0);transition:transform 1.2s var(--ease) .4s}
 #far{font:600 10px system-ui;letter-spacing:.18em;color:var(--dim);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:7px 12px;cursor:pointer;transition:transform .25s var(--spring),background .3s,color .3s}
 #far.on{color:#fff;background:linear-gradient(90deg,#ff6a3d,#c22a6a);border-color:transparent}
-#far:active,#go:active{transform:scale(.93)}
+#far:active,#go:active,#gfx:active{transform:scale(.93)}
+#gfx{font:600 10px system-ui;letter-spacing:.18em;color:#fff;background:linear-gradient(90deg,#3a7bd5,#9b4dff);border:0;border-radius:20px;padding:8px 13px;cursor:pointer;transition:transform .25s var(--spring)}
+#gfx.auto{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:var(--dim)}
 /* герой: выбранный мир */
 #hero{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:min(560px,58vw);padding:6px 0}
 #hero>*{animation:in .7s var(--ease) both}
@@ -111,7 +113,7 @@ body.shake .bgl.on{animation:kb 28s ease-in-out infinite alternate,sh .35s steps
 <div class="bgl" id="bgA"></div><div class="bgl" id="bgB"></div><div class="tint" id="tA"></div><div class="tint" id="tB"></div><div class="fogl" id="f1"></div><div class="fogl" id="f2"></div><div id="shade"></div><div class="fogl" id="f3"></div><div id="vig"></div><div id="flash"></div>
 <svg id="ghost" viewBox="0 0 40 110"><path d="M20 4c5 0 8 4 8 9s-3 9-8 9-8-4-8-9 3-9 8-9zM8 26c4-3 20-3 24 0 3 3 4 20 3 34-1 8-3 12-4 20l-2 28h-7l-2-26-2 26h-7L9 80c-1-8-3-12-4-20-1-14 0-31 3-34z" fill="#050506"/></svg><canvas id="grain" width="640" height="360"></canvas>
 <div id="ui">
-  <header id="top"><div class="logo">ТИШИНА<span>ОДИН СОН · 16 МИРОВ</span></div><div class="prog"><div class="bar"><i id="pbar"></i></div><span id="ptxt"></span></div><button id="far"></button></header>
+  <header id="top"><div class="logo">ТИШИНА<span>ОДИН СОН · 16 МИРОВ</span></div><div class="prog"><div class="bar"><i id="pbar"></i></div><span id="ptxt"></span></div><button id="far"></button><button id="gfx" class="pill"></button></header>
   <section id="hero"><div id="hnum"></div><div id="htag"></div><h1 id="hname"></h1><p id="hdesc"></p><div id="hstat"></div><button id="go">ВОЙТИ <b>→</b></button></section>
   <nav id="strip"></nav><div id="hint">← → выбрать · Enter — войти</div>
 </div>
@@ -157,6 +159,8 @@ WORLDS.forEach((w, i) => { const [a1, a2] = pal(w.id), t = document.createElemen
 function keysN() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} return KEYW.filter((w) => k.includes(w)).length; }
 function refreshTop() { const n = keysN(), done = ls('dream_done'); $('ptxt').textContent = done ? 'СОН ПРОЙДЕН' : `КЛЮЧИ ${n} / ${KEYW.length}`; requestAnimationFrame(() => ($('pbar').style.transform = `scaleX(${done ? 1 : n / KEYW.length})`)); }
 const far = $('far'); function farTxt() { const on = ls('farlands') === '1'; far.textContent = on ? 'FAR LANDS · ВКЛ' : 'FAR LANDS'; far.classList.toggle('on', on); }
+const gfx = $('gfx'); function gfxTxt() { const u = (ls('gfx') || 'ultra') === 'ultra'; gfx.textContent = u ? 'ГРАФИКА · УЛЬТРА' : 'ГРАФИКА · АВТО'; gfx.classList.toggle('auto', !u); }
+gfx.onclick = () => { try { localStorage.setItem('gfx', (ls('gfx') || 'ultra') === 'ultra' ? 'auto' : 'ultra'); } catch (e) {} gfxTxt(); }; gfxTxt();
 far.onclick = () => { try { localStorage.setItem('farlands', ls('farlands') === '1' ? '0' : '1'); } catch (e) {} farTxt(); }; farTxt(); refreshTop();
 // выбор мира
 let sel = Math.max(0, WORLDS.findIndex((w) => w.id === ls('menu_last'))), flip = false;

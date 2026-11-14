@@ -1,9 +1,12 @@
 // ===================== ТРОПА: ядро, текстуры, материалы =====================
 const $ = (id) => document.getElementById(id);
-const MOBILE = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+const TOUCH = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+// «Ультра» (по умолчанию): на телефоне — полная графика как на компьютере. «Авто» — облегчённая для слабых устройств.
+const ULTRA = (() => { try { return (localStorage.getItem('gfx') || 'ultra') === 'ultra'; } catch (e) { return true; } })();
+const MOBILE = TOUCH && !ULTRA;
 const Q = {
   shadows: !MOBILE, ssao: !MOBILE, grass: MOBILE ? 9000 : 34000, R: MOBILE ? 1 : 2,
-  pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 1.5), msaa: MOBILE ? 0 : 4, fogSteps: MOBILE ? 5 : 9,
+  pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, ULTRA && TOUCH ? 1.75 : 1.5), msaa: MOBILE ? 0 : TOUCH ? 2 : 4, fogSteps: MOBILE ? 5 : 9,
 };
 const TEST = location.hash.includes('test');
 if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }

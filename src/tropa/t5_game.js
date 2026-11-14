@@ -136,10 +136,10 @@ const P = { x: 0, y: 0, z: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, grou
 const keys = {}; let running = false, dead = 0, started = false;
 addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); if (P.ground && started) P.vy = 4.2; } });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
-renderer.domElement.addEventListener('click', () => { if (!MOBILE && started) renderer.domElement.requestPointerLock(); });
+renderer.domElement.addEventListener('click', () => { if (!TOUCH && started) renderer.domElement.requestPointerLock(); });
 addEventListener('mousemove', (e) => { if (document.pointerLockElement) { P.yaw -= e.movementX * 0.0021; P.pitch = clamp(P.pitch - e.movementY * 0.0021, -1.45, 1.45); } });
 const joy = { x: 0, y: 0, id: null }, look = { id: null };
-if (MOBILE) {
+if (TOUCH) {
   $('touch').style.display = 'block'; const jb = $('joy'), kn = $('knob');
   addEventListener('touchstart', (e) => { if (!started) return; for (const t of e.changedTouches) { if (t.target.classList && t.target.classList.contains('tb')) continue;
     if (t.clientX < innerWidth / 2 && joy.id === null) { joy.id = t.identifier; joy.cx = t.clientX; joy.cy = t.clientY; jb.style.left = (t.clientX - 60) + 'px'; jb.style.top = (t.clientY - 60) + 'px'; jb.style.bottom = 'auto'; }
@@ -238,7 +238,7 @@ function placeCamera() {
 // автоподстройка качества под устройство
 const AQ = { t: 0, n: 0, acc: 0, level: 0 };
 function autoQuality(dt) {
-  if (TEST || !started || AQ.level >= 4) return;
+  if (ULTRA || TEST || !started || AQ.level >= 4) return;
   AQ.t += dt; if (AQ.t < 1.5) return; AQ.acc += dt; AQ.n++;
   if (AQ.acc < 2.5) return;
   const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;

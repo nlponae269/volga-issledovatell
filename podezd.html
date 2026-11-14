@@ -84,10 +84,13 @@ const TEXDATA = {
 
 // ===================== ТРОПА: ядро, текстуры, материалы =====================
 const $ = (id) => document.getElementById(id);
-const MOBILE = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+const TOUCH = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+// «Ультра» (по умолчанию): на телефоне — полная графика как на компьютере. «Авто» — облегчённая для слабых устройств.
+const ULTRA = (() => { try { return (localStorage.getItem('gfx') || 'ultra') === 'ultra'; } catch (e) { return true; } })();
+const MOBILE = TOUCH && !ULTRA;
 const Q = {
   shadows: !MOBILE, ssao: !MOBILE, grass: MOBILE ? 9000 : 34000, R: MOBILE ? 1 : 2,
-  pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 1.5), msaa: MOBILE ? 0 : 4, fogSteps: MOBILE ? 5 : 9,
+  pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, ULTRA && TOUCH ? 1.75 : 1.5), msaa: MOBILE ? 0 : TOUCH ? 2 : 4, fogSteps: MOBILE ? 5 : 9,
 };
 const TEST = location.hash.includes('test');
 if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
@@ -837,7 +840,7 @@ const hemi = new THREE.HemisphereLight(0xc4ccd4, 0x4a4434, INDOOR ? 0.035 : NIGH
 const sun = new THREE.DirectionalLight(0xfff0dc, 1.15);
 sun.castShadow = Q.shadows && !INDOOR; if (INDOOR) sun.intensity = 0; if (SNOW) { sun.intensity = 0; sun.castShadow = false; if (ZIMA) { hemi.color.setHex(0xff5ac8); hemi.groundColor.setHex(0x6a3a5a); } else { hemi.color.setHex(0x9aa4d0); hemi.groundColor.setHex(0x40343a); } }
 if (DVOR) { sun.intensity = 0.32; sun.castShadow = false; hemi.color.setHex(0xd2d8de); hemi.groundColor.setHex(0x5a554e); }
-if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+if (NIGHT) { sun.intensity = 0.18; sun.color.setHex(0x8fa4c8); sun.castShadow = false; hemi.color.setHex(0x5a6a8a); } sun.shadow.mapSize.set(ULTRA ? 3072 : 2048, ULTRA ? 3072 : 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 260 }); sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
 
@@ -1286,10 +1289,10 @@ const P = { x: 0, y: 0, z: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, grou
 const keys = {}; let running = false, dead = 0, started = false;
 addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); if (P.ground && started) P.vy = 4.2; } });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
-renderer.domElement.addEventListener('click', () => { if (!MOBILE && started) renderer.domElement.requestPointerLock(); });
+renderer.domElement.addEventListener('click', () => { if (!TOUCH && started) renderer.domElement.requestPointerLock(); });
 addEventListener('mousemove', (e) => { if (document.pointerLockElement) { P.yaw -= e.movementX * 0.0021; P.pitch = clamp(P.pitch - e.movementY * 0.0021, -1.45, 1.45); } });
 const joy = { x: 0, y: 0, id: null }, look = { id: null };
-if (MOBILE) {
+if (TOUCH) {
   $('touch').style.display = 'block'; const jb = $('joy'), kn = $('knob');
   addEventListener('touchstart', (e) => { if (!started) return; for (const t of e.changedTouches) { if (t.target.classList && t.target.classList.contains('tb')) continue;
     if (t.clientX < innerWidth / 2 && joy.id === null) { joy.id = t.identifier; joy.cx = t.clientX; joy.cy = t.clientY; jb.style.left = (t.clientX - 60) + 'px'; jb.style.top = (t.clientY - 60) + 'px'; jb.style.bottom = 'auto'; }
@@ -1388,7 +1391,7 @@ function placeCamera() {
 // автоподстройка качества под устройство
 const AQ = { t: 0, n: 0, acc: 0, level: 0 };
 function autoQuality(dt) {
-  if (TEST || !started || AQ.level >= 4) return;
+  if (ULTRA || TEST || !started || AQ.level >= 4) return;
   AQ.t += dt; if (AQ.t < 1.5) return; AQ.acc += dt; AQ.n++;
   if (AQ.acc < 2.5) return;
   const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;
