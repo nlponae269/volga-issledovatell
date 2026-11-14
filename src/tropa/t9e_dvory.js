@@ -452,11 +452,22 @@ if (DVOR) {
     if (r() < 0.55) { const a = ry - 0.5 - r() * 0.5, px = x0 + dz * 2 + dx * 1.5, pz = z0 - dx * 2 + dz * 1.5, L = 6 + r() * 3, cx = px + Math.sin(a) * L / 2, cz = pz + Math.cos(a) * L / 2;   // старая труба, крашеная, ржавые пятна
       if (fr(cx, cz, 1.2)) { b.push(cx, 0, cz, a); b.cyl(M.paint, 0, 0.17, 0, 0.17, 0.17, L, 12, lin([0.8, 0.79, 0.74]), Math.PI / 2, 0); b.cyl(M.metal, 0, 0.17, L / 2 - 0.4, 0.172, 0.172, 0.3, 12, lin([0.55, 0.3, 0.2]), Math.PI / 2, 0);
         b.collide(0, 0, 0.2, L / 2); b.pop(); K.take(cx, cz, 1); } } }
+  // --- бордюры: бетонные камни по метру вдоль дорог; щербатые, просевшие, местами выбиты ---
+  const CURBG = rubG(0.15, 0.3, 0.98, 4242);
+  function curbs(K) { const { b, x0, z0, x1, z1 } = K, R = 4.1;
+    const lines = []; for (let c = Math.floor((x0 - 60) / 96) * 96 + 48; c < x1 + 60; c += 96) lines.push([0, c - R], [0, c + R]);
+    for (let c = Math.floor((z0 - 60) / 96) * 96 + 48; c < z1 + 60; c += 96) lines.push([1, c - R], [1, c + R]);
+    lines.push([0, DV_AVE - 10.1], [0, DV_AVE + 10.1]);
+    for (const [ax, v] of lines) { if (ax === 0 ? v < x0 || v >= x1 : v < z0 || v >= z1) continue;
+      for (let t = ax === 0 ? z0 : x0; t < (ax === 0 ? z1 : x1); t += 1) { const x = ax === 0 ? v : t + 0.5, z = ax === 0 ? t + 0.5 : v;
+        if (Math.abs(dvRoadD(x, z) - R) > 0.2 || !inWorld(x, z)) continue; const h = ihash(Math.round(x * 3), Math.round(z * 3), 57); if (h < 0.04) continue;
+        const sink = h < 0.12 ? 0.08 + h : 0, tilt = h > 0.94 ? (h - 0.94) * 4 : 0;
+        b.add(M.conc, CURBG, new THREE.Matrix4().compose(new V3(x, 0.05 - sink, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(ax === 0 ? 0 : tilt, ax === 0 ? (h - 0.5) * 0.04 : Math.PI / 2 + (h - 0.5) * 0.04, ax === 0 ? tilt : 0)), new V3(1, 1, 1)), shade(0.62 + h * 0.22)); } } }
   function dvDistrict(cx, cz) {
     const K = kit(cx, cz, 0xa1b2), { r } = K; K.block = (x, z, rad) => dvBldg(x, z, rad);
     for (const it of DVI) if (K.inb(it.x, it.z)) it.f(K);
     const fr = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 0.5 + rad;
-    clutter(K, fr);
+    clutter(K, fr); curbs(K);
     if (cx === 0 && cz === 0) rubble(K, 13, 6, 0.55, fr); else if (r() < 0.45) rubble(K, K.x0 + 6 + r() * 30, K.z0 + 6 + r() * 30, r() * 6.28, fr);
     for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5) && K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5)) { const q = 4 + r() * 4; DEC(K.b, D_LF, x, z, q, q, r() * 6.3, 0.018); DEC(K.b, D_SH, x, z, 1.6, 1.6); } }
     for (let i = 0; i < 5; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1)) { const q = 2.5 + r() * 3; DEC(K.b, D_LT, x, z, q, q, r() * 6.3, 0.022); } }
@@ -510,7 +521,7 @@ if (DVOR) {
     // находки
     if (r() < 0.45 || home) { for (let t = 0; t < 8; t++) { const [x, z] = home ? W(13 + r() * 5, 14 + r() * 3) : W(4 + r() * 36, 3 + r() * 16); if (freeY(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } } }
     for (let i = 0; i < 4; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 38); if (r() < 0.6 && freeY(x, z, 0.3)) addNut(K, x, z, `md${cx},${cz},${i}`); }
-    clutter(K, freeY); K.block = fb; return K.finish(); };
+    clutter(K, freeY); curbs(K); K.block = fb; return K.finish(); };
 
   // --- редкие машины и автобус; не тормозят ---
   const DC = []; for (let i = 0; i < (MOBILE ? 3 : 4); i++) { let c; if (i === 0) { c = makePaz(); c.g.visible = true; c.len = 7.6; c.wheels = []; } else { c = makeCar(); scene.add(c.g); } DC.push(Object.assign(c, { s: 0, lane: 0, ax: 0, dir: 1, v: 10, passed: false, honk: 0 })); }

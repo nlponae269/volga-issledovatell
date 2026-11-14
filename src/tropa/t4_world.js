@@ -114,14 +114,14 @@ groundMat.onBeforeCompile = (sh) => {
         walk = max(walk, drv * (1.0 - road));
         float rl = 1.0 - smoothstep(9.0, 10.0, abs(wp.y - ${DV_RAIL.toFixed(1)}));                                     // железная дорога: щебень
         yard = mix(yard, vec3(0.36,0.33,0.3) * (0.7 + 0.6*nC.r), rl * step(4.3, rd));
-        col = yard; col = mix(col, wk, walk); col = mix(col, as * 1.05, drv * (1.0 - road)); col = mix(col, vec3(0.42,0.42,0.41)*(0.8+0.3*nC.g), curb); col = mix(col, as, road);
+        col = yard; col = mix(col, wk, walk); col = mix(col, as * 1.05, drv * (1.0 - road)); col = mix(col, vec3(0.42,0.42,0.41)*(0.8+0.3*nC.g), curb); float gut = smoothstep(3.2, 3.95, rd) * road * (0.6 + 0.4*nB.g); col = mix(col, as * (1.0 - gut*0.35), road);
         // лужи: в выбоинах дороги, на тротуаре, в грязи
         float pn = texture2D(tNoise, wp*0.021 + 0.3).r*0.6 + texture2D(tNoise, wp*0.067).b*0.4;
         float yardM = (1.0-road)*(1.0-walk)*(1.0-curb)*bare;
         float pud = smoothstep(0.6, 0.618, pn + damp*0.03) * (road + walk*0.85) + smoothstep(0.628, 0.645, pn + damp*0.03) * yardM * 0.92; pud *= 1.0 - rl;
         float halo = smoothstep(0.56, 0.625, pn + damp*0.03) * (1.0 - pud) * (yardM + walk*0.5);
         col *= 1.0 - halo*0.42;
-        float wetAll = road*0.75 + walk*0.6;
+        float wetAll = road*0.75 + walk*0.6 + gut*0.25;
         vec3 vd = normalize(cameraPosition - vW); float fr = pow(1.0 - max(vd.y, 0.0), 4.0);
         vec2 rip = (texture2D(tNoise, wp*0.9 + vec2(uTimeG*0.05, uTimeG*0.031)).rg - 0.5) * 0.005;
         float rpl = 0.0;
@@ -151,13 +151,18 @@ ground.receiveShadow = true; ground.frustumCulled = false; scene.add(ground);
 const GRASS_S = MOBILE ? 46 : 72;
 const grass = (() => {
   const base = new THREE.BufferGeometry(); const P = [], U = [], I = [];
-  for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3, c = Math.cos(a) * 0.38, s = Math.sin(a) * 0.38, o = P.length / 3;
+  if (DVOR) { const r0 = rng(99); // отдельные тонкие травинки: изогнутые, разной высоты и наклона
+    for (let k = 0; k < 8; k++) { const a = r0() * 6.283, d = r0() * 0.16, bx = Math.cos(a) * d, bz = Math.sin(a) * d, fa = r0() * 6.283, w = 0.014 + r0() * 0.012, h = 0.7 + r0() * 0.9, lean = 0.12 + r0() * 0.35, la = r0() * 6.283;
+      const cx = Math.cos(fa) * w, cz = Math.sin(fa) * w, mx = Math.cos(la) * lean * 0.35, mz = Math.sin(la) * lean * 0.35, tx = Math.cos(la) * lean, tz = Math.sin(la) * lean, o = P.length / 3;
+      P.push(bx - cx, 0, bz - cz, bx + cx, 0, bz + cz, bx + mx + cx * 0.6, h * 0.55, bz + mz + cz * 0.6, bx + mx - cx * 0.6, h * 0.55, bz + mz - cz * 0.6, bx + tx, h, bz + tz);
+      U.push(0, 0, 1, 0, 1, 0.55, 0, 0.55, 0.5, 1); I.push(o, o + 1, o + 2, o, o + 2, o + 3, o + 3, o + 2, o + 4); } }
+  else for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3, c = Math.cos(a) * 0.38, s = Math.sin(a) * 0.38, o = P.length / 3;
     P.push(-c, 0, -s, c, 0, s, c, 0.62, s, -c, 0.62, -s); U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(o, o + 1, o + 2, o, o + 2, o + 3); }
   const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(P.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3)); g.setIndex(I);
   const N = Q.grass, A = new Float32Array(N * 4), r = rng(7);
   for (let i = 0; i < N; i++) { A[i * 4] = r() * GRASS_S; A[i * 4 + 1] = r() * GRASS_S; A[i * 4 + 2] = r() * 6.283; A[i * 4 + 3] = 0.6 + r() * 0.8; }
   g.setAttribute('aI', new THREE.InstancedBufferAttribute(A, 4)); g.instanceCount = N;
-  const mat = std({ map: TX.blades, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95 });
+  const mat = DVOR ? std({ color: 0xb8a878, side: THREE.DoubleSide, roughness: 0.9 }) : std({ map: TX.blades, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95 });
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, { uC: { value: new V3() }, uS: { value: GRASS_S }, uTime: SHARED.uTime, tNoise: { value: TX.noise } }); mat.userData.sh = sh;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aI; uniform vec3 uC; uniform float uS, uTime; uniform sampler2D tNoise; varying float vTint, vHt;\n' + GLSL_WORLD)
@@ -172,14 +177,14 @@ const grass = (() => {
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
         float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * ${DVOR ? '(1.0 - dvDrv(bp)) * smoothstep(6.6, 8.5, dvGridD(bp)) * step(10.0, abs(bp.y - 162.0)) * (0.12 + 0.75*smoothstep(0.5, 0.7, texture2D(tNoise, bp*0.031 + 0.13).g*0.7 + texture2D(tNoise, bp*0.11 + 0.71).b*0.3)) *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
-        vec3 p = position * vec3(${DVOR ? '0.55' : '1.0'}, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
+        vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
         p.x += w; p.z += w*0.5;
         vec3 transformed = vec3(bp.x, groundH(bp), bp.y) + p;
         vTint = nz.g; vHt = uv.y;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTint, vHt;')
       .replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''))
-      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.95,1.5,0.62);' : '') + (DVOR ? ' diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.3,1.18,0.8), 0.72) * 0.85;' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.95,1.5,0.62);' : '') + (DVOR ? ' diffuseColor.rgb = mix(mix(vec3(0.2,0.24,0.1), vec3(0.42,0.36,0.18), smoothstep(0.35,0.75,vTint)), vec3(0.55,0.48,0.3), vHt*0.55) * mix(0.35, 0.8, vHt);' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
   };
   const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.position.y = GROUND_Y; scene.add(mesh);
   return { mesh, update(p) { if (mat.userData.sh) mat.userData.sh.uniforms.uC.value.copy(p); } };
