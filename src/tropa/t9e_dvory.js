@@ -78,7 +78,7 @@ if (DVOR) {
             vec3 brick = mix(vec3(brL), brT, 0.22) * uWall * 2.3; diffuseColor.rgb = mix(diffuseColor.rgb, brick, fWall); diffuseColor.a = 1.0;`)
           .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(0.22, roughnessFactor, fWall);')
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(mix(nonPerturbedNormal, normal, fWall));'); }; }
-    return m;
+    m.userData.o = o; return m;
   }
   const FAC = [  // светлый силикатный кирпич (как дом № 13), кремовые панельки, пятиэтажка
     facade(11, { wall: '#cdcac2', plinth: '#8a8278', frame: '#f4f4f0', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, brick: true }),
@@ -88,6 +88,14 @@ if (DVOR) {
     facade(47, { wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
   ];
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
+  if (!PROTO.m_win) { const W2 = 1.5, H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
+    add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
+    add(frame, 0, H2 / 2, d * 0.45, 0.06, H2 - fw * 2, d * 0.7); add(frame, 0, H2 * 0.72, d * 0.45, W2 - fw * 2, 0.05, d * 0.7);
+    add(sill, 0, -0.03, 0.12, W2 + 0.16, 0.035, 0.26); add(sill, 0, H2 + 0.06, 0.04, W2 + 0.2, 0.1, 0.08);
+    glass.add(new THREE.PlaneGeometry(W2 - fw * 2, H2 - fw * 2), new THREE.Matrix4().makeTranslation(0, H2 / 2, 0.035));
+    const mF = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.35, metalness: 0 }), mS = new THREE.MeshStandardMaterial({ color: 0x9a9a98, roughness: 0.45, metalness: 0.6 });
+    const mG = new THREE.MeshStandardMaterial({ color: 0x8a96a4, roughness: 0.04, metalness: 1, transparent: true, opacity: 0.32, envMapIntensity: 1.4, depthWrite: false });
+    PROTO.m_win = { parts: [[mF, frame.build()], [mS, sill.build()], [mG, glass.build()]], col: false }; }
   const SCHOOL = facade(53, { wall: '#a8553c', plinth: '#6a6a66', frame: '#e8e4dc', base: 1.0, fh: 3.6, floors: 3, cw: 3, ww: 2.2, wh: 2.2, sill: 0.9, lit: 0.1, balc: false, brick: true, ei: 1.1 });
   const SCHOOL2 = facade(67, { wall: '#ecebe6', plinth: '#8a8d90', frame: '#3a4046', base: 0.8, fh: 3.6, floors: 3, cw: 3, ww: 2.5, wh: 2.1, sill: 0.9, lit: 0.3, balc: false, accent: true, ei: 1.0 });
   const lampOff = std({ color: 0x9a9a94, roughness: 0.5 });
@@ -143,6 +151,10 @@ if (DVOR) {
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
+    { const o = fac.userData.o; if (o && PROTO.m_win) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
+      for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12; if (o.balc && (col % (o.cw === 3 ? 4 : 4)) === 1) continue; const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp;
+        for (let f = 0; f < floors; f++) { const y = o.base + f * o.fh + o.sill, w = b.world(xl, y, s * (dep / 2 + 0.02));
+          K.put('m_win', new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(o.ww / 1.5, o.wh / 1.45, 1))); } } } }
     // антенны и провода на крыше
     const ants = []; for (let q = 0; q < 6 + ((r() * 5) | 0); q++) { const ax = (r() - 0.5) * (len - 3), az = (r() - 0.5) * (dep - 2), h = 2 + r() * 2.2; b.cyl(M.metal, ax, Hh + 0.2 + h / 2, az, 0.02, 0.02, h, 5, RUST); for (let e2 = 0; e2 < 3; e2++) b.box(M.metal, ax, Hh + h - e2 * 0.32, az, 0.95 - e2 * 0.22, 0.02, 0.02, RUST, 0, r() * 3); ants.push(b.world(ax, Hh + 0.2 + h, az)); }
     for (let q = 1; q < ants.length; q++) if (r() < 0.6) wire(b, ants[q - 1], ants[q], 0.4);

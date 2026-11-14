@@ -297,6 +297,7 @@ let jobI = 0;
 function loadStep() {
   if (jobI < PROTO_JOBS.length) { const [k, fn] = PROTO_JOBS[jobI++]; PROTO[k] = fn(); $('play').textContent = `Загрузка… ${Math.round(jobI / PROTO_JOBS.length * 100)}%`; setTimeout(loadStep, 0); return; }
   if (!PBR.ready) { $('play').textContent = `Загрузка… текстуры и модели ${Math.round((1 - Math.max(0, PBR.pending) / Math.max(1, PBR.total)) * 100)}%`; setTimeout(loadStep, 120); return; }
+  if (PBR_ON) { const hd = document.createElement('p'); hd.className = 'shint'; hd.style.cssText = 'position:absolute;right:20px;top:16px;font-size:11px;letter-spacing:.15em;margin:0'; hd.textContent = PBR.env && PROTO.m_ac ? 'HD-РЕСУРСЫ: ЗАГРУЖЕНЫ ✓' : PODEZD && PROTO.m_pbox ? 'HD-РЕСУРСЫ: ЗАГРУЖЕНЫ ✓' : 'HD-РЕСУРСЫ НЕ ЗАГРУЗИЛИСЬ ✗'; hd.style.color = /✓/.test(hd.textContent) ? '#8fe08a' : '#ff7a6a'; $('start').appendChild(hd); }
   if (PBR.env) { scene.environment = PBR.env; scene.background = PBR.bg; scene.backgroundIntensity = 0.75; sky.visible = false; hemi.intensity *= 0.35; }
   updateChunks(0, 0, true); placeCamera(); $('play').textContent = 'Играть'; $('play').disabled = false; requestAnimationFrame(frame);
 }
