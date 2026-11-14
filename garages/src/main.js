@@ -24,10 +24,10 @@ async function main() {
   // ---------- рендерер ----------
   const canvas = document.getElementById('gl');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-  const pr = Math.min(devicePixelRatio, Number(params.get('pr')) || (mobile ? 1 : 1.5));
+  let pr = Math.min(devicePixelRatio, Number(params.get('pr')) || (mobile ? 0.9 : 1.25));   // дальше подстраивается под FPS
   renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
   renderer.toneMapping = THREE.NoToneMapping;
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = mobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   setAniso(Math.min(4, renderer.capabilities.getMaxAnisotropy()));
 
   const scene = new THREE.Scene();
@@ -42,18 +42,19 @@ async function main() {
   const moon = new THREE.DirectionalLight(sRGB(.55, .63, .82), 0.4 * PI);
   { const d = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(38 * D2R, -35 * D2R, 0, 'YXZ')); moon.position.copy(d).multiplyScalar(-50); root.add(moon, moon.target); }
   const flash = new THREE.SpotLight(new THREE.Color().setRGB(1, .95, .86, THREE.SRGBColorSpace), 14 * PI, 38, 36 * D2R, 1 - 13 / 36, 2);
-  flash.castShadow = true; flash.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
+  flash.castShadow = true; flash.shadow.mapSize.set(mobile ? 512 : 1024, mobile ? 512 : 1024);
   flash.shadow.camera.near = 0.2; flash.shadow.camera.far = 38; flash.shadow.bias = -0.0004; flash.shadow.normalBias = 0.03; flash.shadow.radius = 3;
   flash.map = makeCookie(); root.add(flash, flash.target);
   // пул динамических ламп (ближайшие к игроку) — число ламп постоянно, чтобы шейдеры не перекомпилировались
   const spotPool = [], pointPool = [];
-  for (let i = 0; i < 4; i++) { const s = new THREE.SpotLight(0xffffff, 0, 20, 60 * D2R, 1 - 20 / 60, 2); root.add(s, s.target); spotPool.push(s); }
-  for (let i = 0; i < 4; i++) { const p = new THREE.PointLight(0xffffff, 0, 7, 2); root.add(p); pointPool.push(p); }
+  const NL = mobile ? 2 : 4;
+  for (let i = 0; i < NL; i++) { const s = new THREE.SpotLight(0xffffff, 0, 20, 60 * D2R, 1 - 20 / 60, 2); root.add(s, s.target); spotPool.push(s); }
+  for (let i = 0; i < NL; i++) { const p = new THREE.PointLight(0xffffff, 0, 7, 2); root.add(p); pointPool.push(p); }
 
   // ---------- загрузка ----------
   setStatus('Синтез звука…'); await new Promise(r => setTimeout(r, 30)); generateAll();
   const assets = await loadAll(p => setStatus(`Загрузка… ${Math.round(p * 100)}%`));
-  const world = new GarageWorld(root, assets, Number(params.get('vr')) || (mobile ? 46 : 56));
+  const world = new GarageWorld(root, assets, Number(params.get('vr')) || (mobile ? 40 : 52));
   const player = new Player();
   const game = { onCaught: m => onCaught(m), onChaseStarted: () => onChaseStarted() };
   const monster = new Monster(root, assets.M.skin, assets.M.eye, player, game);
@@ -68,8 +69,18 @@ async function main() {
   let post = createPost(renderer, scene, camera, innerWidth * pr, innerHeight * pr, mobile ? 0 : 4);
   addEventListener('resize', () => {
     renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-    post.composer.setSize(innerWidth * pr, innerHeight * pr); ov.width = innerWidth; ov.height = innerHeight;
+    setRes(pr); ov.width = innerWidth; ov.height = innerHeight;
   });
+  // разрешение рендера (пиксели CSS × pr): композер сам умножает на свой pixelRatio
+  function setRes(v) { pr = v; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); post.composer.setPixelRatio(pr); post.composer.setSize(innerWidth, innerHeight); }
+  setRes(pr);
+  // автонастройка под телефон: держим ~55+ FPS, меняя разрешение, а в крайнем случае выключаем свечение
+  const AQ = { t: 0, n: 0, warm: 2.5 };
+  function autoQ(dt) { if (params.get('pr')) return; AQ.warm -= dt; if (AQ.warm > 0) return; AQ.t += dt; AQ.n++; if (AQ.t < 2) return;
+    const fps = AQ.n / AQ.t; AQ.t = 0; AQ.n = 0;
+    if (fps < 50 && pr > 0.55) setRes(Math.max(0.55, pr * 0.85));
+    else if (fps < 42 && post.bloom.enabled) post.bloom.enabled = false;
+    else if (fps > 58 && pr < (mobile ? 1.1 : 1.5)) setRes(Math.min(mobile ? 1.1 : 1.5, pr * 1.08)); }
 
   // ---------- HUD (замена OnGUI) ----------
   const ov = document.getElementById('hud'); ov.width = innerWidth; ov.height = innerHeight; const g = ov.getContext('2d');
@@ -102,7 +113,7 @@ async function main() {
   function consumePress() { const p = controls.anyPress; controls.anyPress = false; return p; }
 
   // ---------- цикл ----------
-  let last = performance.now(), T = 0;
+  let last = performance.now(), T = 0, frameN = 0;
   const camV = new THREE.Vector3(), camU = new THREE.Vector3(), camF = new THREE.Vector3();
   function frame(now) {
     requestAnimationFrame(frame);
@@ -141,7 +152,8 @@ async function main() {
     syncLights();
     syncCamera();
     post.u.uTime.value = T;
-    post.composer.render(dt);
+    if (mobile) flash.shadow.autoUpdate = player.flashOn && (frameN++ & 1) === 0;   // тень фонарика — через кадр
+    post.composer.render(dt); autoQ(dt);
     drawHud();
   }
 
