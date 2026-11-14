@@ -2711,6 +2711,15 @@ if (DVOR) {
     const mF = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.35, metalness: 0 }), mS = new THREE.MeshStandardMaterial({ color: 0x9a9a98, roughness: 0.45, metalness: 0.6 });
     const mG = new THREE.MeshStandardMaterial({ color: 0x8a96a4, roughness: 0.04, metalness: 1, transparent: true, opacity: 0.32, envMapIntensity: 1.4, depthWrite: false });
     PROTO[key] = { parts: [[mF, frame.build()], [mS, sill.build()], [mG, glass.build()]], col: false }; };
+  const mkBalc = (key, glazed) => { const wp = new Bag(), cs = new Bag(), fr = new Bag(), gl = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
+    add(cs, 0, 0.06, 0.58, 2.9, 0.12, 1.16); add(wp, 0, 0.62, 1.12, 2.9, 1.0, 0.07); for (const s of [-1, 1]) add(wp, s * 1.42, 0.62, 0.58, 0.07, 1.0, 1.1);
+    if (glazed) { add(fr, 0, 2.62, 1.12, 2.9, 0.08, 0.1); add(fr, 0, 1.14, 1.12, 2.9, 0.06, 0.1); for (let k = 0; k <= 4; k++) add(fr, -1.42 + k * 0.71, 1.88, 1.12, 0.06, 1.5, 0.08); for (const s of [-1, 1]) { add(fr, s * 1.42, 1.88, 0.15, 0.06, 1.5, 0.08); add(fr, s * 1.42, 2.62, 0.62, 0.08, 0.08, 1.0); }
+      gl.add(new THREE.PlaneGeometry(2.8, 1.45), new THREE.Matrix4().makeTranslation(0, 1.88, 1.11)); for (const s of [-1, 1]) gl.add(new THREE.PlaneGeometry(0.95, 1.45), new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(s * 1.41, 1.88, 0.62));
+      add(wp, 0, 2.72, 0.6, 2.96, 0.06, 1.22); }
+    const mW = new THREE.MeshStandardMaterial({ color: 0xdedbd2, roughness: 0.75 }), mC = new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: 0.92 }), mF = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.35 });
+    const mG = new THREE.MeshStandardMaterial({ color: 0x8a96a4, roughness: 0.04, metalness: 1, transparent: true, opacity: 0.3, envMapIntensity: 1.4, depthWrite: false, side: THREE.DoubleSide });
+    PROTO[key] = { parts: [[mW, wp.build()], [mC, cs.build()]].concat(glazed ? [[mF, fr.build()], [mG, gl.build()]] : []), col: false }; };
+  if (!PROTO.m_balc) { mkBalc('m_balc', true); mkBalc('m_balc_o', false); }
   if (!PROTO.m_win) { mkWin('m_win', 1.5, 2); mkWin('m_win2', 1.4, 2); mkWin('m_win3', 2.1, 3); }
   const SCHOOL = facade(53, { wall: '#a8553c', plinth: '#6a6a66', frame: '#e8e4dc', base: 1.0, fh: 3.6, floors: 3, cw: 3, ww: 2.2, wh: 2.2, sill: 0.9, lit: 0.1, balc: false, brick: true, ei: 1.1 });
   const SCHOOL2 = facade(67, { wall: '#ecebe6', plinth: '#8a8d90', frame: '#3a4046', base: 0.8, fh: 3.6, floors: 3, cw: 3, ww: 2.5, wh: 2.1, sill: 0.9, lit: 0.3, balc: false, accent: true, ei: 1.0 });
@@ -2767,8 +2776,10 @@ if (DVOR) {
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
+    b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
     { const o = fac.userData.o; if (o && PROTO.m_win) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
-      for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12; if (o.balc && (col % (o.cw === 3 ? 4 : 4)) === 1) continue; const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp;
+      for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12;
+        if (o.balc && col % 4 === 1) { const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp; for (let f = 1; f < floors; f++) { const y = o.base + f * o.fh, w = b.world(xl, y, s * (dep / 2 + 0.03)); K.put(ihash(Math.round(w.x * 3), f, Math.round(w.z * 3)) < 0.7 ? 'm_balc' : 'm_balc_o', new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(1, 1, 1))); } continue; } const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp;
         for (let f = 0; f < floors; f++) { const y = o.base + f * o.fh + o.sill, w = b.world(xl, y, s * (dep / 2 + 0.02));
           const wm = winW(o, col), key = o.pair ? (wm > 1.8 ? 'm_win3' : 'm_win2') : 'm_win'; K.put(key, new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(o.pair ? 1 : o.ww / 1.5, o.wh / 1.45, 1))); } } } }
     // антенны и провода на крыше
@@ -2785,9 +2796,21 @@ if (DVOR) {
     // подъезды
     const AD = home && typeof home === 'object' ? home : null; const n = Math.max(1, Math.round(len / 12)); const street = AD ? AD.st : home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = AD ? AD.n : 13;
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
-      b.box(M.metal, lx, 1.05, fz + 0.04, 1.1, 2.1, 0.08, lin([0.2, 0.17, 0.15])); b.box(M.metal, lx + 0.75, 1.3, fz + 0.06, 0.18, 0.3, 0.04, PAINT.galv); if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.09));
-      b.box(M.conc, lx, 2.7, fz + 0.75, 2.4, 0.14, 1.6, shade(0.6)); b.box(M.conc, lx, 0.08, fz + 0.75, 2.4, 0.16, 1.5, shade(0.55)); for (const s of [-1.1, 1.1]) b.cyl(M.metal, lx + s, 1.35, fz + 1.45, 0.035, 0.035, 2.7, 6, PAINT.dark);
-      for (let k = 0; k < 8; k++) b.box(M.paint, lx - 1.05 + k * 0.3, 2.86, fz + 0.8, 0.3, 0.03, 1.72, k % 2 ? CRM : RED, 0.1);                 // полосатый козырёк
+      // портал: белёные пилоны, дверь утоплена
+      const WH = lin([0.86, 0.85, 0.82]), BL = lin([0.24, 0.34, 0.48]), YG = lin([0.85, 0.72, 0.25]);
+      for (const sx of [-0.85, 0.85]) b.box(M.paint, lx + sx, 1.3, fz + 0.18, 0.5, 2.6, 0.36, WH); b.box(M.paint, lx, 2.45, fz + 0.18, 1.2, 0.3, 0.36, WH);
+      b.box(M.metal, lx, 1.07, fz + 0.04, 1.1, 2.14, 0.06, BL); b.box(M.metal, lx + 0.4, 1.0, fz + 0.08, 0.04, 0.2, 0.04, PAINT.galv); b.box(M.metal, lx + 0.72, 1.35, fz + 0.37, 0.14, 0.24, 0.03, PAINT.galv);
+      if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.08));
+      // бетонный козырёк, ступени, перила
+      b.box(M.conc, lx, 2.68, fz + 0.85, 2.6, 0.12, 1.7, shade(0.75)); b.box(M.paint, lx, 2.75, fz + 1.69, 2.6, 0.14, 0.04, WH);
+      for (let k = 0; k < 3; k++) b.box(M.conc, lx, 0.07 + k * 0.14, fz + 1.3 - k * 0.3 + 0.15, 2.0, 0.14, 1.6 - k * 0.6 + 0.3, shade(0.62 + k * 0.04));
+      for (const sx of [-1.0, 1.0]) { b.pipe(M.metal, new V3(lx + sx, 0.95, fz + 0.4), new V3(lx + sx, 0.95, fz + 1.75), 0.025, PAINT.dark); b.pipe(M.metal, new V3(lx + sx, 0.95, fz + 1.75), new V3(lx + sx, 0.3, fz + 2.05), 0.025, PAINT.dark);
+        for (let k = 0; k < 7; k++) { const z = fz + 0.45 + k * 0.22; b.box(M.metal, lx + sx, 0.62, z, 0.02, 0.66, 0.02, PAINT.dark); } }
+      b.collide(lx, fz + 1.3, 1.0, 0.75);
+      // газовая труба: жёлтый стояк у подъезда
+      b.cyl(M.metal, lx + 1.25, Hh / 2, fz + 0.12, 0.04, 0.04, Hh - 1, 8, YG);
+      // иногда — подвальная синяя дверь и розовый цоколь
+      if (i < n - 1 && r() < 0.55) { const dx = lx + len / (2 * n); b.box(M.metal, dx, 0.95, fz + 0.03, 0.9, 1.9, 0.05, BL); b.box(M.paint, dx, 0.5, fz + 0.015, 2.4, 1.0, 0.03, lin([0.62, 0.36, 0.34])); }
       if (PROTO.m_slight) { const w = b.world(lx, 2.3, fz + 0.02); PUT(K, 'm_slight', w.x, 2.3, w.z, ry, 1.1); } else b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
       const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home === true && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), plate(String(i + 1))); const pp = b.world(lx, 2.2, fz + 0.03); pm.position.copy(pp); pm.rotation.y = ry; group.add(pm);
