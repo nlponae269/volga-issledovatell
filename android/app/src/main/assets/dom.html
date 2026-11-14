@@ -2630,6 +2630,22 @@ if (DVOR) {
   SPAWN = { x: 8, z: 2, yaw: 0 };                       // спавн — во дворе дома № 13, лицом на север
   P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = SPAWN.yaw; P.pitch = 0.04;
   // --- фасады: серый кирпич, окна с тюлем, редкий тёплый свет ---
+  // пары окон, как в доме № 13: широкое (3 створки) и узкое (2 створки)
+  const winW = (o, c) => o.pair ? (c % 2 === 0 ? 2.1 : 1.4) : o.ww;
+  const mull = (g, x, y, ww, wh, wm) => { const n = wm > 1.8 ? 3 : 2; for (let k = 1; k < n; k++) g.fillRect(x + ww * k / n - 2, y, 4, wh); };
+  // силикатный кирпич по фото: светлый серо-бежевый, тонкие тёмные швы, тычковый ряд через пять ложковых
+  if (PBR.brick) { const S = 1024, rows = 20, rh = S / rows, bl = S / 6, r0 = rng(77);
+    const col = document.createElement('canvas'), hgt = document.createElement('canvas'), rgh = document.createElement('canvas'); col.width = col.height = hgt.width = hgt.height = rgh.width = rgh.height = S;
+    const g = col.getContext('2d'), h = hgt.getContext('2d'), q = rgh.getContext('2d');
+    g.fillStyle = '#6e6660'; g.fillRect(0, 0, S, S); h.fillStyle = '#202020'; h.fillRect(0, 0, S, S); q.fillStyle = '#ff00ff'; q.fillRect(0, 0, S, S);
+    for (let i = 0; i < rows; i++) { const hdr = i % 6 === 5, L = hdr ? bl * 0.48 : bl, off = hdr ? bl * 0.24 : (i % 2) * bl / 2, y = i * rh;
+      for (let x = -L + off; x < S + L; x += L) { const v = (r0() - 0.5) * 22, pk = r0() < 0.25 ? 8 : 0, base = 196 + v; g.fillStyle = `rgb(${base + pk},${base - 6 + pk * 0.3},${base - 14})`;
+        const draw = (dx) => { g.fillRect(x + dx + 2.5, y + 2.5, L - 5, rh - 5); h.fillStyle = `rgb(${200 + r0() * 40 | 0},0,0)`; h.fillRect(x + dx + 2.5, y + 2.5, L - 5, rh - 5); q.fillStyle = `rgb(0,${200 + r0() * 40 | 0},0)`; q.fillRect(x + dx + 2.5, y + 2.5, L - 5, rh - 5); };
+        draw(0);
+        for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(${r0() < 0.5 ? '0,0,0' : '255,255,255'},${0.04 + r0() * 0.06})`; g.fillRect(x + r0() * L, y + 3 + r0() * (rh - 8), 3 + r0() * 14, 2 + r0() * 4); } } }
+    for (let i = 0; i < 40; i++) { const x = r0() * S, w = 6 + r0() * 30, gr = g.createLinearGradient(0, 0, 0, S); gr.addColorStop(0, 'rgba(60,50,40,0)'); gr.addColorStop(0.5, `rgba(60,50,40,${0.05 + r0() * 0.08})`); gr.addColorStop(1, 'rgba(60,50,40,0)'); g.fillStyle = gr; g.fillRect(x, 0, w, S); }
+    const tex = (c, srgb) => { const t = texFrom(c, srgb); return t; };
+    PBR.brick = { map: tex(col, true), nor: tex(normalFromHeight(hgt, 2.2), false), arm: tex(rgh, false) }; }
   function facade(seed, o) {
     const W = 1024, H = 784, mx = W / 36, my = H / 28, r = rng(seed);
     const cc = document.createElement('canvas'), ec = document.createElement('canvas'); cc.width = ec.width = W; cc.height = ec.height = H;
@@ -2652,7 +2668,7 @@ if (DVOR) {
         if (glz) { const gr = g.createLinearGradient(lx0, ly0, lx0 + lw, ly0 + lh * 0.55); gr.addColorStop(0, '#9aa6b2'); gr.addColorStop(1, '#5c6874'); g.fillStyle = gr; g.fillRect(lx0 + 2, ly0 + 2, lw - 4, lh * 0.55 - 2); g.fillStyle = '#f0f0ec'; for (let k = 0; k <= 4; k++) g.fillRect(lx0 + k * (lw - 4) / 4, ly0, 4, lh * 0.55); g.fillRect(lx0, ly0, lw, 4); g.fillRect(lx0, ly0 + lh * 0.55 - 3, lw, 4); }
         else if (r() < 0.5) for (let k = 0; k < 4; k++) { g.fillStyle = ['#c84a4a', '#4a7ac8', '#e8e0c8', '#3a9a5a', '#d8b040'][(r() * 5) | 0]; g.fillRect(lx0 + 6 + k * lw / 4.4, ly0 + 10, lw / 6, lh * 0.25); }
         continue; }
-      const tall = false, ww = o.ww * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - o.ww) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
+      const wm = winW(o, c), tall = false, ww = wm * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - wm) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
       if (o.accent && r() < 0.3) { g.fillStyle = ACC[(r() * 4) | 0]; g.fillRect(c * o.cw * mx + 2, Y(o.base + (f + 1) * o.fh) + 2, o.cw * mx - 4, o.fh * my - 4); }
       g.fillStyle = 'rgba(25,22,18,0.12)'; g.fillRect(x + ww * 0.2, y + wh, ww * 0.6, 14 + r() * 40);                          // потёк под подоконником
       const lit = r() < o.lit, t = r(), glow = t < 0.08 ? '#a8c0ff' : t < 0.3 ? '#ffe6c0' : t < 0.7 ? '#ffcf8a' : '#ffbe6a';
@@ -2660,11 +2676,11 @@ if (DVOR) {
       if (lit) { g.fillStyle = glow; g.fillRect(x, y, ww, wh); e.fillStyle = glow; e.fillRect(x, y, ww, wh);
         if (r() < 0.7) { const cw = ww * (0.15 + r() * 0.25), cl = ['#7a3a2a', '#8a6a3a', '#3a4a6a', '#6a6a4a'][(r() * 4) | 0]; for (const k of [0, 1]) { g.fillStyle = cl; e.fillStyle = 'rgba(80,40,15,0.85)'; const xx = k ? x + ww - cw : x; g.fillRect(xx, y, cw, wh); e.fillRect(xx, y, cw, wh); } }
         if (r() < 0.1) { const sx = x + ww * (0.3 + r() * 0.4), sy = y + wh * 0.45; for (const c2 of [g, e]) { c2.fillStyle = 'rgba(8,6,5,0.92)'; c2.beginPath(); c2.arc(sx, sy, ww * 0.1, 0, 6.28); c2.fill(); c2.fillRect(sx - ww * 0.2, sy + ww * 0.12, ww * 0.4, wh); } }
-        e.fillStyle = 'rgba(0,0,0,0.35)'; e.fillRect(x + ww / 2 - 2, y, 4, wh); e.fillRect(x, y + wh * 0.3, ww, 3);
+        e.fillStyle = 'rgba(0,0,0,0.35)'; mull(e, x, y, ww, wh, wm);
       } else { const gr = g.createLinearGradient(x, y, x + ww * 0.4, y + wh); gr.addColorStop(0, '#8793a0'); gr.addColorStop(0.55, '#4a5560'); gr.addColorStop(1, '#6b7782'); g.fillStyle = gr; g.fillRect(x, y, ww, wh);
         const cur = r(); if (cur < 0.55) { g.fillStyle = 'rgba(236,234,224,0.5)'; g.fillRect(x, y + wh * 0.1, ww, wh * 0.9); } else if (cur < 0.75) { g.fillStyle = ['rgba(150,90,70,0.6)', 'rgba(90,110,140,0.6)', 'rgba(140,130,90,0.6)'][(r() * 3) | 0]; g.fillRect(x, y, ww * 0.3, wh); g.fillRect(x + ww * 0.7, y, ww * 0.3, wh); }
         if (r() < 0.14) { g.fillStyle = '#3d6a3a'; g.beginPath(); g.arc(x + ww * (0.2 + r() * 0.6), y + wh - 9, 7, 0, 6.28); g.fill(); } }
-      g.fillStyle = o.frame; g.fillRect(x + ww / 2 - 2, y, 4, wh); g.fillRect(x, y + wh * 0.3, ww, 3);
+      g.fillStyle = o.frame; mull(g, x, y, ww, wh, wm);
     }
     const mk = (c) => { const t = texFrom(c, true); t.repeat.set(1 / 36, 1 / 28); return t; };
     const m = std({ map: mk(cc), emissiveMap: mk(ec), emissive: 0xffffff, emissiveIntensity: o.ei || 1.3, roughness: 0.92 }); m.userData.wc = lin(hexc(parseInt(o.wall.slice(1), 16), 0.8));
@@ -2674,27 +2690,28 @@ if (DVOR) {
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tBrick; uniform vec3 uWall; float fWall = 0.0;')
           .replace('#include <map_fragment>', `#include <map_fragment>
             fWall = 1.0 - diffuseColor.a; vec3 brT = texture2D(tBrick, vNormalMapUv).rgb; float brL = dot(brT, vec3(0.299, 0.587, 0.114));
-            vec3 brick = mix(vec3(brL), brT, 0.22) * uWall * 2.3; diffuseColor.rgb = mix(diffuseColor.rgb, brick, fWall); diffuseColor.a = 1.0;`)
+            vec3 brick = brT * 1.05; diffuseColor.rgb = mix(diffuseColor.rgb, brick, fWall); diffuseColor.a = 1.0;`)
           .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(0.22, roughnessFactor, fWall);')
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(mix(nonPerturbedNormal, normal, fWall));'); }; }
     m.userData.o = o; return m;
   }
   const FAC = [  // светлый силикатный кирпич (как дом № 13), кремовые панельки, пятиэтажка
-    facade(11, { wall: '#cdcac2', plinth: '#8a8278', frame: '#f4f4f0', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, brick: true }),
-    facade(23, { wall: '#c4c1b9', plinth: '#7e776e', frame: '#f2f2ee', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.12, balc: true, brick: true }),
+    facade(11, { pair: true, wall: '#cdcac2', plinth: '#8a8278', frame: '#f4f4f0', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, brick: true }),
+    facade(23, { pair: true, wall: '#c4c1b9', plinth: '#7e776e', frame: '#f2f2ee', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.12, balc: true, brick: true }),
     facade(37, { wall: '#e0d6bd', plinth: '#8a8070', frame: '#f4f2ea', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
-    facade(41, { wall: '#c9c4b8', plinth: '#7a7268', frame: '#f0efe8', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.12, balc: true, brick: true }),
+    facade(41, { pair: true, wall: '#c9c4b8', plinth: '#7a7268', frame: '#f0efe8', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.12, balc: true, brick: true }),
     facade(47, { wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
   ];
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
-  if (!PROTO.m_win) { const W2 = 1.5, H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
+  const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
-    add(frame, 0, H2 / 2, d * 0.45, 0.06, H2 - fw * 2, d * 0.7); add(frame, 0, H2 * 0.72, d * 0.45, W2 - fw * 2, 0.05, d * 0.7);
+    for (let k = 1; k < n; k++) add(frame, -W2 / 2 + W2 * k / n, H2 / 2, d * 0.45, 0.06, H2 - fw * 2, d * 0.7);
     add(sill, 0, -0.03, 0.12, W2 + 0.16, 0.035, 0.26); add(sill, 0, H2 + 0.06, 0.04, W2 + 0.2, 0.1, 0.08);
     glass.add(new THREE.PlaneGeometry(W2 - fw * 2, H2 - fw * 2), new THREE.Matrix4().makeTranslation(0, H2 / 2, 0.035));
     const mF = new THREE.MeshStandardMaterial({ color: 0xeeeeea, roughness: 0.35, metalness: 0 }), mS = new THREE.MeshStandardMaterial({ color: 0x9a9a98, roughness: 0.45, metalness: 0.6 });
     const mG = new THREE.MeshStandardMaterial({ color: 0x8a96a4, roughness: 0.04, metalness: 1, transparent: true, opacity: 0.32, envMapIntensity: 1.4, depthWrite: false });
-    PROTO.m_win = { parts: [[mF, frame.build()], [mS, sill.build()], [mG, glass.build()]], col: false }; }
+    PROTO[key] = { parts: [[mF, frame.build()], [mS, sill.build()], [mG, glass.build()]], col: false }; };
+  if (!PROTO.m_win) { mkWin('m_win', 1.5, 2); mkWin('m_win2', 1.4, 2); mkWin('m_win3', 2.1, 3); }
   const SCHOOL = facade(53, { wall: '#a8553c', plinth: '#6a6a66', frame: '#e8e4dc', base: 1.0, fh: 3.6, floors: 3, cw: 3, ww: 2.2, wh: 2.2, sill: 0.9, lit: 0.1, balc: false, brick: true, ei: 1.1 });
   const SCHOOL2 = facade(67, { wall: '#ecebe6', plinth: '#8a8d90', frame: '#3a4046', base: 0.8, fh: 3.6, floors: 3, cw: 3, ww: 2.5, wh: 2.1, sill: 0.9, lit: 0.3, balc: false, accent: true, ei: 1.0 });
   const lampOff = std({ color: 0x9a9a94, roughness: 0.5 });
@@ -2753,7 +2770,7 @@ if (DVOR) {
     { const o = fac.userData.o; if (o && PROTO.m_win) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
       for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12; if (o.balc && (col % (o.cw === 3 ? 4 : 4)) === 1) continue; const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp;
         for (let f = 0; f < floors; f++) { const y = o.base + f * o.fh + o.sill, w = b.world(xl, y, s * (dep / 2 + 0.02));
-          K.put('m_win', new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(o.ww / 1.5, o.wh / 1.45, 1))); } } } }
+          const wm = winW(o, col), key = o.pair ? (wm > 1.8 ? 'm_win3' : 'm_win2') : 'm_win'; K.put(key, new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(o.pair ? 1 : o.ww / 1.5, o.wh / 1.45, 1))); } } } }
     // антенны и провода на крыше
     const ants = []; for (let q = 0; q < 6 + ((r() * 5) | 0); q++) { const ax = (r() - 0.5) * (len - 3), az = (r() - 0.5) * (dep - 2), h = 2 + r() * 2.2; b.cyl(M.metal, ax, Hh + 0.2 + h / 2, az, 0.02, 0.02, h, 5, RUST); for (let e2 = 0; e2 < 3; e2++) b.box(M.metal, ax, Hh + h - e2 * 0.32, az, 0.95 - e2 * 0.22, 0.02, 0.02, RUST, 0, r() * 3); ants.push(b.world(ax, Hh + 0.2 + h, az)); }
     for (let q = 1; q < ants.length; q++) if (r() < 0.6) wire(b, ants[q - 1], ants[q], 0.4);
@@ -2762,7 +2779,8 @@ if (DVOR) {
     // кондиционеры гроздьями
     for (const s of [1, -1]) { const ncl = 2 + ((r() * 3) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
       for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2);
-        if (PROTO.m_ac) { const w = b.world(x, y - 0.45, s * (dep / 2 + 0.19)); PUT(K, 'm_ac', w.x, y - 0.45, w.z, ry + (s > 0 ? 0 : Math.PI), 0.95); }
+        if (PROTO.m_ac) { const w = b.world(x, y - 0.45, s * (dep / 2 + 0.19)); PUT(K, 'm_ac', w.x, y - 0.45, w.z, ry + (s > 0 ? 0 : Math.PI), 0.95);
+          const c1 = b.world(x + 0.45, y, s * (dep / 2 + 0.05)), c2 = b.world(x + 0.55 + r() * 0.3, y + 1.3 + r() * 0.6, s * (dep / 2 + 0.05)), c3 = b.world(x + 0.5, y - 0.6, s * (dep / 2 + 0.05)); b.lines.push(c1, c2); if (r() < 0.5) b.lines.push(c1, c3); }
         else { b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } } }
     // подъезды
     const AD = home && typeof home === 'object' ? home : null; const n = Math.max(1, Math.round(len / 12)); const street = AD ? AD.st : home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = AD ? AD.n : 13;
