@@ -141,12 +141,50 @@ if (DVOR) {
     b.box(lampOff, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, null, 0, Math.atan2(az, ax) * -1); b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function wire(b, a, c, sag) { const N = 8; for (let k = 0; k < N; k++) { const t0 = k / N, t1 = (k + 1) / N, s0 = Math.sin(t0 * Math.PI) * sag, s1 = Math.sin(t1 * Math.PI) * sag; b.lines.push(new V3(lerp(a.x, c.x, t0), lerp(a.y, c.y, t0) - s0, lerp(a.z, c.z, t0)), new V3(lerp(a.x, c.x, t1), lerp(a.y, c.y, t1) - s1, lerp(a.z, c.z, t1))); } }
   function bench(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); b.box(M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
-  function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); if (PROTO.m_ccar && r() < 0.2) { PUT(K, 'm_ccar', x, 0, z, ry + Math.PI / 2); b.push(x, 0, z, ry); b.collide(0, 0, 2.2, 0.9); b.pop(); K.take(x, z, 2.4); return; } b.push(x, 0, z, ry);
-    b.box(M.paint, 0, 0.62, 0, 4.2, 0.6, 1.66, c); b.box(M.paint, -0.15, 1.18, 0, 2.1, 0.55, 1.5, c.map((v) => v * 0.8)); b.box(M.glass, -0.15, 1.2, 0, 2.0, 0.42, 1.52); b.box(M.glass, -0.15, 1.2, 0, 2.12, 0.4, 1.3);
-    for (const sx of [-1.35, 1.35]) for (const sz of [-0.78, 0.78]) b.cyl(M.rubber, sx, 0.31, sz, 0.31, 0.31, 0.22, 10, null, Math.PI / 2);
-    b.collide(0, 0, 2.15, 0.88); b.pop(); K.take(x, z, 2.4); }
+  // --- машины во дворах: кроссовер (как «Дастер»), седан, «Нива»; кузов с арками, стёкла, фары, ручки, зеркала ---
+  const CARM = new Map(), CDARK = std({ color: 0x1a1b1d, roughness: 0.65 }), CLITE = std({ color: 0xe0ddd4, roughness: 0.12, metalness: 0.4 }), CTAIL = std({ color: 0x7a0c0a, roughness: 0.25 }), CPLATE = std({ color: 0xeeeeea, roughness: 0.5 });
+  const CT = {
+    suv: { lo: [[-2.12, 0.42], [-2.17, 0.98], [-2.0, 1.07], [1.3, 1.07], [2.08, 0.9], [2.18, 0.62], [2.12, 0.42]], gh: [[-1.98, 1.04], [-1.86, 1.62], [0.7, 1.64], [1.36, 1.06]], W: 1.78, wr: 0.36, wx: [-1.33, 1.32], clad: 1, rails: 1 },
+    sed: { lo: [[-2.42, 0.4], [-2.45, 0.86], [-1.35, 0.93], [1.32, 0.93], [2.4, 0.84], [2.45, 0.42]], gh: [[-1.4, 0.91], [-0.9, 1.42], [0.48, 1.44], [1.2, 0.91]], W: 1.76, wr: 0.33, wx: [-1.5, 1.5] },
+    niva: { lo: [[-1.84, 0.46], [-1.87, 1.02], [0.98, 1.04], [1.82, 0.93], [1.87, 0.48]], gh: [[-1.84, 1.0], [-1.8, 1.66], [0.48, 1.67], [1.02, 1.03]], W: 1.68, wr: 0.37, wx: [-1.12, 1.08], clad: 1 } };
+  function carProto(type, hex) { const key = `car_${type}_${hex}`; if (PROTO[key]) return key; const T = CT[type], W = T.W, R = T.wr + 0.07;
+    const paint = CARM.get(hex) || CARM.set(hex, std({ color: hex, roughness: 0.3, metalness: 0.4, envMapIntensity: 1.25 })).get(hex);
+    const pb = new Bag(), db = new Bag(), lb = new Bag(), tb = new Bag(), gb = new Bag(), rb = new Bag(), wb = new Bag(), plb = new Bag(), I = new THREE.Matrix4();
+    const T4 = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new V3(1, 1, 1));
+    const BX = (bag, sx, sy, sz, x, y, z, rz = 0) => bag.add(new THREE.BoxGeometry(sx, sy, sz), T4(x, y, z, 0, 0, rz));
+    // профиль кузова с вырезами колёсных арок
+    const lo = T.lo, yb = lo[lo.length - 1][1], pts = lo.slice(); const t0 = Math.asin(Math.min(0.99, (yb - T.wr) / R));
+    for (const wx of [T.wx[1], T.wx[0]]) for (let k = 0; k <= 10; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 10; pts.push([wx + R * Math.cos(t), T.wr + R * Math.sin(t)]); }
+    pb.add(extrude(pts, W, 0.05), I);
+    const g = T.gh; gb.add(extrude(g, W - 0.1), I);
+    pb.add(new THREE.BoxGeometry(g[2][0] - g[1][0] + 0.08, 0.05, W - 0.06), T4((g[1][0] + g[2][0]) / 2, g[1][1] + 0.025, 0));
+    const bx = (g[0][0] + g[3][0]) / 2 + 0.12; BX(pb, 0.09, g[1][1] - g[0][1], W - 0.06, bx, (g[1][1] + g[0][1]) / 2, 0);
+    for (const [a, c] of [[g[0], g[1]], [g[2], g[3]]]) { const dx = c[0] - a[0], dy = c[1] - a[1], L = Math.hypot(dx, dy); for (const sd of [-1, 1]) BX(pb, L, 0.07, 0.06, (a[0] + c[0]) / 2, (a[1] + c[1]) / 2, sd * (W / 2 - 0.08), Math.atan2(dy, dx)); }
+    const fx = lo[lo.length - 1][0], rx = lo[0][0], top = Math.max(...lo.map((p) => p[1]));
+    for (const sd of [-1, 1]) { const z = sd * (W / 2 + 0.051);
+      for (const x of T.wx) { wb.add(new THREE.CylinderGeometry(T.wr, T.wr, 0.22, 22).rotateX(Math.PI / 2), T4(x, T.wr, sd * (W / 2 - 0.12))); rb.add(new THREE.CylinderGeometry(T.wr * 0.6, T.wr * 0.6, 0.03, 16).rotateX(Math.PI / 2), T4(x, T.wr, sd * (W / 2 - 0.01))); db.add(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 8).rotateX(Math.PI / 2), T4(x, T.wr, sd * (W / 2 + 0.01))); }
+      // стыки дверей, ручки, зеркала, молдинги
+      const dxs = type === 'niva' ? [g[3][0] - 0.05, g[0][0] + 0.25] : [g[3][0] - 0.05, bx, g[0][0] + 0.15];
+      for (const x of dxs) BX(db, 0.012, top - yb - 0.12, 0.004, x, (top + yb) / 2 + 0.02, z);
+      for (const x of type === 'niva' ? [g[0][0] + 0.45] : [bx + 0.25, g[0][0] + 0.4]) BX(db, 0.16, 0.035, 0.03, x, top - 0.16, z + sd * 0.01);
+      BX(pb, 0.06, 0.11, 0.17, g[3][0] - 0.08, g[3][1] + 0.08, sd * (W / 2 + 0.14)); BX(db, 0.04, 0.04, 0.12, g[3][0] - 0.05, g[3][1] + 0.03, sd * (W / 2 + 0.08));
+      BX(db, fx - rx - 0.3, 0.05, 0.02, (fx + rx) / 2, yb + 0.22, z);
+      if (T.clad) { BX(db, fx - rx - 0.1, 0.13, 0.03, (fx + rx) / 2, yb + 0.03, z + sd * 0.005); for (const x of T.wx) for (let k = 0; k < 7; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 6; BX(db, 0.07, 0.07, 0.03, x + (R + 0.02) * Math.cos(t), T.wr + (R + 0.02) * Math.sin(t), z + sd * 0.006, t); } }
+      // фары и фонари
+      BX(lb, 0.06, 0.15, 0.36, fx - 0.02 - (type === 'sed' ? 0.0 : 0.05), lo[lo.length - 2][1] - 0.13, sd * (W / 2 - 0.3));
+      BX(tb, 0.06, 0.18, 0.3, rx + 0.02, lo[1][1] - 0.18, sd * (W / 2 - 0.25)); }
+    BX(db, 0.1, 0.18, W - 0.4, fx + 0.0, yb + 0.25, 0); BX(db, 0.14, 0.18, W + 0.06, fx + 0.03, yb + 0.02, 0); BX(db, 0.14, 0.18, W + 0.06, rx - 0.03, yb + 0.04, 0);
+    BX(plb, 0.02, 0.12, 0.52, fx + 0.1, yb + 0.05, 0); BX(plb, 0.02, 0.12, 0.52, rx - 0.1, yb + 0.25, 0);
+    if (T.rails) for (const sd of [-1, 1]) { BX(db, g[2][0] - g[1][0] - 0.1, 0.035, 0.04, (g[1][0] + g[2][0]) / 2, g[1][1] + 0.1, sd * (W / 2 - 0.18)); for (const x of [g[1][0] + 0.1, g[2][0] - 0.1]) BX(db, 0.06, 0.08, 0.05, x, g[1][1] + 0.06, sd * (W / 2 - 0.18)); }
+    if (type === 'niva') { db.add(new THREE.CylinderGeometry(0.33, 0.33, 0.2, 18).rotateZ(Math.PI / 2), T4(rx - 0.12, 0.78, 0)); }
+    PROTO[key] = { parts: [[paint, pb.build()], [M.glass, gb.build()], [CDARK, db.build()], [CLITE, lb.build()], [CTAIL, tb.build()], [M.rubber, wb.build()], [rimMat, rb.build()], [CPLATE, plb.build()]].filter((p) => p[1]) }; return key; }
+  const CAR_REAL = [[0xe9e9e6, 34], [0xb4b7ba, 22], [0x8a8d90, 8], [0x16171a, 12], [0x1e2b3e, 7], [0x2e3d30, 7], [0x5a1a18, 5], [0xb8ad94, 5]];
+  const carCol = (r) => { let t = r() * 100; for (const [c, w] of CAR_REAL) { if ((t -= w) < 0) return c; } return 0xe9e9e6; };
+  function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); if (PROTO.m_ccar && r() < 0.2) { PUT(K, 'm_ccar', x, 0, z, ry + Math.PI / 2); b.push(x, 0, z, ry); b.collide(0, 0, 2.2, 0.9); b.pop(); K.take(x, z, 2.4); return; } const tp = r(), type = tp < 0.42 ? 'suv' : tp < 0.75 ? 'sed' : 'niva', hex = type === 'niva' && r() < 0.5 ? [0x2e3d30, 0xd8d4c8, 0x3a3f44][(r() * 3) | 0] : carCol(r);
+    PUT(K, carProto(type, hex), x, 0, z, ry + (r() < 0.5 ? Math.PI : 0)); b.push(x, 0, z, ry); b.collide(0, 0, type === 'sed' ? 2.45 : 2.15, 0.9); b.pop(); K.take(x, z, 2.5); void c; }
   // белая «Волга» восьмидесятых у обочины
-  function volga(K, x, z, ry) { const { b } = K, w = lin([0.86, 0.86, 0.82]), ch = PAINT.galv; b.push(x, 0, z, ry);
+  function volga(K, x, z, ry) { { const { b } = K; PUT(K, carProto('sed', 0xe4e2da), x, 0, z, ry); b.push(x, 0, z, ry); b.collide(0, 0, 2.5, 0.95); b.pop(); K.take(x, z, 2.8); return; }
+    const { b } = K, w = lin([0.86, 0.86, 0.82]), ch = PAINT.galv; b.push(x, 0, z, ry);
     b.box(M.paint, 0, 0.66, 0, 4.9, 0.5, 1.8, w); b.box(M.paint, 0, 0.4, 0, 4.7, 0.16, 1.72, shade(0.2)); b.box(M.paint, -0.25, 1.17, 0, 2.3, 0.52, 1.62, w); b.box(M.glass, -0.25, 1.19, 0, 2.2, 0.4, 1.64); b.box(M.glass, -0.25, 1.19, 0, 2.32, 0.38, 1.42);
     b.box(M.paint, 1.75, 0.93, 0, 1.4, 0.06, 1.74, w); b.box(M.paint, -1.9, 0.93, 0, 1.1, 0.06, 1.74, w);
     b.box(M.metal, 2.5, 0.5, 0, 0.12, 0.14, 1.86, ch); b.box(M.metal, -2.5, 0.5, 0, 0.12, 0.14, 1.86, ch); b.box(M.paint, 2.46, 0.72, 0, 0.04, 0.22, 1.0, shade(0.12)); b.box(M.metal, 2.47, 0.72, 0, 0.03, 0.03, 1.02, ch);
@@ -357,12 +395,39 @@ if (DVOR) {
     for (let i = 0; i < 7; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (!fr(x, z, 0.6)) continue; const t = r(); K.take(x, z, 0.6);
       if (t < 0.25) PUT(K, 'm_tyre', x, 0.0, z, r() * 6, 1, 1); else if (t < 0.45) PUT(K, 'm_box', x, 0, z, r() * 6, 1 + r() * 0.5); else if (t < 0.6) PUT(K, 'm_crate', x, 0, z, r() * 6, 1.2); else if (t < 0.75) PUT(K, 'm_bag', x, 0, z, r() * 6, 1); else if (t < 0.85) { PUT(K, 'm_can', x, 0, z, r() * 6, 1); b.collide(x, z, 0.3, 0.3); } else { PUT(K, 'm_shrub', x, 0, z, r() * 6, 0.6 + r() * 0.3); } }
     if (r() < 0.35) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1)) { K.take(x, z, 1); PUT(K, 'm_ubox', x, 0, z, ((r() * 4) | 0) * Math.PI / 2, 1.1); b.collide(x, z, 0.5, 0.5); } } }
+
+  // --- бетонный лом как на фото: ряд разбитых блоков старого бордюра, плита, бетонная труба ---
+  // обломок: коробка с рваными краями и выбитым углом; uv в метрах (бетон не растягивается)
+  function rubG(L, H, D, seed) { const g = new THREE.BoxGeometry(L, H, D, 3, 2, 2), pa = g.attributes.position, uv = g.attributes.uv, rr = rng(seed);
+    const bite = [(rr() - 0.5) * L, H / 2, (rr() - 0.5) * D], br = Math.min(L, D) * 0.6;
+    for (let i = 0; i < pa.count; i++) { let x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i); const j = 0.035;
+      x += (rr() - 0.5) * j; y += (rr() - 0.5) * j; z += (rr() - 0.5) * j;
+      if (Math.hypot(x - bite[0], y - bite[1], z - bite[2]) < br) y -= H * (0.3 + rr() * 0.25);
+      pa.setXYZ(i, x, y, z); }
+    g.computeVertexNormals(); const n = g.attributes.normal;
+    for (let i = 0; i < pa.count; i++) { const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i)); const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i);
+      if (ay > ax && ay > az) uv.setXY(i, x + seed * 0.37, z); else if (ax > az) uv.setXY(i, z + seed * 0.21, y); else uv.setXY(i, x + seed * 0.13, y); }
+    return g; }
+  const RUBG = [0, 1, 2, 3].map((k) => rubG(1, 1, 1, 900 + k));
+  function rubble(K, x0, z0, ry, fr) { const { b, r } = K, dx = Math.sin(ry), dz = Math.cos(ry); let t = 0, n = 0;
+    while (t < 14 && n < 9) { const x = x0 + dx * t + (r() - 0.5) * 0.4, z = z0 + dz * t + (r() - 0.5) * 0.4; t += 1.1 + r() * 0.9;
+      if (!fr(x, z, 0.6)) continue; n++; const L = 0.9 + r() * 0.7, H = 0.32 + r() * 0.22, D = 0.35 + r() * 0.15, tilt = r() < 0.35 ? (r() - 0.5) * 0.9 : (r() - 0.5) * 0.15;
+      b.add(M.conc, rubG(L, H, D, (r() * 1e5) | 0), new THREE.Matrix4().compose(new V3(x, H * 0.42, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt * 0.4, ry + Math.PI / 2 + (r() - 0.5) * 0.5, tilt)), new V3(1, 1, 1)), shade(0.72 + r() * 0.2));
+      if (r() < 0.5) { const sx = x + (r() - 0.5) * 1.4, sz = z + (r() - 0.5) * 1.4, q = 0.12 + r() * 0.15; b.add(M.conc, RUBG[(r() * 4) | 0], new THREE.Matrix4().compose(new V3(sx, q * 0.4, sz), new THREE.Quaternion().setFromEuler(new THREE.Euler(r(), r() * 6, r())), new V3(q * 1.6, q, q * 1.2)), shade(0.7 + r() * 0.2)); }
+      b.collide(x, z, L * 0.45, D * 0.5, ry + Math.PI / 2); K.take(x, z, 0.7); }
+    if (r() < 0.6) { const ox = x0 + dz * 3.5 + dx * (t + 1), oz = z0 - dx * 3.5 + dz * (t + 1); if (fr(ox, oz, 2)) { const a = ry + 0.6 + r() * 0.6;   // плита, наклонённая на обломок
+      b.box(M.conc, ox, 0.22, oz, 3.2, 0.16, 1.4, shade(0.66), 0.02, a, 0.12); b.add(M.conc, RUBG[1], new THREE.Matrix4().compose(new V3(ox + Math.cos(a) * 1.0, 0.25, oz - Math.sin(a) * 1.0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a, 0)), new V3(0.8, 0.5, 0.6)), shade(0.62));
+      b.collide(ox, oz, 1.6, 0.7, a); K.take(ox, oz, 2); } }
+    if (r() < 0.55) { const a = ry - 0.5 - r() * 0.5, px = x0 + dz * 2 + dx * 1.5, pz = z0 - dx * 2 + dz * 1.5, L = 6 + r() * 3, cx = px + Math.sin(a) * L / 2, cz = pz + Math.cos(a) * L / 2;   // старая труба, крашеная, ржавые пятна
+      if (fr(cx, cz, 1.2)) { b.push(cx, 0, cz, a); b.cyl(M.paint, 0, 0.17, 0, 0.17, 0.17, L, 12, lin([0.8, 0.79, 0.74]), Math.PI / 2, 0); b.cyl(M.metal, 0, 0.17, L / 2 - 0.4, 0.172, 0.172, 0.3, 12, lin([0.55, 0.3, 0.2]), Math.PI / 2, 0);
+        b.collide(0, 0, 0.2, L / 2); b.pop(); K.take(cx, cz, 1); } } }
   function dvDistrict(cx, cz) {
     const K = kit(cx, cz, 0xa1b2), { r } = K; K.block = (x, z, rad) => dvBldg(x, z, rad);
     for (const it of DVI) if (K.inb(it.x, it.z)) it.f(K);
     const fr = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 0.5 + rad;
     clutter(K, fr);
-    for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5)) K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm0', 'elm1', 'shrubY0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5); }
+    if (cx === 0 && cz === 0) rubble(K, 13, 6, 0.55, fr); else if (r() < 0.45) rubble(K, K.x0 + 6 + r() * 30, K.z0 + 6 + r() * 30, r() * 6.28, fr);
+    for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5)) K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5); }
     if (r() < 0.35) for (let t = 0; t < 8; t++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } }
     for (let i = 0; i < 4; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (r() < 0.6 && fr(x, z, 0.3)) addNut(K, x, z, `md${cx},${cz},${i}`); }
     return K.finish(); }
@@ -395,7 +460,7 @@ if (DVOR) {
     wire(b, tops[0], tops[2], 0.7); wire(b, tops[1], tops[3], 0.7); { const [x, z] = W(60, 42.6), [x2, z2] = W(42.6, 60); wire(b, tops[2], new V3(x, 6.2, z), 0.7); wire(b, tops[3], new V3(x2, 6.2, z2), 0.7); }
     if (type === 'p9' || type === 'p5') { const [x, z] = along ? W(20, 29.5) : W(29.5, 20); wire(b, tops[0], new V3(x, type === 'p9' ? 27 : 15.5, z), 1.2); }
     if (stopQ || (type !== 'school' && type !== 'school2' && ihash(cx, cz, 91) < 0.1)) { const [x, z] = W(14, 43.3); if (K.free(x, z, 3)) busStop(K, x, z, Math.atan2(0, ez), stopQ ? 'ул. Героев Тулы' : 'ул. ' + DV_STREETS[1 + ((r() * 7) | 0)]); }
-    if (home) { const [x, z] = W(13, 9); volga(K, x, z, 0.35); const [px, pz] = W(19, 5); fallenPole(K, px, pz, -0.6); }
+    if (home) { const [x, z] = W(13, 9); parked(K, x, z, 0.35); const [px, pz] = W(19, 5); fallenPole(K, px, pz, -0.6); }
     // двор
     if (type === 'p9' || type === 'p5' || type === 'shop' || type === 'sad') {
       if (keyQ) playground(K, -189, 98, true);
@@ -404,9 +469,10 @@ if (DVOR) {
       if (r() < 0.45) { const [x, z] = W(36 + r() * 3, 6 + r() * 6); if (freeY(x, z, 3.2)) trashSite(K, x, z, Math.atan2(-ex, 0)); }
       const nc = home ? 2 : (r() * 3) | 0; for (let i = 0; i < nc; i++) { const a = (home ? 27 : 9) + i * 5.2 + r() * 0.6, c = 19; const [x, z] = along ? W(a, c) : W(c, a); if (freeY(x, z, 2.2)) parked(K, x, z, along ? Math.PI / 2 : 0); }
       for (let i = 0; i < 2; i++) { const [x, z] = W(5 + r() * 34, 3 + r() * 14); if (freeY(x, z, 1.1)) bench(K, x, z, r() * 6.28); }
+      if (r() < 0.55) { const [x, z] = W(4 + r() * 20, 4 + r() * 10); rubble(K, x, z, r() * 6.28, freeY); }
     }
     const nt = type === 'waste' ? 5 : type === 'private' ? 12 : 8;
-    for (let i = 0; i < nt; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1.2)) { if (K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm0', 'elm1', 'shrubY0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5) && i === 0) smell(K, x, z, 'Пахнет мокрой землёй и тополиной гнилью.'); } }
+    for (let i = 0; i < nt; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1.2)) { if (K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5) && i === 0) smell(K, x, z, 'Пахнет мокрой землёй и тополиной гнилью.'); } }
     if (type === 'waste') for (let i = 0; i < 3; i++) { const [x, z] = W(5 + r() * 36, 5 + r() * 36); if (freeY(x, z, 2)) b.box(M.conc, x, 0.15, z, 3, 0.3, 1.2, shade(0.6 + r() * 0.2), 0, r() * 3, (r() - 0.5) * 0.2); }
     // находки
     if (r() < 0.45 || home) { for (let t = 0; t < 8; t++) { const [x, z] = home ? W(13 + r() * 5, 14 + r() * 3) : W(4 + r() * 36, 3 + r() * 16); if (freeY(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } } }
@@ -448,12 +514,59 @@ if (DVOR) {
   // --- часы, запахи ---
   let secs = 0, lastS = -1, smT = 3, smLast = '', interT = 0;
   if (FINAL) { const st = $('start'); const p = st && st.querySelector('p'); if (p) p.innerHTML = '<b>Ноябрь. 14:50:59.</b><br>Ворота открылись. Ты снова у своего подъезда. Поднимись домой.'; }
+
+  // --- голуби (и вороны): стаи бродят и клюют в грязи, вспархивают, если подойти ---
+  const PG = (() => { const N = MOBILE ? 72 : 150, F = MOBILE ? 4 : 7, per = Math.floor(N / F);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+    const geo = { body: new THREE.SphereGeometry(1, 10, 7).scale(0.075, 0.07, 0.15).translate(0, 0.13, 0),
+      tail: new THREE.BoxGeometry(0.075, 0.014, 0.13).translate(0, 0, -0.06),
+      wing: new THREE.BoxGeometry(0.2, 0.012, 0.13).translate(0.1, 0, 0), leg: new THREE.CylinderGeometry(0.006, 0.006, 0.08, 4).translate(0, 0.04, 0) };
+    geo.head = new THREE.SphereGeometry(0.042, 8, 6); geo.beak = new THREE.ConeGeometry(0.012, 0.035, 5).rotateX(Math.PI / 2).translate(0, -0.005, 0.05);
+    const mk = (g, m) => { const im = new THREE.InstancedMesh(g, m || mat, N); im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = Q.shadows; scene.add(im); return im; };
+    const beakM = new THREE.MeshStandardMaterial({ color: 0x3a3330, roughness: 0.6 }), legM = new THREE.MeshStandardMaterial({ color: 0xb05a50, roughness: 0.7 });
+    const I = { body: mk(geo.body), tail: mk(geo.tail), head: mk(geo.head), wl: mk(geo.wing), wr: mk(geo.wing), beak: mk(geo.beak, beakM), l1: mk(geo.leg, legM), l2: mk(geo.leg, legM) };
+    const col = new THREE.Color(), B = [], FL = [];
+    for (let f = 0; f < F; f++) FL.push({ x: 0, z: 0, on: false, t: 0, gone: 0 });
+    for (let i = 0; i < N; i++) { const crow = Math.random() < 0.07, t = Math.random();
+      const c = crow ? [0.07, 0.07, 0.08] : t < 0.62 ? [0.36, 0.38, 0.44] : t < 0.8 ? [0.24, 0.24, 0.27] : t < 0.9 ? [0.42, 0.34, 0.3] : [0.62, 0.62, 0.6];
+      col.setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace); for (const k of ['body', 'tail', 'wl', 'wr']) I[k].setColorAt(i, col); col.multiplyScalar(crow ? 1 : 0.75); I.head.setColorAt(i, col);
+      B.push({ f: Math.floor(i / per) % F, x: 0, y: 0, z: 0, yaw: Math.random() * 6.28, st: 0, t: Math.random() * 3, ph: Math.random() * 6, sp: 0, vx: 0, vy: 0, vz: 0, s: crow ? 1.45 : 0.9 + Math.random() * 0.2, crow, vis: false }); }
+    const Mb = new THREE.Matrix4(), Mp = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new V3(), one = new V3(1, 1, 1), sc = new V3(), hide = new THREE.Matrix4().makeScale(0, 0, 0);
+    const okAt = (x, z) => { if (!inWorld(x, z) || dvRoadD(x, z) < 4.6) return false; const c = collide(x, z); return Math.abs(c[0] - x) < 1e-4 && Math.abs(c[1] - z) < 1e-4; };
+    function place(fl) { for (let tr = 0; tr < 12; tr++) { const a = Math.random() * 6.283, d = 16 + Math.random() * 38, x = P.x + Math.sin(a) * d, z = P.z + Math.cos(a) * d; if (!okAt(x, z)) continue;
+        fl.x = x; fl.z = z; fl.on = true; const fi = FL.indexOf(fl);
+        for (const b of B) if (b.f === fi) { let ok = false; for (let k = 0; k < 6 && !ok; k++) { const rr = Math.sqrt(Math.random()) * 4.5, aa = Math.random() * 6.283; b.x = x + Math.cos(aa) * rr; b.z = z + Math.sin(aa) * rr; ok = okAt(b.x, b.z); }
+          b.vis = ok; b.st = 0; b.y = groundH(b.x, b.z); b.t = Math.random() * 2; } return; } }
+    function flush(i, b, flap) { const s = b.s;
+      e.set(b.st === 2 ? -0.25 : 0, b.yaw, 0); q.setFromEuler(e); Mb.compose(v.set(b.x, b.y, b.z), q, sc.set(s, s, s));
+      I.body.setMatrixAt(i, Mb); Mp.makeTranslation(0, 0.13, -0.13); Mp.premultiply(Mb); I.tail.setMatrixAt(i, Mp);
+      const peck = b.st === 1 ? Math.max(0, Math.sin(b.ph * 9)) : 0, bob = b.st === 0 && b.sp > 0 ? Math.sin(b.ph * 14) * 0.02 : 0;
+      e.set(peck * 1.1, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.22 - peck * 0.1, 0.12 + bob + peck * 0.05), q, one); Mp.premultiply(Mb); I.head.setMatrixAt(i, Mp); I.beak.setMatrixAt(i, Mp);
+      const wa = b.st === 2 ? Math.sin(flap) * 1.0 + 0.2 : 0, fold = b.st === 2 ? 1 : 0.35;
+      for (const [k, sd] of [['wl', -1], ['wr', 1]]) { e.set(0, sd < 0 ? Math.PI : 0, wa); q.setFromEuler(e); Mp.compose(v.set(sd * 0.05, 0.17, 0.0), q, sc.set(fold, 1, 1)); if (b.st !== 2) { e.set(0, sd < 0 ? Math.PI - 1.35 : 1.35, 0); q.setFromEuler(e); Mp.compose(v.set(sd * 0.06, 0.16, 0.06), q, sc.set(0.85, 1, 0.55)); } Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); }
+      const lg = b.st === 2 ? hide : null; for (const [k, sd] of [['l1', -1], ['l2', 1]]) { if (lg) { I[k].setMatrixAt(i, hide); continue; } Mp.makeTranslation(sd * 0.025, 0.0, 0.0); Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); } }
+    function flutter(x, z) { if (!AC) return; const d = Math.hypot(x - P.x, z - P.z), vol = Math.min(0.5, 2.5 / (d + 1)); for (let k = 0; k < 7; k++) setTimeout(() => burst(0.09, 'bandpass', 700 + Math.random() * 500, 0.8, vol * (0.6 + Math.random() * 0.4)), k * 55 + Math.random() * 40); }
+    let coo = 6;
+    return { update(dt) { const run = typeof running !== 'undefined' && running;
+      for (const fl of FL) { const fi = FL.indexOf(fl); if (fl.gone > 0) { fl.gone -= dt; if (fl.gone <= 0) fl.on = false; }
+        if (!fl.on) { place(fl); continue; } const d = Math.hypot(fl.x - P.x, fl.z - P.z); if (d > 85 && fl.gone <= 0) { fl.on = false; continue; }
+        if (fl.gone <= 0) { let near = 99; for (const b of B) if (b.f === fi && b.vis && b.st !== 2) near = Math.min(near, Math.hypot(b.x - P.x, b.z - P.z));
+          if (near < (run ? 6.5 : 3.6)) { fl.gone = 9; flutter(fl.x, fl.z); for (const b of B) if (b.f === fi && b.vis) { const a = Math.atan2(b.x - P.x, b.z - P.z) + (Math.random() - 0.5) * 1.2, sp = 4 + Math.random() * 3; b.st = 2; b.vx = Math.sin(a) * sp; b.vz = Math.cos(a) * sp; b.vy = 2.5 + Math.random() * 2; b.yaw = a; b.t = Math.random() * 0.25; } } } }
+      coo -= dt; if (coo < 0) { coo = 4 + Math.random() * 7; const fl = FL.find((f) => f.on && f.gone <= 0 && Math.hypot(f.x - P.x, f.z - P.z) < 25); if (fl && AC) { const t = AC.currentTime; for (let k = 0; k < 3; k++) { const o = AC.createOscillator(), g = AC.createGain(), tt = t + k * 0.32; o.frequency.setValueAtTime(330, tt); o.frequency.linearRampToValueAtTime(260, tt + 0.28); g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.018, tt + 0.05); g.gain.exponentialRampToValueAtTime(0.0005, tt + 0.3); o.connect(g).connect(master); o.start(tt); o.stop(tt + 0.32); } } }
+      for (let i = 0; i < N; i++) { const b = B[i], fl = FL[b.f]; if (!b.vis || !fl.on) { for (const k in I) I[k].setMatrixAt(i, hide); continue; }
+        b.ph += dt; b.t -= dt;
+        if (b.st === 2) { b.vy -= dt * 0.6; b.vy = Math.max(b.vy, 0.6); b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; if (b.y > 24 || fl.gone < 0.1) b.vis = false; flush(i, b, b.ph * 26); continue; }
+        if (b.t < 0) { const k = Math.random(); b.st = k < 0.5 ? 1 : 0; b.sp = b.st === 0 && Math.random() < 0.7 ? 0.25 + Math.random() * 0.25 : 0; b.t = 0.6 + Math.random() * 2.2; if (Math.random() < 0.5) { const tc = Math.atan2(fl.x - b.x, fl.z - b.z); b.yaw = Math.hypot(fl.x - b.x, fl.z - b.z) > 4 ? tc : b.yaw + (Math.random() - 0.5) * 2.4; } }
+        if (b.sp > 0) { const nx = b.x + Math.sin(b.yaw) * b.sp * dt, nz = b.z + Math.cos(b.yaw) * b.sp * dt; if (okAt(nx, nz)) { b.x = nx; b.z = nz; } else b.yaw += 2; }
+        b.y = groundH(b.x, b.z); flush(i, b, 0); }
+      for (const k in I) I[k].instanceMatrix.needsUpdate = true; }, dbg: () => ({ fl: FL.map((f) => [f.on, Math.round(f.x), Math.round(f.z), f.gone.toFixed(1)]), vis: B.filter((b) => b.vis).length }) };
+  })();
   WORLD_UPDATE = (dt) => {
-    carsUpdate(dt); rainUpdate(dt); walkerUpdate(dt);
+    carsUpdate(dt); rainUpdate(dt); walkerUpdate(dt); PG.update(dt);
     if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
     smT -= dt; if (smT < 0 && started) { smT = 1; for (let k = SMELLS.length - 1; k >= 0; k--) { const m = SMELLS[k]; if (!m.group.parent) { SMELLS.splice(k, 1); continue; } if (m.text !== smLast && Math.hypot(m.x - P.x, m.z - P.z) < 4.5) { smLast = m.text; smT = 25; toast(`<span style="font-size:15px;font-style:italic;color:#d8d2c4">${m.text}</span>`); break; } } }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };
-  if (TEST) window.__dv = { INTER, DC };
+  if (TEST) window.__dv = { INTER, DC, PG };
   if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Ворота открылись.</b><br><span style="font-size:14px">Поднимись домой, в квартиру 47, и ляг спать.</span>'), 2500);
 }

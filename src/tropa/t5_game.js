@@ -66,7 +66,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.0045 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.0032 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -95,20 +95,27 @@ const post = (() => {
       if(dist>L){ vec3 pe = camPos + rdir*L; float hy = max(pe.y,0.0); float far = dist-L; float k=0.07*max(rdir.y,0.0005);
         od += (dens*0.75*exp(-hy*0.07)*(1.0-exp(-k*far))/k) + 0.0018*far; }
       float T = exp(-od);
-      ${DVOR ? 'if(isSky) T = max(T, 0.55);' : ''}
+      ${DVOR ? 'if(isSky) T = max(T, 0.62);' : ''}
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${DVOR ? 'fogC = vec3(0.74,0.75,0.76) + vec3(-0.04,-0.035,-0.025)*(1.0-smoothstep(-0.1,0.3,rdir.y));' : ''}
+      ${DVOR ? 'fogC = vec3(0.78,0.775,0.76) + vec3(-0.05,-0.045,-0.035)*(1.0-smoothstep(-0.1,0.3,rdir.y));' : ''}
       ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);
       col = aces(col*expo);
       float Lm=dot(col,vec3(0.2126,0.7152,0.0722));
+      ${DVOR ? `// «как с камеры телефона»: нейтрально-тёплый баланс, приподнятые тени, мягкая виньетка, мелкое зерно сенсора
+      col=mix(vec3(Lm),col,0.9);
+      col+=vec3(0.006,0.003,-0.006)*Lm;
+      col=pow(max(col,0.0),vec3(1.0/2.2));
+      col=col*0.94+0.045; col=mix(col, col*col*(3.0-2.0*col), 0.25);
+      col*=mix(0.84,1.0,smoothstep(1.05,0.35,length(dc*vec2(1.1,1.0))));
+      col+=(h12(uv*res+fract(time*13.0)*91.0)-0.5)*0.018;` : `
       col=mix(vec3(Lm),col,0.82);
       col+=vec3(-0.01,0.0,0.018)*(1.0-Lm)+vec3(0.018,0.01,-0.012)*Lm;
       col=pow(max(col,0.0),vec3(1.0/2.2));
       col*=mix(0.5,1.0,smoothstep(1.0,0.3,length(dc*vec2(1.2,1.0))));
-      col+=(h12(uv*res+fract(time*13.0)*91.0)-0.5)*0.04;
+      col+=(h12(uv*res+fract(time*13.0)*91.0)-0.5)*0.04;`}
       col=mix(col, vec3(1.0), flash); col*=1.0-dark;
       gl_FragColor=vec4(col,1.0);
     }`, U);

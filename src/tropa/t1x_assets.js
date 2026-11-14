@@ -54,7 +54,7 @@ function loadHDR(file) {
 }
 if (PBR_ON) {
   if (DVOR) {
-    loadHDR('hdri/sky.hdr');
+    loadHDR('hdri/sky.hdr'); M.bark.color.setRGB(0.72, 0.74, 0.76);
     // земля: асфальт, сухая земля, пожухлая трава — настоящие сканы
     TX.asph = pbrT('tex/asphalt_02_diff.jpg', true); TX.sand = pbrT('tex/brown_mud_dry_diff.jpg', true); TX.grass = pbrT('tex/withered_grass_diff.jpg', true); TX.leavesN = pbrT('tex/brown_mud_dry_nor.jpg', false);
     pbrApply(M.conc, 'chipped_concrete', 2.5); pbrApply(M.brick, 'brick_wall_003', 1.6);

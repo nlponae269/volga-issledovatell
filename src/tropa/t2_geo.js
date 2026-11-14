@@ -112,7 +112,7 @@ function makeTree(seed, leafMat, leafAmt, o = {}) {
     for (const [p] of tips) if (r() < o.fruit) { _m.compose(p.clone().add(new V3((r() - 0.5) * 0.6, -0.2 - r() * 0.3, (r() - 0.5) * 0.6)), _q.identity(), new V3(o.fr, o.fr * 1.05, o.fr)); fb.add(sp, _m, o.fc(r)); }
     const g = fb.build(); if (g) return { parts: [[M.bark, bark.build()], [leafMat, leaf.build()], [M.fruit, g]].filter((x) => x[1]), col: 0.22, h: top };
   }
-  return { parts: [[M.bark, bark.build()], [leafMat, leaf.build()]].filter((x) => x[1]), col: 0.28, h: top };
+  return { parts: [[o.bm || M.bark, bark.build()], [leafMat, leaf.build()]].filter((x) => x[1]), col: 0.28, h: top };
 }
 // ---------- малинник: пучок тонких дуговых стеблей с листьями ----------
 function makeRasp(seed) {
@@ -153,6 +153,14 @@ function makeSticks(seed) {
     if (r() < 0.12) card(leaf, b.clone().add(new V3(0, -0.15, 0)), 0.3 + r() * 0.2, r, shade(0.9)); }
   return { parts: [[M.bark, bark.build()], [M.leafAutumn, leaf.build()]].filter((x) => x[1]), col: 0, h: S };
 }
+// берёзовая кора: белая, с чёрными чечевичками и тёмными разломами
+let _birch = null;
+function BIRCH() { if (_birch) return _birch; const r = rng(77);
+  const t = texFrom(mkCanvas(128, 256, (g, w, h) => { g.fillStyle = '#e4e2dc'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(20,18,16,${0.5 + r() * 0.5})`; const x = r() * w, y = r() * h, L = 6 + r() * 26; g.fillRect(x, y, L, 1.5 + r() * 2.5); }
+    for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(30,26,22,0.85)'; g.beginPath(); const x = r() * w, y = r() * h; g.ellipse(x, y, 4 + r() * 10, 2 + r() * 5, 0, 0, 6.3); g.fill(); }
+    for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '160,150,135' : '255,255,250'},0.25)`; g.fillRect(r() * w, r() * h, 2, 1); } }));
+  _birch = std({ map: t, vertexColors: true, roughness: 0.8 }); return _birch; }
 // Прототипы (строятся один раз, порциями, чтобы не подвешивать загрузку)
 const PROTO = {};
 const appleCol = (r) => { const t = r(); return t < 0.6 ? lin([0.62 + r() * 0.15, 0.12 + r() * 0.1, 0.07]) : t < 0.85 ? lin([0.75, 0.55, 0.15]) : lin([0.55, 0.62, 0.2]); };
@@ -172,4 +180,6 @@ const PROTO_JOBS = (INDOOR || STROY) ? [] : GARDEN ? [
   ['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)], ['elm2', () => makeTree(83, M.leafOlive, 0.65)],
   ['shrubY0', () => makeShrub(101, M.leafAutumn, 3.2)], ['shrubY1', () => makeShrub(113, M.leafAutumn, 2.4)], ['shrubG0', () => makeShrub(127, M.leafOlive, 2.8)], ['shrubG1', () => makeShrub(139, M.leafOlive, 2.0)],
   ['sticks0', () => makeSticks(151)], ['sticks1', () => makeSticks(163)],
+  ...(DVOR ? [['birch0', () => makeTree(311, M.leafAutumn, 0.12, { len: 3.4, rad: 0.12, depth: 5, spread: 0.6, upk: 0.8, bt: [1, 1, 1], bm: BIRCH() })],
+    ['birch1', () => makeTree(331, M.leafAutumn, 0.3, { len: 3.0, rad: 0.1, depth: 5, spread: 0.7, upk: 0.7, bt: [1, 1, 1], bm: BIRCH() })]] : []),
 ];
