@@ -66,7 +66,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.008 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.0045 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -95,6 +95,7 @@ const post = (() => {
       if(dist>L){ vec3 pe = camPos + rdir*L; float hy = max(pe.y,0.0); float far = dist-L; float k=0.07*max(rdir.y,0.0005);
         od += (dens*0.75*exp(-hy*0.07)*(1.0-exp(-k*far))/k) + 0.0018*far; }
       float T = exp(-od);
+      ${DVOR ? 'if(isSky) T = max(T, 0.55);' : ''}
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
       ${DVOR ? 'fogC = vec3(0.74,0.75,0.76) + vec3(-0.04,-0.035,-0.025)*(1.0-smoothstep(-0.1,0.3,rdir.y));' : ''}
@@ -295,6 +296,8 @@ function frame(now) {
 let jobI = 0;
 function loadStep() {
   if (jobI < PROTO_JOBS.length) { const [k, fn] = PROTO_JOBS[jobI++]; PROTO[k] = fn(); $('play').textContent = `Загрузка… ${Math.round(jobI / PROTO_JOBS.length * 100)}%`; setTimeout(loadStep, 0); return; }
+  if (!PBR.ready) { $('play').textContent = `Загрузка… текстуры и модели ${Math.round((1 - Math.max(0, PBR.pending) / Math.max(1, PBR.total)) * 100)}%`; setTimeout(loadStep, 120); return; }
+  if (PBR.env) { scene.environment = PBR.env; scene.background = PBR.bg; scene.backgroundIntensity = 0.75; sky.visible = false; hemi.intensity *= 0.35; }
   updateChunks(0, 0, true); placeCamera(); $('play').textContent = 'Играть'; $('play').disabled = false; requestAnimationFrame(frame);
 }
 $('play').disabled = true; setTimeout(loadStep, 30);

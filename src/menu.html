@@ -58,6 +58,9 @@ html,body{height:100%;overflow:hidden;background:#07070a;color:var(--ink);font-f
 .t.sel{opacity:1;transform:translate3d(0,-8px,0) scale(1.1)}
 .t.sel::before{opacity:1}.t.sel::after{opacity:.55}
 .t:active{transform:translate3d(0,-4px,0) scale(1.02)}
+body:not(.more) .t.more{display:none}
+.t.tm .im{background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px dashed rgba(255,255,255,.25)}
+.t.tm .nm{color:var(--dim)}
 #hint{font-size:10px;letter-spacing:.14em;color:rgba(255,255,255,.35);text-align:center;margin-top:6px}
 /* вход в мир */
 #cover{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .55s ease}
@@ -113,7 +116,7 @@ body.shake .bgl.on{animation:kb 28s ease-in-out infinite alternate,sh .35s steps
 <div class="bgl" id="bgA"></div><div class="bgl" id="bgB"></div><div class="tint" id="tA"></div><div class="tint" id="tB"></div><div class="fogl" id="f1"></div><div class="fogl" id="f2"></div><div id="shade"></div><div class="fogl" id="f3"></div><div id="vig"></div><div id="flash"></div>
 <svg id="ghost" viewBox="0 0 40 110"><path d="M20 4c5 0 8 4 8 9s-3 9-8 9-8-4-8-9 3-9 8-9zM8 26c4-3 20-3 24 0 3 3 4 20 3 34-1 8-3 12-4 20l-2 28h-7l-2-26-2 26h-7L9 80c-1-8-3-12-4-20-1-14 0-31 3-34z" fill="#050506"/></svg><canvas id="grain" width="640" height="360"></canvas>
 <div id="ui">
-  <header id="top"><div class="logo">ТИШИНА<span>ОДИН СОН · 16 МИРОВ</span></div><div class="prog"><div class="bar"><i id="pbar"></i></div><span id="ptxt"></span></div><button id="far"></button><button id="gfx" class="pill"></button></header>
+  <header id="top"><div class="logo">ТИШИНА<span>ОДИН СОН</span></div><div class="prog"><div class="bar"><i id="pbar"></i></div><span id="ptxt"></span></div><button id="far"></button><button id="gfx" class="pill"></button></header>
   <section id="hero"><div id="hnum"></div><div id="htag"></div><h1 id="hname"></h1><p id="hdesc"></p><div id="hstat"></div><button id="go">ВОЙТИ <b>→</b></button></section>
   <nav id="strip"></nav><div id="hint">← → выбрать · Enter — войти</div>
 </div>
@@ -150,11 +153,19 @@ const PAL = { dvory: ['#ff7a59', '#7b5cff'], tishina: ['#e8a96d', '#3d8ab8'], tr
   zima: ['#ff4fc8', '#2be0e0'], ostanovka: ['#f0a030', '#3a6ad8'], shkola: ['#3a9ae8', '#e8c840'], bolnica: ['#5ae0c0', '#7ab0ff'], metro: ['#e8b84a', '#c82a3a'], magazin: ['#ff5a5a', '#ffd040'], plyazh: ['#4ac0f0', '#f0c890'], lager: ['#ff5040', '#4060c0'],
   pole: ['#f8c840', '#4aa0f0'], elektrichka: ['#4ae070', '#4ab0e0'], stroyka: ['#ff8a20', '#8a9aa8'] };
 const pal = (id) => PAL[id] || ['#d9b45a', '#5a7ad9'], $ = (id) => document.getElementById(id), root = document.documentElement;
-const strip = $('strip'), N = WORLDS.length;
+// главные миры — Дворы и Подъезд; остальные спрятаны в «Ещё миры»
+const MAIN = ['dvory', 'podezd']; WORLDS.sort((a, b) => (MAIN.includes(b.id) ? 1 : 0) - (MAIN.includes(a.id) ? 1 : 0) || MAIN.indexOf(a.id) - MAIN.indexOf(b.id));
+const strip = $('strip'), N = WORLDS.length, TILES = [];
 // лента
 WORLDS.forEach((w, i) => { const [a1, a2] = pal(w.id), t = document.createElement('div'); t.className = 't'; t.style.setProperty('--b1', a1); t.style.setProperty('--b2', a2); t.style.animationDelay = (0.25 + i * 0.04) + 's';
   t.innerHTML = `<div class="im" style="background-image:url(${IMG[w.id] || ''})"></div><span class="ix">${String(i + 1).padStart(2, '0')}</span><span class="nm">${w.name}</span>`;
-  t.onclick = () => { if (sel === i) enter(i); else select(i, true); }; strip.appendChild(t); });
+  if (!MAIN.includes(w.id)) t.classList.add('more');
+  t.onclick = () => { if (sel === i) enter(i); else select(i, true); }; strip.appendChild(t); TILES.push(t); });
+{ const tm = document.createElement('div'); tm.className = 't tm'; tm.innerHTML = `<div class="im"></div><span class="nm">ЕЩЁ МИРЫ</span><span class="ix">+${N - MAIN.length}</span>`;
+  tm.onclick = () => { document.body.classList.toggle('more'); tm.querySelector('.nm').textContent = document.body.classList.contains('more') ? 'СВЕРНУТЬ' : 'ЕЩЁ МИРЫ'; if (!document.body.classList.contains('more') && !MAIN.includes(WORLDS[sel].id)) select(0, true); };
+  strip.insertBefore(tm, TILES[MAIN.length]); }
+const vis = () => TILES.map((t, i) => i).filter((i) => document.body.classList.contains('more') || MAIN.includes(WORLDS[i].id));
+function step(d) { const V = vis(), k = V.indexOf(sel); select(V[(k + d + V.length) % V.length], true); }
 // прогресс ключей, Far Lands
 function keysN() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} return KEYW.filter((w) => k.includes(w)).length; }
 function refreshTop() { const n = keysN(), done = ls('dream_done'); $('ptxt').textContent = done ? 'СОН ПРОЙДЕН' : `КЛЮЧИ ${n} / ${KEYW.length}`; requestAnimationFrame(() => ($('pbar').style.transform = `scaleX(${done ? 1 : n / KEYW.length})`)); }
@@ -164,21 +175,22 @@ gfx.onclick = () => { try { localStorage.setItem('gfx', (ls('gfx') || 'ultra') =
 far.onclick = () => { try { localStorage.setItem('farlands', ls('farlands') === '1' ? '0' : '1'); } catch (e) {} farTxt(); }; farTxt(); refreshTop();
 // выбор мира
 let sel = Math.max(0, WORLDS.findIndex((w) => w.id === ls('menu_last'))), flip = false;
+if (!MAIN.includes(WORLDS[sel].id)) { document.body.classList.add('more'); const tm = strip.querySelector('.tm .nm'); if (tm) tm.textContent = 'СВЕРНУТЬ'; }
 function select(i, scroll) {
   sel = (i + N) % N; const w = WORLDS[sel], [a1, a2] = pal(w.id);
-  [...strip.children].forEach((t, k) => t.classList.toggle('sel', k === sel));
+  TILES.forEach((t, k) => t.classList.toggle('sel', k === sel));
   root.style.setProperty('--a1', a1); root.style.setProperty('--a2', a2);
   const A = flip ? $('bgA') : $('bgB'), B = flip ? $('bgB') : $('bgA'), TA = flip ? $('tA') : $('tB'), TB = flip ? $('tB') : $('tA'); flip = !flip;
   A.style.backgroundImage = `url(${BLUR[w.id] || IMG[w.id] || ''})`; A.classList.add('on'); B.classList.remove('on');
   TA.style.background = `radial-gradient(ellipse at 85% 15%,${a2}99,transparent 60%),radial-gradient(ellipse at 10% 95%,${a1}88,transparent 55%),linear-gradient(135deg,${a1}33,${a2}22)`; TA.classList.add('on'); TB.classList.remove('on');
   const hero = $('hero'); hero.classList.add('swap'); $('hname').style.animation = 'none'; void hero.offsetWidth; hero.classList.remove('swap'); $('hname').style.animation = '';
   $('hnum').innerHTML = `<b>${String(sel + 1).padStart(2, '0')}</b> / ${String(N).padStart(2, '0')}`; $('htag').textContent = w.tag || ''; $('hname').textContent = w.name; $('hdesc').textContent = w.desc; $('hstat').textContent = w.stat();
-  if (scroll) strip.children[sel].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  if (scroll) TILES[sel].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 }
 function enter(i) { const w = WORLDS[i]; if (document.body.classList.contains('go')) return; try { localStorage.setItem('menu_last', w.id); } catch (e) {}
   $('big').textContent = w.name; document.body.classList.add('go'); setTimeout(() => { location.href = w.url; }, 1150); }
 $('go').onclick = () => enter(sel);
-addEventListener('keydown', (e) => { if (e.code === 'ArrowRight' || e.code === 'ArrowDown') select(sel + 1, true); else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') select(sel - 1, true); else if (e.code === 'Enter' || e.code === 'Space') enter(sel); });
+addEventListener('keydown', (e) => { if (e.code === 'ArrowRight' || e.code === 'ArrowDown') step(1); else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') step(-1); else if (e.code === 'Enter' || e.code === 'Space') enter(sel); });
 strip.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { strip.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
 if (matchMedia('(pointer:coarse)').matches) $('hint').textContent = 'листай миры · нажми ещё раз, чтобы войти';
 select(sel, true);
@@ -192,7 +204,7 @@ select(sel, true);
     gr.addColorStop(0, `rgba(200,205,212,${0.10 + Math.random() * 0.12})`); gr.addColorStop(1, 'rgba(200,205,212,0)'); g.fillStyle = gr; for (const dx of [-512, 0, 512]) { g.save(); g.translate(dx, 0); g.fillRect(x - r, y - r, r * 2, r * 2); g.restore(); } }
   const url = `url(${c.toDataURL()})`; for (const id of ['f1', 'f2', 'f3']) $(id).style.backgroundImage = url; }
 for (let i = 0; i < 34; i++) { const a = document.createElement('i'); a.className = 'ash'; const sz = 1 + Math.random() * 2.5; a.style.cssText = `left:${Math.random() * 100}%;width:${sz}px;height:${sz}px;--o:${0.15 + Math.random() * 0.45};--dx:${(Math.random() - 0.3) * 160}px;animation-duration:${14 + Math.random() * 22}s;animation-delay:${-Math.random() * 30}s`; document.body.insertBefore(a, $('ui')); }
-[...strip.children].forEach((t, i) => t.querySelector('.im').style.setProperty('--d', (-i * 0.7) + 's'));
+TILES.forEach((t, i) => t.querySelector('.im').style.setProperty('--d', (-i * 0.7) + 's'));
 // вспышки, силуэт, глитч названия
 function flash() { const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); document.body.classList.add('shake'); setTimeout(() => document.body.classList.remove('shake'), 400); setTimeout(flash, 14000 + Math.random() * 26000); }
 setTimeout(flash, 6000 + Math.random() * 6000);
@@ -202,6 +214,6 @@ function glitch() { const h = $('hname'); if (!document.body.classList.contains(
 setTimeout(glitch, 4000);
 // кнопка музыки — в верхнюю панель
 setTimeout(() => { const mb = [...document.querySelectorAll('body>button')].find((b) => b.style.zIndex === '99'); if (mb) { mb.classList.add('mus'); $('top').insertBefore(mb, $('top').firstChild); } }, 50);
-addEventListener('pageshow', () => { document.body.classList.remove('go'); refreshTop(); [...strip.children].forEach(() => {}); $('hstat').textContent = WORLDS[sel].stat(); });
+addEventListener('pageshow', () => { document.body.classList.remove('go'); refreshTop(); $('hstat').textContent = WORLDS[sel].stat(); });
 </script>
 </body></html>

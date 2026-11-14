@@ -2,7 +2,7 @@ name: Deploy game to GitHub Pages
 on:
   push:
     branches: [main, claude/procedural-world-generation-2uyvij]
-    paths: ["*.html", "garages/**", .github/workflows/pages.yml]
+    paths: ["*.html", "garages/**", "res/**", .github/workflows/pages.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir _site
-          cp *.html _site/ && cp -r garages _site/
+          cp *.html _site/ && cp -r garages res _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

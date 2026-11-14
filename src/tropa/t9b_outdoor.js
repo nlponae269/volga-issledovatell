@@ -7,6 +7,7 @@ function kit(cx, cz, salt) {
     take: (x, z, rad) => occ.push([x, z, rad]),
     plant: (key, x, z, s = 1) => { const rad = PROTO[key].col ? 1.0 : 0.6; if (!K.free(x, z, rad)) return false; K.take(x, z, rad); const m = new THREE.Matrix4().compose(new V3(x, groundH(x, z) - 0.05, z), new THREE.Quaternion().setFromAxisAngle(UP, r() * 6.283), new V3(s, s * (0.9 + r() * 0.2), s)); (inst.get(key) || inst.set(key, []).get(key)).push(m); if (PROTO[key].col) b.cols.push({ x, z, hx: PROTO[key].col * s, hz: PROTO[key].col * s, c: 1, s: 0 }); return true; },
     pick: (a) => a[(r() * a.length) | 0],
+    put: (key, m) => { if (PROTO[key]) (inst.get(key) || inst.set(key, []).get(key)).push(m); },
     finish: () => { keyInChunk(group, x0, z0, x1, z1); b.build(group); for (const [key, ms] of inst) for (const [mat, geo] of PROTO[key].parts) { const im = new THREE.InstancedMesh(geo, mat, ms.length); ms.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = Q.shadows; im.receiveShadow = true; im.computeBoundingSphere(); group.add(im); } scene.add(group); return { group, cols: b.cols }; } };
   return K;
 }

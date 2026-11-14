@@ -101,7 +101,7 @@ groundMat.onBeforeCompile = (sh) => {
         vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
         vec3 mud = mix(dirt * vec3(0.9,0.84,0.76), vec3(0.42,0.39,0.34), 0.45) * (0.75 + 0.45*nC.r);                                        // разрытая земля
         float bare = smoothstep(0.18, 0.42, nA.g*0.6 + nB.r*0.55);
-        vec3 yard = mix(col*0.82, mud, bare*0.88);
+        vec3 yard = mix(col*0.62, mud*0.78, bare*0.85);
         float drv = dvDrv(wp) * step(6.5, rd);
         walk = max(walk, drv * (1.0 - road));
         float rl = 1.0 - smoothstep(9.0, 10.0, abs(wp.y - ${DV_RAIL.toFixed(1)}));                                     // железная дорога: щебень

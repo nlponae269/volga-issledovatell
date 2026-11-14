@@ -51,6 +51,14 @@ const MP = {
   radiator: envMat({ color: 0xc8c4b8, roughness: 0.5, metalness: 0.2 }, 0.3),
   dirtyGlass: std({ color: 0xb8c0b8, roughness: 0.2, transparent: true, opacity: 0.35, depthWrite: false }),
 };
+// настоящие сканы (Poly Haven): рельеф облезлой штукатурки, плитка, стёртый бетон ступеней
+if (PODEZD && PBR.wallN) {
+  pbrApply(MP.tile, PBR.floor, 1.1);
+  PWALL.forEach((m) => { m.normalMap = PBR.wallN; m.normalScale = new THREE.Vector2(1.1, 1.1); m.roughnessMap = PBR.wallArm;
+    m.onBeforeCompile = (sh) => { sh.uniforms.tDet = { value: PBR.wallDet }; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tDet;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(1.0), texture2D(tDet, vNormalMapUv).rgb * 1.55, 0.6);'); }; });
+}
+const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
 function floorNumMat(n) { if (!floorNumMats.has(n)) floorNumMats.set(n, new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.9, map: texFrom(mkCanvas(String(n).length > 3 ? 64 * String(n).length : 128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(240,235,220,0.85)'; g.font = 'bold 88px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 4); })) })); return floorNumMats.get(n); }
 // --- модуль этажа ---
@@ -110,7 +118,8 @@ function buildFloor(n) {
     doorsLive.push({ knock: true, party: k === pk && !mine, home: mine, label: mine ? 'E — домой, кв. 47' : undefined, x: ax, z: az, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
   });
   // щиток с проводами
-  b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42])); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
+  if (!PODM(b, 'm_pbox', LX1 - 0.21, 1.4, -0.5, -Math.PI / 2, 1.3)) b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42]));
+  if (r() < 0.55) PODM(b, r() < 0.6 ? 'm_bag' : 'm_box', LX0 + 0.45 + r() * 0.4, 0, -LAND + 0.4 + r() * 0.3, r() * 6, 0.9 + r() * 0.3); if (r() < 0.3) PODM(b, 'm_box', PW / 2 + 0.6, FH / 2, PL + MIDD - 0.4, r() * 6, 0.9); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
   // перила: стойки + коричневый поручень
   for (const [x, zs, ze, ys, ye] of [[WELL0, 0, PL, 0, FH / 2], [WELL1, PL, 0, FH / 2, FH]]) {
     const nb = 10; for (let k = 0; k <= nb; k++) { const t = k / nb, z = lerp(zs, ze, t), yb = lerp(ys, ye, t); b.box(MP.bars, x, yb + 0.45, z, 0.02, 0.9, 0.02); }

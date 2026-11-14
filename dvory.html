@@ -399,6 +399,80 @@ M.film = std({ color: 0xdfe6e8, roughness: 0.35, transparent: true, opacity: 0.3
 M.fruit = patchFoliage(std({ vertexColors: true, roughness: 0.42 }), false);
 M.berry = std({ vertexColors: true, roughness: 0.55 });
 
+// ===================== Настоящие ресурсы (Poly Haven, CC0): PBR-текстуры, HDRI-небо, 3D-модели =====================
+// Только для «Дворов» и «Подъезда». Файлы лежат в res/ рядом со страницей; мир стартует, когда всё загружено.
+const PBR_ON = DVOR || PODEZD;
+const PBR = { ready: !PBR_ON, pending: 0, total: 0, started: false, tex: {}, env: null, bg: null };
+const _tl = new THREE.TextureLoader(), _clones = {};
+function pbrDone() { PBR.pending--; if (PBR.pending <= 0 && PBR.started) PBR.ready = true; }
+// текстура (с кешем); rx/ry — повтор (для разных масштабов создаётся копия, которая обновится после загрузки)
+function pbrT(file, srgb, rx = 1, ry = rx) {
+  let base = PBR.tex[file];
+  if (!base) { PBR.pending++; PBR.total++;
+    base = PBR.tex[file] = _tl.load('res/' + file, () => { (_clones[file] || []).forEach((c) => (c.needsUpdate = true)); pbrDone(); }, undefined, () => pbrDone());
+    base.wrapS = base.wrapT = THREE.RepeatWrapping; base.anisotropy = MAXANI; if (srgb) base.colorSpace = THREE.SRGBColorSpace; }
+  if (rx === 1 && ry === 1) return base;
+  const c = base.clone(); c.repeat.set(rx, ry); (_clones[file] = _clones[file] || []).push(c); if (base.image) c.needsUpdate = true; return c;
+}
+// PBR-набор материала Poly Haven: цвет, нормали, ARM (R — AO, G — шероховатость, B — металл); meters — размер одного тайла
+function pbrApply(mat, name, meters, nscale = 1) {
+  const r = 1 / meters; mat.map = pbrT(`tex/${name}_diff.jpg`, true, r); mat.normalMap = pbrT(`tex/${name}_nor.jpg`, false, r); mat.normalScale = new THREE.Vector2(nscale, nscale);
+  const arm = pbrT(`tex/${name}_arm.jpg`, false, r); mat.roughnessMap = arm; mat.metalnessMap = arm; mat.roughness = 1; mat.metalness = 1; mat.needsUpdate = true; return mat;
+}
+// 3D-модель (сконвертирована из glTF): регистрируется в PROTO, ставится инстансами через kit / Batch
+function loadModel(name, key, opt = {}) {
+  PBR.pending++; PBR.total++;
+  Promise.all([fetch(`res/mdl/${name}.json`).then((r) => r.json()), fetch(`res/mdl/${name}.bin`).then((r) => r.arrayBuffer())]).then(([j, bin]) => {
+    const parts = j.parts.map((p) => { const m = j.mats[p.mat], g = new THREE.BufferGeometry(); let o = p.off;
+      const P = new Float32Array(bin, o, p.v * 3); o += p.v * 12; const N = new Float32Array(bin, o, p.v * 3); o += p.v * 12; const U = new Float32Array(bin, o, p.v * 2); o += p.v * 8; const I = new Uint32Array(bin, o, p.i);
+      g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.BufferAttribute(U, 2)); g.setIndex(new THREE.BufferAttribute(I, 1)); g.computeBoundingSphere();
+      const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(m.color[0], m.color[1], m.color[2]), roughness: 1, metalness: 1, side: m.alpha || m.double ? THREE.DoubleSide : THREE.FrontSide });
+      if (m.map) mat.map = pbrT('mdl/tex/' + m.map, true); if (m.nor) mat.normalMap = pbrT('mdl/tex/' + m.nor, false);
+      if (m.arm) { const a = pbrT('mdl/tex/' + m.arm, false); mat.roughnessMap = a; mat.metalnessMap = a; } else { mat.metalness = m.metal; mat.roughness = m.rough; }
+      if (m.alpha) mat.alphaTest = 0.45; if (opt.tint) mat.color.multiply(new THREE.Color(opt.tint)); if (opt.emissive && /bulb|glass/.test(m.name || '')) { mat.emissive = new THREE.Color(opt.emissive); mat.emissiveIntensity = 3; }
+      return [mat, g]; });
+    PROTO[key] = { parts, col: !!opt.col, size: j.size }; pbrDone(); }).catch(() => pbrDone());
+}
+// HDRI (.hdr, RGBE с RLE) → половинная точность → небо и окружение (отражения, рассеянный свет)
+function parseHDR(buf) {
+  const b = new Uint8Array(buf); let p = 0; const line = () => { let s = ''; while (p < b.length && b[p] !== 10) s += String.fromCharCode(b[p++]); p++; return s; };
+  while (line() !== '') {} const rs = line().split(' '), H = +rs[1], W = +rs[3];
+  const out = new Uint16Array(W * H * 4), sl = new Uint8Array(W * 4), half = THREE.DataUtils.toHalfFloat, one = half(1);
+  for (let y = 0; y < H; y++) {
+    if (b[p] === 2 && b[p + 1] === 2) { p += 4; for (let c = 0; c < 4; c++) { let x = 0; while (x < W) { let n = b[p++]; if (n > 128) { n -= 128; const v = b[p++]; while (n--) sl[(x++) * 4 + c] = v; } else { while (n--) sl[(x++) * 4 + c] = b[p++]; } } } }
+    else for (let x = 0; x < W * 4; x++) sl[x] = b[p++];
+    const row = (H - 1 - y) * W;
+    for (let x = 0; x < W; x++) { const e = sl[x * 4 + 3], f = e ? Math.pow(2, e - 136) : 0, o = (row + x) * 4; out[o] = half(sl[x * 4] * f); out[o + 1] = half(sl[x * 4 + 1] * f); out[o + 2] = half(sl[x * 4 + 2] * f); out[o + 3] = one; }
+  }
+  return { W, H, data: out };
+}
+function loadHDR(file) {
+  PBR.pending++; PBR.total++;
+  fetch('res/' + file).then((r) => r.arrayBuffer()).then((buf) => { const h = parseHDR(buf);
+    const t = new THREE.DataTexture(h.data, h.W, h.H, THREE.RGBAFormat, THREE.HalfFloatType); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.LinearSRGBColorSpace;
+    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true;
+    const pm = new THREE.PMREMGenerator(renderer); PBR.env = pm.fromEquirectangular(t).texture; pm.dispose(); PBR.bg = t; pbrDone(); }).catch(() => pbrDone());
+}
+if (PBR_ON) {
+  if (DVOR) {
+    loadHDR('hdri/sky.hdr');
+    // земля: асфальт, сухая земля, пожухлая трава — настоящие сканы
+    TX.asph = pbrT('tex/asphalt_02_diff.jpg', true); TX.sand = pbrT('tex/brown_mud_dry_diff.jpg', true); TX.grass = pbrT('tex/withered_grass_diff.jpg', true); TX.leavesN = pbrT('tex/brown_mud_dry_nor.jpg', false);
+    pbrApply(M.conc, 'chipped_concrete', 2.5); pbrApply(M.brick, 'brick_wall_003', 1.6);
+    PBR.brick = { map: pbrT('tex/brick_wall_003_diff.jpg', true), nor: pbrT('tex/brick_wall_003_nor.jpg', false), arm: pbrT('tex/brick_wall_003_arm.jpg', false) };
+    for (const [n, k, o] of [['exterior_aircon_unit', 'm_ac'], ['security_light', 'm_slight', { emissive: 0xfff2d8 }], ['metal_trash_can', 'm_can', { col: true }], ['trashbag', 'm_bag'], ['old_tyre', 'm_tyre'],
+      ['cardboard_box_01', 'm_box'], ['plastic_crate_01', 'm_crate'], ['utility_box_02', 'm_ubox', { col: true }], ['concrete_road_barrier', 'm_barrier', { col: true }], ['covered_car', 'm_ccar', { col: true }],
+      ['shrub_02', 'm_shrub'], ['modular_electricity_poles', 'm_pole'], ['modular_metal_gutter', 'm_gutter'], ['rollershutter_door', 'm_shutter'], ['power_box_01', 'm_pbox']]) loadModel(n, k, o || {});
+  }
+  if (PODEZD) {
+    pbrApply(M.conc, 'concrete_floor_worn_001', 2.2);
+    PBR.wallN = pbrT('tex/blue_plaster_weathered_nor.jpg', false, 1 / 1.6); PBR.wallArm = pbrT('tex/blue_plaster_weathered_arm.jpg', false, 1 / 1.6); PBR.wallDet = pbrT('tex/grey_plaster_diff.jpg', true, 1 / 1.6);
+    PBR.floor = 'floor_tiles_06';
+    for (const [n, k] of [['power_box_01', 'm_pbox'], ['trashbag', 'm_bag'], ['cardboard_box_01', 'm_box'], ['lightbulb_01', 'm_bulb']]) loadModel(n, k, n === 'lightbulb_01' ? { emissive: 0xffd8a0 } : {});
+  }
+  PBR.started = true; if (PBR.pending <= 0) PBR.ready = true;
+}
+
 // ===================== ТРОПА: геометрия, прототипы растительности =====================
 const V3 = THREE.Vector3, UP = new V3(0, 1, 0);
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _nm = new THREE.Matrix3();
@@ -913,7 +987,7 @@ groundMat.onBeforeCompile = (sh) => {
         vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
         vec3 mud = mix(dirt * vec3(0.9,0.84,0.76), vec3(0.42,0.39,0.34), 0.45) * (0.75 + 0.45*nC.r);                                        // разрытая земля
         float bare = smoothstep(0.18, 0.42, nA.g*0.6 + nB.r*0.55);
-        vec3 yard = mix(col*0.82, mud, bare*0.88);
+        vec3 yard = mix(col*0.62, mud*0.78, bare*0.85);
         float drv = dvDrv(wp) * step(6.5, rd);
         walk = max(walk, drv * (1.0 - road));
         float rl = 1.0 - smoothstep(9.0, 10.0, abs(wp.y - ${DV_RAIL.toFixed(1)}));                                     // железная дорога: щебень
@@ -1219,7 +1293,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.008 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.0045 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -1248,6 +1322,7 @@ const post = (() => {
       if(dist>L){ vec3 pe = camPos + rdir*L; float hy = max(pe.y,0.0); float far = dist-L; float k=0.07*max(rdir.y,0.0005);
         od += (dens*0.75*exp(-hy*0.07)*(1.0-exp(-k*far))/k) + 0.0018*far; }
       float T = exp(-od);
+      ${DVOR ? 'if(isSky) T = max(T, 0.55);' : ''}
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
       ${DVOR ? 'fogC = vec3(0.74,0.75,0.76) + vec3(-0.04,-0.035,-0.025)*(1.0-smoothstep(-0.1,0.3,rdir.y));' : ''}
@@ -1448,6 +1523,8 @@ function frame(now) {
 let jobI = 0;
 function loadStep() {
   if (jobI < PROTO_JOBS.length) { const [k, fn] = PROTO_JOBS[jobI++]; PROTO[k] = fn(); $('play').textContent = `Загрузка… ${Math.round(jobI / PROTO_JOBS.length * 100)}%`; setTimeout(loadStep, 0); return; }
+  if (!PBR.ready) { $('play').textContent = `Загрузка… текстуры и модели ${Math.round((1 - Math.max(0, PBR.pending) / Math.max(1, PBR.total)) * 100)}%`; setTimeout(loadStep, 120); return; }
+  if (PBR.env) { scene.environment = PBR.env; scene.background = PBR.bg; scene.backgroundIntensity = 0.75; sky.visible = false; hemi.intensity *= 0.35; }
   updateChunks(0, 0, true); placeCamera(); $('play').textContent = 'Играть'; $('play').disabled = false; requestAnimationFrame(frame);
 }
 $('play').disabled = true; setTimeout(loadStep, 30);
@@ -1767,6 +1844,14 @@ const MP = {
   radiator: envMat({ color: 0xc8c4b8, roughness: 0.5, metalness: 0.2 }, 0.3),
   dirtyGlass: std({ color: 0xb8c0b8, roughness: 0.2, transparent: true, opacity: 0.35, depthWrite: false }),
 };
+// настоящие сканы (Poly Haven): рельеф облезлой штукатурки, плитка, стёртый бетон ступеней
+if (PODEZD && PBR.wallN) {
+  pbrApply(MP.tile, PBR.floor, 1.1);
+  PWALL.forEach((m) => { m.normalMap = PBR.wallN; m.normalScale = new THREE.Vector2(1.1, 1.1); m.roughnessMap = PBR.wallArm;
+    m.onBeforeCompile = (sh) => { sh.uniforms.tDet = { value: PBR.wallDet }; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tDet;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(1.0), texture2D(tDet, vNormalMapUv).rgb * 1.55, 0.6);'); }; });
+}
+const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
 function floorNumMat(n) { if (!floorNumMats.has(n)) floorNumMats.set(n, new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.9, map: texFrom(mkCanvas(String(n).length > 3 ? 64 * String(n).length : 128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(240,235,220,0.85)'; g.font = 'bold 88px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(n), w / 2, h / 2 + 4); })) })); return floorNumMats.get(n); }
 // --- модуль этажа ---
@@ -1826,7 +1911,8 @@ function buildFloor(n) {
     doorsLive.push({ knock: true, party: k === pk && !mine, home: mine, label: mine ? 'E — домой, кв. 47' : undefined, x: ax, z: az, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
   });
   // щиток с проводами
-  b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42])); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
+  if (!PODM(b, 'm_pbox', LX1 - 0.21, 1.4, -0.5, -Math.PI / 2, 1.3)) b.box(M.metal, LX1 - 0.02, 1.7, -0.5, 0.06, 0.8, 0.6, lin([0.45, 0.47, 0.42]));
+  if (r() < 0.55) PODM(b, r() < 0.6 ? 'm_bag' : 'm_box', LX0 + 0.45 + r() * 0.4, 0, -LAND + 0.4 + r() * 0.3, r() * 6, 0.9 + r() * 0.3); if (r() < 0.3) PODM(b, 'm_box', PW / 2 + 0.6, FH / 2, PL + MIDD - 0.4, r() * 6, 0.9); if (r() < 0.6) { b.lines.push(new V3(LX1 - 0.05, y0 + 2.1, -0.4), new V3(LX1 - 0.4, y0 + FH - 0.3, -0.2), new V3(LX1 - 0.05, y0 + 2.1, -0.6), new V3(LX1 - 0.6, y0 + FH - 0.28, -0.9)); }
   // перила: стойки + коричневый поручень
   for (const [x, zs, ze, ys, ye] of [[WELL0, 0, PL, 0, FH / 2], [WELL1, PL, 0, FH / 2, FH]]) {
     const nb = 10; for (let k = 0; k <= nb; k++) { const t = k / nb, z = lerp(zs, ze, t), yb = lerp(ys, ye, t); b.box(MP.bars, x, yb + 0.45, z, 0.02, 0.9, 0.02); }
@@ -2202,6 +2288,7 @@ function kit(cx, cz, salt) {
     take: (x, z, rad) => occ.push([x, z, rad]),
     plant: (key, x, z, s = 1) => { const rad = PROTO[key].col ? 1.0 : 0.6; if (!K.free(x, z, rad)) return false; K.take(x, z, rad); const m = new THREE.Matrix4().compose(new V3(x, groundH(x, z) - 0.05, z), new THREE.Quaternion().setFromAxisAngle(UP, r() * 6.283), new V3(s, s * (0.9 + r() * 0.2), s)); (inst.get(key) || inst.set(key, []).get(key)).push(m); if (PROTO[key].col) b.cols.push({ x, z, hx: PROTO[key].col * s, hz: PROTO[key].col * s, c: 1, s: 0 }); return true; },
     pick: (a) => a[(r() * a.length) | 0],
+    put: (key, m) => { if (PROTO[key]) (inst.get(key) || inst.set(key, []).get(key)).push(m); },
     finish: () => { keyInChunk(group, x0, z0, x1, z1); b.build(group); for (const [key, ms] of inst) for (const [mat, geo] of PROTO[key].parts) { const im = new THREE.InstancedMesh(geo, mat, ms.length); ms.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = Q.shadows; im.receiveShadow = true; im.computeBoundingSphere(); group.add(im); } scene.add(group); return { group, cols: b.cols }; } };
   return K;
 }
@@ -2546,13 +2633,14 @@ if (DVOR) {
     const W = 1024, H = 784, mx = W / 36, my = H / 28, r = rng(seed);
     const cc = document.createElement('canvas'), ec = document.createElement('canvas'); cc.width = ec.width = W; cc.height = ec.height = H;
     const g = cc.getContext('2d'), e = ec.getContext('2d');
-    g.fillStyle = o.wall; g.fillRect(0, 0, W, H); e.fillStyle = '#000'; e.fillRect(0, 0, W, H);
-    if (o.brick) { for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${r() < 0.55 ? '0,0,0' : '255,255,255'},${0.03 + r() * 0.07})`; g.fillRect(((r() * 128) | 0) * 8, ((r() * 262) | 0) * 3, 8, 3); }
+    const PB = o.brick && PBR.brick;
+    if (PB) g.clearRect(0, 0, W, H); else { g.fillStyle = o.wall; g.fillRect(0, 0, W, H); } e.fillStyle = '#000'; e.fillRect(0, 0, W, H);
+    if (o.brick && !PB) { for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${r() < 0.55 ? '0,0,0' : '255,255,255'},${0.03 + r() * 0.07})`; g.fillRect(((r() * 128) | 0) * 8, ((r() * 262) | 0) * 3, 8, 3); }
       g.fillStyle = 'rgba(0,0,0,0.13)'; for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1); g.fillStyle = 'rgba(0,0,0,0.08)'; for (let y = 0, k = 0; y < H; y += 3, k++) for (let x = (k % 2) * 4; x < W; x += 8) g.fillRect(x, y, 1, 3); }
     for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(${r() < 0.6 ? '0,0,0' : '255,255,255'},${0.02 + r() * 0.04})`; g.fillRect(r() * W, r() * H, 6 + r() * 40, 6 + r() * 40); }
     const Y = (m) => H - m * my;
     g.fillStyle = o.plinth; g.fillRect(0, Y(o.base), W, o.base * my);
-    g.strokeStyle = 'rgba(0,0,0,0.22)'; g.lineWidth = 2; for (let f = 0; f <= o.floors; f++) { g.beginPath(); g.moveTo(0, Y(o.base + f * o.fh)); g.lineTo(W, Y(o.base + f * o.fh)); g.stroke(); }
+    if (!PB) g.strokeStyle = 'rgba(0,0,0,0.22)'; else g.strokeStyle = 'rgba(0,0,0,0)'; g.lineWidth = 2; for (let f = 0; f <= o.floors; f++) { g.beginPath(); g.moveTo(0, Y(o.base + f * o.fh)); g.lineTo(W, Y(o.base + f * o.fh)); g.stroke(); }
     const ACC = ['#2f6fb0', '#e08a2a', '#6aa84f', '#c94a3a'];
     if (o.panel) { for (let x = 0; x < 36; x += 12) { g.fillStyle = (x / 12) % 2 ? 'rgba(255,255,255,0.12)' : 'rgba(120,90,40,0.06)'; g.fillRect(x * mx, 0, 12 * mx, Y(o.base)); }
       g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 2; for (let x = 0; x <= 36; x += 3) { g.beginPath(); g.moveTo(x * mx, 0); g.lineTo(x * mx, Y(o.base)); g.stroke(); } }
@@ -2578,7 +2666,17 @@ if (DVOR) {
       g.fillStyle = o.frame; g.fillRect(x + ww / 2 - 2, y, 4, wh); g.fillRect(x, y + wh * 0.3, ww, 3);
     }
     const mk = (c) => { const t = texFrom(c, true); t.repeat.set(1 / 36, 1 / 28); return t; };
-    const m = std({ map: mk(cc), emissiveMap: mk(ec), emissive: 0xffffff, emissiveIntensity: o.ei || 1.3, roughness: 0.92 }); m.userData.wc = lin(hexc(parseInt(o.wall.slice(1), 16), 0.8)); return m;
+    const m = std({ map: mk(cc), emissiveMap: mk(ec), emissive: 0xffffff, emissiveIntensity: o.ei || 1.3, roughness: 0.92 }); m.userData.wc = lin(hexc(parseInt(o.wall.slice(1), 16), 0.8));
+    if (PB) { const rp = (t) => { const c = t.clone(); c.repeat.set(1 / 1.5, 1 / 1.5); c.needsUpdate = !!t.image; (_clones[Object.keys(PBR.tex).find((k) => PBR.tex[k] === t)] || []).push(c); return c; };
+      m.normalMap = rp(PBR.brick.nor); m.roughnessMap = rp(PBR.brick.arm); m.roughness = 1; const tb = rp(PBR.brick.map), wallC = new THREE.Color(o.wall);
+      m.onBeforeCompile = (sh) => { sh.uniforms.tBrick = { value: tb }; sh.uniforms.uWall = { value: wallC };
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tBrick; uniform vec3 uWall; float fWall = 0.0;')
+          .replace('#include <map_fragment>', `#include <map_fragment>
+            fWall = 1.0 - diffuseColor.a; vec3 brT = texture2D(tBrick, vNormalMapUv).rgb; float brL = dot(brT, vec3(0.299, 0.587, 0.114));
+            vec3 brick = mix(vec3(brL), brT, 0.22) * uWall * 2.3; diffuseColor.rgb = mix(diffuseColor.rgb, brick, fWall); diffuseColor.a = 1.0;`)
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(0.22, roughnessFactor, fWall);')
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(mix(nonPerturbedNormal, normal, fWall));'); }; }
+    return m;
   }
   const FAC = [  // светлый силикатный кирпич (как дом № 13), кремовые панельки, пятиэтажка
     facade(11, { wall: '#cdcac2', plinth: '#8a8278', frame: '#f4f4f0', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, brick: true }),
@@ -2600,13 +2698,14 @@ if (DVOR) {
   const peel = (c, r) => c.map((v) => v * (0.7 + r() * 0.4));
   const SMELLS = [];
   const smell = (K, x, z, text) => SMELLS.push({ x, z, text, group: K.group });
+  const PUT = (K, key, x, y, z, ry = 0, s = 1, sy = s) => K.put(key, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, sy, s)));
 
   // --- уличные фонари (днём не горят) и провода ---
-  function lampPole(K, x, z, ax, az) { const { b } = K; b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
+  function lampPole(K, x, z, ax, az) { const { b } = K; if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
     b.box(lampOff, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, null, 0, Math.atan2(az, ax) * -1); b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function wire(b, a, c, sag) { const N = 8; for (let k = 0; k < N; k++) { const t0 = k / N, t1 = (k + 1) / N, s0 = Math.sin(t0 * Math.PI) * sag, s1 = Math.sin(t1 * Math.PI) * sag; b.lines.push(new V3(lerp(a.x, c.x, t0), lerp(a.y, c.y, t0) - s0, lerp(a.z, c.z, t0)), new V3(lerp(a.x, c.x, t1), lerp(a.y, c.y, t1) - s1, lerp(a.z, c.z, t1))); } }
   function bench(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); b.box(M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
-  function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); b.push(x, 0, z, ry);
+  function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); if (PROTO.m_ccar && r() < 0.2) { PUT(K, 'm_ccar', x, 0, z, ry + Math.PI / 2); b.push(x, 0, z, ry); b.collide(0, 0, 2.2, 0.9); b.pop(); K.take(x, z, 2.4); return; } b.push(x, 0, z, ry);
     b.box(M.paint, 0, 0.62, 0, 4.2, 0.6, 1.66, c); b.box(M.paint, -0.15, 1.18, 0, 2.1, 0.55, 1.5, c.map((v) => v * 0.8)); b.box(M.glass, -0.15, 1.2, 0, 2.0, 0.42, 1.52); b.box(M.glass, -0.15, 1.2, 0, 2.12, 0.4, 1.3);
     for (const sx of [-1.35, 1.35]) for (const sz of [-0.78, 0.78]) b.cyl(M.rubber, sx, 0.31, sz, 0.31, 0.31, 0.22, 10, null, Math.PI / 2);
     b.collide(0, 0, 2.15, 0.88); b.pop(); K.take(x, z, 2.4); }
@@ -2634,7 +2733,7 @@ if (DVOR) {
     for (let k = 0; k < 4; k++) { b.box(M.paint, -0.75 + k * 0.5, 2.05, -0.5, 0.5, 0.03, 1.25, RC[k % 4], 0.62); b.box(M.paint, -0.75 + k * 0.5, 2.05, 0.5, 0.5, 0.03, 1.25, RC[(k + 2) % 4], -0.62); } b.pop(); }
   function trashSite(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); for (const s of [-1.6, 0, 1.6]) b.box(M.metal, s, 0.6, 0, 1.4, 1.15, 1.0, peel(GRN, r));
     b.box(M.prof, 0, 1.0, -0.8, 5.2, 2.0, 0.05, shade(0.75)); b.box(M.prof, -2.6, 1.0, 0, 0.05, 2.0, 1.6, shade(0.75)); b.box(M.prof, 2.6, 1.0, 0, 0.05, 2.0, 1.6, shade(0.75));
-    for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
+    if (PROTO.m_bag) { for (let k = 0; k < 5; k++) { const w = b.world(-2.2 + r() * 4.4, 0, 0.75 + r() * 0.8); PUT(K, r() < 0.6 ? 'm_bag' : 'm_box', w.x, 0, w.z, r() * 6, 0.9 + r() * 0.4); } } else for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
   function panel(K, cx, cz, len, dep, floors, ry, fac, home) {
     const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc;
@@ -2646,17 +2745,19 @@ if (DVOR) {
     const ants = []; for (let q = 0; q < 6 + ((r() * 5) | 0); q++) { const ax = (r() - 0.5) * (len - 3), az = (r() - 0.5) * (dep - 2), h = 2 + r() * 2.2; b.cyl(M.metal, ax, Hh + 0.2 + h / 2, az, 0.02, 0.02, h, 5, RUST); for (let e2 = 0; e2 < 3; e2++) b.box(M.metal, ax, Hh + h - e2 * 0.32, az, 0.95 - e2 * 0.22, 0.02, 0.02, RUST, 0, r() * 3); ants.push(b.world(ax, Hh + 0.2 + h, az)); }
     for (let q = 1; q < ants.length; q++) if (r() < 0.6) wire(b, ants[q - 1], ants[q], 0.4);
     // водосточные трубы
-    for (const sx of [-len / 2 + 0.4, len / 2 - 0.4]) for (const s of [1, -1]) b.cyl(M.metal, sx, Hh / 2, s * (dep / 2 + 0.12), 0.07, 0.07, Hh, 6, lin([0.42, 0.44, 0.45]));
+    for (const sx of [-len / 2 + 0.4, len / 2 - 0.4]) for (const s of [1, -1]) { if (PROTO.m_gutter) { for (let y = 0; y < Hh - 0.5; y += 1) { const w = b.world(sx, y, s * (dep / 2 + 0.12)); PUT(K, 'm_gutter', w.x, y, w.z, 0, 1.3, 1.0); } } else b.cyl(M.metal, sx, Hh / 2, s * (dep / 2 + 0.12), 0.07, 0.07, Hh, 6, lin([0.42, 0.44, 0.45])); }
     // кондиционеры гроздьями
     for (const s of [1, -1]) { const ncl = 2 + ((r() * 3) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
-      for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2); b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } }
+      for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2);
+        if (PROTO.m_ac) { const w = b.world(x, y - 0.45, s * (dep / 2 + 0.19)); PUT(K, 'm_ac', w.x, y - 0.45, w.z, ry + (s > 0 ? 0 : Math.PI), 0.95); }
+        else { b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } } }
     // подъезды
     const AD = home && typeof home === 'object' ? home : null; const n = Math.max(1, Math.round(len / 12)); const street = AD ? AD.st : home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = AD ? AD.n : 13;
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
       b.box(M.metal, lx, 1.05, fz + 0.04, 1.1, 2.1, 0.08, lin([0.2, 0.17, 0.15])); b.box(M.metal, lx + 0.75, 1.3, fz + 0.06, 0.18, 0.3, 0.04, PAINT.galv); if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.09));
       b.box(M.conc, lx, 2.7, fz + 0.75, 2.4, 0.14, 1.6, shade(0.6)); b.box(M.conc, lx, 0.08, fz + 0.75, 2.4, 0.16, 1.5, shade(0.55)); for (const s of [-1.1, 1.1]) b.cyl(M.metal, lx + s, 1.35, fz + 1.45, 0.035, 0.035, 2.7, 6, PAINT.dark);
       for (let k = 0; k < 8; k++) b.box(M.paint, lx - 1.05 + k * 0.3, 2.86, fz + 0.8, 0.3, 0.03, 1.72, k % 2 ? CRM : RED, 0.1);                 // полосатый козырёк
-      b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
+      if (PROTO.m_slight) { const w = b.world(lx, 2.3, fz + 0.02); PUT(K, 'm_slight', w.x, 2.3, w.z, ry, 1.1); } else b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
       const pn = b.world(lx, 0, fz + 1.1); const id = `${Math.round(pn.x)},${Math.round(pn.z)}`, isHome = home === true && i === n - 1, open = !isHome && ihash(Math.round(pn.x), Math.round(pn.z), 5) < 0.2;
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), plate(String(i + 1))); const pp = b.world(lx, 2.2, fz + 0.03); pm.position.copy(pp); pm.rotation.y = ry; group.add(pm);
       INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? 'E — домой, кв. 47' : 'E — домофон', act: () => dvDoor(isHome, open, id) });
@@ -2797,10 +2898,15 @@ if (DVOR) {
   poleRun([884, 908, 932, 956, 980, 1004, 1028, 1052, 1076, 1100, 1124].map((x) => [x, -35]), 0, -1);
   const DIST = (cx, cz) => (cx >= -3 && cx <= 2 && cz >= -5 && cz <= 2) || (cx >= 18 && cx <= 23 && cz >= -5 && cz <= 2);
   const dvBldg = (x, z, pad) => { for (const q of DVB) if (Math.abs(x - q[0]) < q[2] + pad && Math.abs(z - q[1]) < q[3] + pad) return true; return false; };
+  function clutter(K, fr) { const { r, b } = K; if (!PROTO.m_tyre) return;
+    for (let i = 0; i < 7; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (!fr(x, z, 0.6)) continue; const t = r(); K.take(x, z, 0.6);
+      if (t < 0.25) PUT(K, 'm_tyre', x, 0.0, z, r() * 6, 1, 1); else if (t < 0.45) PUT(K, 'm_box', x, 0, z, r() * 6, 1 + r() * 0.5); else if (t < 0.6) PUT(K, 'm_crate', x, 0, z, r() * 6, 1.2); else if (t < 0.75) PUT(K, 'm_bag', x, 0, z, r() * 6, 1); else if (t < 0.85) { PUT(K, 'm_can', x, 0, z, r() * 6, 1); b.collide(x, z, 0.3, 0.3); } else { PUT(K, 'm_shrub', x, 0, z, r() * 6, 0.6 + r() * 0.3); } }
+    if (r() < 0.35) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1)) { K.take(x, z, 1); PUT(K, 'm_ubox', x, 0, z, ((r() * 4) | 0) * Math.PI / 2, 1.1); b.collide(x, z, 0.5, 0.5); } } }
   function dvDistrict(cx, cz) {
     const K = kit(cx, cz, 0xa1b2), { r } = K; K.block = (x, z, rad) => dvBldg(x, z, rad);
     for (const it of DVI) if (K.inb(it.x, it.z)) it.f(K);
     const fr = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 0.5 + rad;
+    clutter(K, fr);
     for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5)) K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm0', 'elm1', 'shrubY0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5); }
     if (r() < 0.35) for (let t = 0; t < 8; t++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } }
     for (let i = 0; i < 4; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (r() < 0.6 && fr(x, z, 0.3)) addNut(K, x, z, `md${cx},${cz},${i}`); }
@@ -2850,7 +2956,7 @@ if (DVOR) {
     // находки
     if (r() < 0.45 || home) { for (let t = 0; t < 8; t++) { const [x, z] = home ? W(13 + r() * 5, 14 + r() * 3) : W(4 + r() * 36, 3 + r() * 16); if (freeY(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } } }
     for (let i = 0; i < 4; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 38); if (r() < 0.6 && freeY(x, z, 0.3)) addNut(K, x, z, `md${cx},${cz},${i}`); }
-    K.block = fb; return K.finish(); };
+    clutter(K, freeY); K.block = fb; return K.finish(); };
 
   // --- редкие машины и автобус; не тормозят ---
   const DC = []; for (let i = 0; i < (MOBILE ? 3 : 4); i++) { let c; if (i === 0) { c = makePaz(); c.g.visible = true; c.len = 7.6; c.wheels = []; } else { c = makeCar(); scene.add(c.g); } DC.push(Object.assign(c, { s: 0, lane: 0, ax: 0, dir: 1, v: 10, passed: false, honk: 0 })); }
