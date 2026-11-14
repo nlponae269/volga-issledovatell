@@ -80,7 +80,7 @@ const post = (() => {
     void main(){
       vec2 uv=vUv, dc=uv-0.5;
       vec3 col=texture2D(tC,uv).rgb;
-      ${!MOBILE ? 'vec2 ca = dc * dot(dc, dc) * 0.012; col.r = texture2D(tC, uv + ca).r; col.b = texture2D(tC, uv - ca).b;' : ''}
+      ${!MOBILE ? 'vec2 ca = dc * dot(dc, dc) * ${DVOR ? '0.003' : '0.012'}; col.r = texture2D(tC, uv + ca).r; col.b = texture2D(tC, uv - ca).b;' : ''}
       float rd=texture2D(tD,uv).x; bool isSky = rd > 0.99999;
       ${!MOBILE ? `if(!isSky && aoOn > 0.5){ float d0=lz(rd); float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(22.0/d0,0.35,3.0);
         for(int i=0;i<10;i++){ float fi=float(i); float a=rn+fi*2.39996; vec2 o=vec2(cos(a),sin(a))*(3.0+fi*2.2)*sc/res;

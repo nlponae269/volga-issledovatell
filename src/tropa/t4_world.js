@@ -172,14 +172,14 @@ const grass = (() => {
         float dens = smoothstep(0.25, 0.6, 1.0 - (nz.r*0.65 + nz.g*0.3));
         float s = ${SNOW ? '0.12 *' : ''} ${BEACH ? 'smoothstep(8.0, 20.0, bp.y) * 0.7 *' : ''} ${FIELD ? '1.25 *' : ''} step(abs(bp.x), 16777216.0) * step(abs(bp.y), 16777216.0) * ${DVOR ? '(1.0 - dvDrv(bp)) * smoothstep(6.6, 8.5, dvGridD(bp)) * step(10.0, abs(bp.y - 162.0)) * (0.12 + 0.75*smoothstep(0.5, 0.7, texture2D(tNoise, bp*0.031 + 0.13).g*0.7 + texture2D(tNoise, bp*0.11 + 0.71).b*0.3)) *' : ''} (1.0 - bedM(bp)) * aI.w * pathM * roadM * fade * step(0.15, dens + aI.w*0.1) * (0.5 + 0.7*dens);
         float c = cos(aI.z), sn = sin(aI.z);
-        vec3 p = position * vec3(1.0, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
+        vec3 p = position * vec3(${DVOR ? '0.55' : '1.0'}, ${FIELD ? '(1.5 + 0.5*nz.a)' : '(0.26 + 0.42*nz.a*nz.a) * (0.6 + 0.6*dens)'}, 1.0) * s; p = vec3(c*p.x - sn*p.z, p.y, sn*p.x + c*p.z);
         float w = position.y * (sin(uTime*1.7 + bp.x*0.31 + bp.y*0.17)*0.16 + sin(uTime*4.1 + bp.x*1.9 + bp.y)*0.04);
         p.x += w; p.z += w*0.5;
         vec3 transformed = vec3(bp.x, groundH(bp), bp.y) + p;
         vTint = nz.g; vHt = uv.y;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTint, vHt;')
       .replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''))
-      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.95,1.5,0.62);' : '') + (DVOR ? ' diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.35,1.15,0.72), 0.65);' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(0.9,0.95,0.8), vec3(1.25,1.1,0.72), smoothstep(0.4,0.75,vTint)) * mix(0.32, 1.0, vHt);' + (FIELD ? ' diffuseColor.rgb = vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.95,1.5,0.62);' : '') + (DVOR ? ' diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.333))) * vec3(1.3,1.18,0.8), 0.72) * 0.85;' : '') + (SNOW ? ' diffuseColor.rgb *= vec3(0.9,0.75,0.55);' : '') + (HOUSE ? ' totalEmissiveRadiance += diffuseColor.rgb * 0.45;' : ''));
   };
   const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.position.y = GROUND_Y; scene.add(mesh);
   return { mesh, update(p) { if (mat.userData.sh) mat.userData.sh.uniforms.uC.value.copy(p); } };

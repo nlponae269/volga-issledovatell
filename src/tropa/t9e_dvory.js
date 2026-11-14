@@ -60,14 +60,19 @@ if (DVOR) {
     g.fillStyle = o.plinth; g.fillRect(0, Y(o.base), W, o.base * my);
     if (!PB) g.strokeStyle = 'rgba(0,0,0,0.22)'; else g.strokeStyle = 'rgba(0,0,0,0)'; g.lineWidth = 2; for (let f = 0; f <= o.floors; f++) { g.beginPath(); g.moveTo(0, Y(o.base + f * o.fh)); g.lineTo(W, Y(o.base + f * o.fh)); g.stroke(); }
     const ACC = ['#2f6fb0', '#e08a2a', '#6aa84f', '#c94a3a'];
-    if (o.panel) { for (let x = 0; x < 36; x += 12) { g.fillStyle = (x / 12) % 2 ? 'rgba(255,255,255,0.12)' : 'rgba(120,90,40,0.06)'; g.fillRect(x * mx, 0, 12 * mx, Y(o.base)); }
-      g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 2; for (let x = 0; x <= 36; x += 3) { g.beginPath(); g.moveTo(x * mx, 0); g.lineTo(x * mx, Y(o.base)); g.stroke(); } }
+    if (o.panel) { const SEC = o.sec || [o.wall];   // секции разного цвета по подъездам, как на фото
+      for (let x = 0; x < 36; x += 12) { g.fillStyle = SEC[(x / 12) % SEC.length]; g.fillRect(x * mx, 0, 12 * mx, Y(o.base)); }
+      for (let x = 0; x < 36; x += 3) for (let f = 0; f <= o.floors; f++) { g.fillStyle = `rgba(${r() < 0.5 ? '40,35,30' : '255,255,250'},${0.02 + r() * 0.05})`; g.fillRect(x * mx, Y(o.base + (f + 1) * o.fh), 3 * mx, o.fh * my); }
+      for (let x = 0; x <= 36; x += 3) for (let f = 0; f <= o.floors; f++) if (r() < 0.45) { const y0 = Y(o.base + (f + 1) * o.fh), L = (0.4 + r() * 1.6) * my, gr = g.createLinearGradient(0, y0, 0, y0 + L); gr.addColorStop(0, 'rgba(40,36,30,0.22)'); gr.addColorStop(1, 'rgba(40,36,30,0)'); g.fillStyle = gr; g.fillRect(x * mx - 3, y0, 6 + r() * 6, L); }
+      g.strokeStyle = 'rgba(60,55,48,0.45)'; g.lineWidth = 2.5; for (let x = 0; x <= 36; x += 3) { g.beginPath(); g.moveTo(x * mx, 0); g.lineTo(x * mx, Y(o.base)); g.stroke(); }
+      for (let f = 0; f <= o.floors; f++) { g.beginPath(); g.moveTo(0, Y(o.base + f * o.fh)); g.lineTo(W, Y(o.base + f * o.fh)); g.stroke(); }
+      g.fillStyle = 'rgba(30,28,25,0.08)'; for (let i = 0; i < 40; i++) g.fillRect(r() * W, 0, 2 + r() * 5, Y(o.base) * (0.2 + r() * 0.8)); }
     for (let f = 0; f < o.floors; f++) for (let c = 0; c < 36 / o.cw; c++) {
       if (o.balc && c % 4 === 1) { // лоджия: ниша на всю ячейку, остеклённая или открытая
         const lx0 = c * o.cw * mx + 3, lw = o.cw * mx - 6, ly0 = Y(o.base + (f + 1) * o.fh) + 3, lh = o.fh * my - 6, glz = r() < 0.65;
         g.fillStyle = '#3a3c3f'; g.fillRect(lx0, ly0, lw, lh); g.fillStyle = o.wall; g.fillRect(lx0, ly0 + lh * 0.55, lw, lh * 0.45); g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(lx0, ly0 + lh * 0.55, lw, 3);
         if (glz) { const gr = g.createLinearGradient(lx0, ly0, lx0 + lw, ly0 + lh * 0.55); gr.addColorStop(0, '#9aa6b2'); gr.addColorStop(1, '#5c6874'); g.fillStyle = gr; g.fillRect(lx0 + 2, ly0 + 2, lw - 4, lh * 0.55 - 2); g.fillStyle = '#f0f0ec'; for (let k = 0; k <= 4; k++) g.fillRect(lx0 + k * (lw - 4) / 4, ly0, 4, lh * 0.55); g.fillRect(lx0, ly0, lw, 4); g.fillRect(lx0, ly0 + lh * 0.55 - 3, lw, 4); }
-        else if (r() < 0.5) for (let k = 0; k < 4; k++) { g.fillStyle = ['#c84a4a', '#4a7ac8', '#e8e0c8', '#3a9a5a', '#d8b040'][(r() * 5) | 0]; g.fillRect(lx0 + 6 + k * lw / 4.4, ly0 + 10, lw / 6, lh * 0.25); }
+        else if (r() < 0.5) for (let k = 0; k < 4; k++) { g.fillStyle = ['#8a5a55', '#5a6a88', '#d8d2c4', '#5a7060', '#a89a70', '#e8e6e0'][(r() * 6) | 0]; g.fillRect(lx0 + 6 + k * lw / 4.4 + r() * 6, ly0 + 10 + r() * 6, lw / 7, lh * (0.12 + r() * 0.12)); }
         continue; }
       const wm = winW(o, c), tall = false, ww = wm * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - wm) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
       if (o.accent && r() < 0.3) { g.fillStyle = ACC[(r() * 4) | 0]; g.fillRect(c * o.cw * mx + 2, Y(o.base + (f + 1) * o.fh) + 2, o.cw * mx - 4, o.fh * my - 4); }
@@ -99,9 +104,9 @@ if (DVOR) {
   const FAC = [  // светлый силикатный кирпич (как дом № 13), кремовые панельки, пятиэтажка
     facade(11, { pair: true, wall: '#cdcac2', plinth: '#8a8278', frame: '#f4f4f0', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, brick: true }),
     facade(23, { pair: true, wall: '#c4c1b9', plinth: '#7e776e', frame: '#f2f2ee', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.12, balc: true, brick: true }),
-    facade(37, { wall: '#e0d6bd', plinth: '#8a8070', frame: '#f4f2ea', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
+    facade(37, { sec: ['#e7e5df', '#e2d5bd', '#dccfd6'], wall: '#e0d6bd', plinth: '#8a8070', frame: '#f4f2ea', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
     facade(41, { pair: true, wall: '#c9c4b8', plinth: '#7a7268', frame: '#f0efe8', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.12, balc: true, brick: true }),
-    facade(47, { wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
+    facade(47, { sec: ['#dccfd6', '#e9e7e2', '#e5dac6'], wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
   ];
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
@@ -227,7 +232,7 @@ if (DVOR) {
     // водосточные трубы
     for (const sx of [-len / 2 + 0.4, len / 2 - 0.4]) for (const s of [1, -1]) { if (PROTO.m_gutter) { for (let y = 0; y < Hh - 0.5; y += 1) { const w = b.world(sx, y, s * (dep / 2 + 0.12)); PUT(K, 'm_gutter', w.x, y, w.z, 0, 1.3, 1.0); } } else b.cyl(M.metal, sx, Hh / 2, s * (dep / 2 + 0.12), 0.07, 0.07, Hh, 6, lin([0.42, 0.44, 0.45])); }
     // кондиционеры гроздьями
-    for (const s of [1, -1]) { const ncl = 2 + ((r() * 3) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
+    for (const s of [1, -1]) { const ncl = 4 + ((r() * 5) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
       for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2);
         if (PROTO.m_ac) { const w = b.world(x, y - 0.45, s * (dep / 2 + 0.19)); PUT(K, 'm_ac', w.x, y - 0.45, w.z, ry + (s > 0 ? 0 : Math.PI), 0.95);
           const c1 = b.world(x + 0.45, y, s * (dep / 2 + 0.05)), c2 = b.world(x + 0.55 + r() * 0.3, y + 1.3 + r() * 0.6, s * (dep / 2 + 0.05)), c3 = b.world(x + 0.5, y - 0.6, s * (dep / 2 + 0.05)); b.lines.push(c1, c2); if (r() < 0.5) b.lines.push(c1, c3); }
@@ -331,9 +336,23 @@ if (DVOR) {
     setTimeout(() => wakeUp(['Домофон пискнул. Дверь открылась.', 'На лестнице пахло жареным луком.', 'Часы показали 14:51.', 'Ты поднялся на свой этаж, открыл дверь —', '— и открыл глаза.', `Утро. ${day}. Будильник на семь.`, 'Ты проснулся.']), 1200); }
 
   // ================= реальная планировка (по спутниковой карте) =================
+  // бетонный забор ПО-2 с «пирамидками»
+  const PO2 = (() => { const W = 512, H = 320, cs = 32;
+    const cmap = mkCanvas(W, H, (g) => { g.fillStyle = '#b9b5ac'; g.fillRect(0, 0, W, H); const r = rng(5);
+      for (let y = 16; y < H - 16; y += cs) for (let x = 16; x < W - 16; x += cs) { const c = x + cs / 2, d = y + cs / 2, h = cs / 2 - 3;
+        for (const [pts, col] of [[[[c - h, d - h], [c + h, d - h], [c, d]], '#c9c5bc'], [[[c - h, d - h], [c, d], [c - h, d + h]], '#c2beb5'], [[[c + h, d - h], [c + h, d + h], [c, d]], '#a19d95'], [[[c - h, d + h], [c, d], [c + h, d + h]], '#96928a']]) { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.lineTo(pts[2][0], pts[2][1]); g.fill(); } }
+      for (let i = 0; i < 1500; i++) { g.fillStyle = `rgba(${r() < 0.6 ? '50,45,40' : '255,255,250'},${r() * 0.1})`; g.fillRect(r() * W, r() * H, 2 + r() * 6, 2 + r() * 6); }
+      for (let i = 0; i < 20; i++) { const x = r() * W, gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(50,45,38,0.25)'); gr.addColorStop(1, 'rgba(50,45,38,0)'); g.fillStyle = gr; g.fillRect(x, 0, 4 + r() * 10, H * (0.3 + r() * 0.6)); }
+      const gr = g.createLinearGradient(0, H * 0.75, 0, H); gr.addColorStop(0, 'rgba(60,50,40,0)'); gr.addColorStop(1, 'rgba(60,50,40,0.4)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); });
+    const nmap = mkCanvas(W, H, (g) => { g.fillStyle = 'rgb(128,128,255)'; g.fillRect(0, 0, W, H);
+      for (let y = 16; y < H - 16; y += cs) for (let x = 16; x < W - 16; x += cs) { const c = x + cs / 2, d = y + cs / 2, h = cs / 2 - 3;
+        for (const [pts, col] of [[[[c - h, d - h], [c + h, d - h], [c, d]], 'rgb(128,200,220)'], [[[c - h, d - h], [c, d], [c - h, d + h]], 'rgb(56,128,220)'], [[[c + h, d - h], [c + h, d + h], [c, d]], 'rgb(200,128,220)'], [[[c - h, d + h], [c, d], [c + h, d + h]], 'rgb(128,56,220)']]) { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.lineTo(pts[2][0], pts[2][1]); g.fill(); } } });
+    return std({ color: 0xd2cfc8, map: texFrom(cmap, true), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.95 }); })();
+  function concFence(b, x0, x1, z) { for (let x = x0; x < x1 - 0.5; x += 4.05) { if (dvRoadD(x + 2, z) < 7.5 || ihash(Math.round(x), z | 0, 31) < 0.04) continue; b.collide(x + 2, z, 2.05, 0.12); b.add(PO2, new THREE.BoxGeometry(4, 2.5, 0.14), new THREE.Matrix4().makeTranslation(x + 2.0, 1.32, z)); b.box(M.conc, x, 1.35, z, 0.22, 2.7, 0.24, shade(0.62)); } }
   function rails(K) { const { b, x0, x1 } = K; for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) { b.box(M.conc, (x0 + x1) / 2, 0.1, zt, x1 - x0, 0.2, 3.4, lin([0.3, 0.28, 0.26]));
       for (const s2 of [-0.76, 0.76]) b.box(M.metal, (x0 + x1) / 2, 0.32, zt + s2, x1 - x0, 0.14, 0.07, lin([0.32, 0.22, 0.16]));
       for (let x = x0 + 0.3; x < x1; x += 0.6) b.box(M.plank, x, 0.22, zt, 0.24, 0.12, 2.6, shade(0.32)); }
+    concFence(b, x0, x1, DV_RAIL - 9.8);
     for (let x = Math.ceil(x0 / 48) * 48; x < x1; x += 48) { b.cyl(M.metal, x, 4.5, DV_RAIL - 9, 0.12, 0.1, 9, 8, shade(0.35)); b.box(M.metal, x, 8.4, DV_RAIL - 2, 0.1, 0.1, 14, shade(0.35)); }
     for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) b.lines.push(new V3(x0, 7.6, zt), new V3(x1, 7.6, zt), new V3(x0, 8.3, zt), new V3(x1, 8.3, zt)); }
   function wing(K, x, z, L, D, Hh, ry, fac) { const { b } = K; b.push(x, 0, z, ry); b.box(M.conc, 0, Hh / 2, 0, L, Hh, D, fac.userData.wc); b.box(M.conc, 0, Hh + 0.1, 0, L + 0.3, 0.2, D + 0.3, shade(0.4));
