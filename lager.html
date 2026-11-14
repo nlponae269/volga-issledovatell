@@ -2699,7 +2699,7 @@ if (DVOR) {
         const lx0 = c * o.cw * mx + 3, lw = o.cw * mx - 6, ly0 = Y(o.base + (f + 1) * o.fh) + 3, lh = o.fh * my - 6, glz = r() < 0.65;
         g.fillStyle = '#3a3c3f'; g.fillRect(lx0, ly0, lw, lh); g.fillStyle = o.wall; g.fillRect(lx0, ly0 + lh * 0.55, lw, lh * 0.45); g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(lx0, ly0 + lh * 0.55, lw, 3);
         if (glz) { const gr = g.createLinearGradient(lx0, ly0, lx0 + lw, ly0 + lh * 0.55); gr.addColorStop(0, '#9aa6b2'); gr.addColorStop(1, '#5c6874'); g.fillStyle = gr; g.fillRect(lx0 + 2, ly0 + 2, lw - 4, lh * 0.55 - 2); g.fillStyle = '#f0f0ec'; for (let k = 0; k <= 4; k++) g.fillRect(lx0 + k * (lw - 4) / 4, ly0, 4, lh * 0.55); g.fillRect(lx0, ly0, lw, 4); g.fillRect(lx0, ly0 + lh * 0.55 - 3, lw, 4); }
-        else if (r() < 0.5) for (let k = 0; k < 4; k++) { g.fillStyle = ['#8a5a55', '#5a6a88', '#d8d2c4', '#5a7060', '#a89a70', '#e8e6e0'][(r() * 6) | 0]; g.fillRect(lx0 + 6 + k * lw / 4.4 + r() * 6, ly0 + 10 + r() * 6, lw / 7, lh * (0.12 + r() * 0.12)); }
+        else if (r() < 0.3) for (let k = 0; k < 3 + ((r() * 3) | 0); k++) { g.globalAlpha = 0.45; g.fillStyle = ['#6a5450', '#545a66', '#9a968c', '#58605a', '#7a7262'][(r() * 5) | 0]; g.fillRect(lx0 + 8 + r() * (lw - 30), ly0 + 8, 6 + r() * 14, lh * (0.08 + r() * 0.14)); g.globalAlpha = 1; }
         continue; }
       const wm = winW(o, c), tall = false, ww = wm * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - wm) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
       if (o.accent && r() < 0.3) { g.fillStyle = ACC[(r() * 4) | 0]; g.fillRect(c * o.cw * mx + 2, Y(o.base + (f + 1) * o.fh) + 2, o.cw * mx - 4, o.fh * my - 4); }
@@ -2772,7 +2772,18 @@ if (DVOR) {
   function lampPole(K, x, z, ax, az) { const { b } = K; if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
     b.box(lampOff, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, null, 0, Math.atan2(az, ax) * -1); b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function wire(b, a, c, sag) { const N = 8; for (let k = 0; k < N; k++) { const t0 = k / N, t1 = (k + 1) / N, s0 = Math.sin(t0 * Math.PI) * sag, s1 = Math.sin(t1 * Math.PI) * sag; b.lines.push(new V3(lerp(a.x, c.x, t0), lerp(a.y, c.y, t0) - s0, lerp(a.z, c.z, t0)), new V3(lerp(a.x, c.x, t1), lerp(a.y, c.y, t1) - s1, lerp(a.z, c.z, t1))); } }
-  function bench(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); b.box(M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
+  function bench(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); b.box(M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); DEC(b, D_SH, 0, 0, 2.4, 1.0); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
+  // --- наземные декали: контактные тени, затенение у стен, опавшие листья, мусор ---
+  const decM = (c) => { const t = texFrom(c, true); return new THREE.MeshStandardMaterial({ map: t, transparent: true, depthWrite: false, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); };
+  const D_SH = decM(mkCanvas(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(8,7,6,0.78)'); gr.addColorStop(0.55, 'rgba(8,7,6,0.5)'); gr.addColorStop(1, 'rgba(8,7,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }));
+  const D_AO = decM(mkCanvas(8, 64, (g) => { const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, 'rgba(10,9,8,0.62)'); gr.addColorStop(0.35, 'rgba(10,9,8,0.25)'); gr.addColorStop(1, 'rgba(10,9,8,0)'); g.fillStyle = gr; g.fillRect(0, 0, 8, 64); }));
+  const D_LF = decM(mkCanvas(512, 512, (g) => { const r = rng(42); for (let i = 0; i < 900; i++) { const a = r() * 6.283, d = Math.pow(r(), 0.7) * 240, x = 256 + Math.cos(a) * d, y = 256 + Math.sin(a) * d;
+      g.save(); g.translate(x, y); g.rotate(r() * 6.3); g.globalAlpha = 0.55 + r() * 0.45; g.fillStyle = ['#b8892a', '#9a6a22', '#c9a040', '#7a5a2a', '#5e4a30', '#a8823a'][(r() * 6) | 0]; g.beginPath(); g.ellipse(0, 0, 4 + r() * 5, 2 + r() * 3, 0, 0, 6.3); g.fill(); g.restore(); } }));
+  const D_LT = decM(mkCanvas(512, 512, (g) => { const r = rng(43); for (let i = 0; i < 70; i++) { const x = 30 + r() * 452, y = 30 + r() * 452; g.save(); g.translate(x, y); g.rotate(r() * 6.3); const t = r();
+      g.fillStyle = t < 0.45 ? `rgba(235,233,226,${0.7 + r() * 0.3})` : t < 0.6 ? 'rgba(90,110,150,0.8)' : t < 0.75 ? 'rgba(160,130,90,0.85)' : t < 0.88 ? 'rgba(40,38,36,0.7)' : 'rgba(190,60,50,0.8)'; const w = 3 + r() * 12, h = 2 + r() * 7; g.fillRect(-w / 2, -h / 2, w, h); g.restore(); }
+    for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(200,196,186,0.6)'; g.fillRect(r() * 512, r() * 512, 2, 2); } }));
+  const DECG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const DEC = (b, mat, x, z, w, d, ry = 0, y = 0.02) => b.add(mat, DECG, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(w, 1, d)));
   // --- машины во дворах: кроссовер (как «Дастер»), седан, «Нива»; кузов с арками, стёкла, фары, ручки, зеркала ---
   const CARM = new Map(), CDARK = std({ color: 0x1a1b1d, roughness: 0.65 }), CLITE = std({ color: 0xe0ddd4, roughness: 0.12, metalness: 0.4 }), CTAIL = std({ color: 0x7a0c0a, roughness: 0.25 }), CPLATE = std({ color: 0xeeeeea, roughness: 0.5 });
   const CT = {
@@ -2812,10 +2823,10 @@ if (DVOR) {
     PROTO[key] = { parts: [[paint, pb.build()], [M.glass, gb.build()], [CDARK, db.build()], [CLITE, lb.build()], [CTAIL, tb.build()], [M.rubber, wb.build()], [rimMat, rb.build()], [CPLATE, plb.build()]].filter((p) => p[1]) }; return key; }
   const CAR_REAL = [[0xe9e9e6, 34], [0xb4b7ba, 22], [0x8a8d90, 8], [0x16171a, 12], [0x1e2b3e, 7], [0x2e3d30, 7], [0x5a1a18, 5], [0xb8ad94, 5]];
   const carCol = (r) => { let t = r() * 100; for (const [c, w] of CAR_REAL) { if ((t -= w) < 0) return c; } return 0xe9e9e6; };
-  function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); if (PROTO.m_ccar && r() < 0.2) { PUT(K, 'm_ccar', x, 0, z, ry + Math.PI / 2); b.push(x, 0, z, ry); b.collide(0, 0, 2.2, 0.9); b.pop(); K.take(x, z, 2.4); return; } const tp = r(), type = tp < 0.42 ? 'suv' : tp < 0.75 ? 'sed' : 'niva', hex = type === 'niva' && r() < 0.5 ? [0x2e3d30, 0xd8d4c8, 0x3a3f44][(r() * 3) | 0] : carCol(r);
-    PUT(K, carProto(type, hex), x, 0, z, ry + (r() < 0.5 ? Math.PI : 0)); b.push(x, 0, z, ry); b.collide(0, 0, type === 'sed' ? 2.45 : 2.15, 0.9); b.pop(); K.take(x, z, 2.5); void c; }
+  function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); if (PROTO.m_ccar && r() < 0.2) { PUT(K, 'm_ccar', x, 0, z, ry + Math.PI / 2); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, 5.0, 2.5, 0, 0.025); b.collide(0, 0, 2.2, 0.9); b.pop(); K.take(x, z, 2.4); return; } const tp = r(), type = tp < 0.42 ? 'suv' : tp < 0.75 ? 'sed' : 'niva', hex = type === 'niva' && r() < 0.5 ? [0x2e3d30, 0xd8d4c8, 0x3a3f44][(r() * 3) | 0] : carCol(r);
+    PUT(K, carProto(type, hex), x, 0, z, ry + (r() < 0.5 ? Math.PI : 0)); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, type === 'sed' ? 5.4 : 4.9, 2.5, 0, 0.025); b.collide(0, 0, type === 'sed' ? 2.45 : 2.15, 0.9); b.pop(); K.take(x, z, 2.5); void c; }
   // белая «Волга» восьмидесятых у обочины
-  function volga(K, x, z, ry) { { const { b } = K; PUT(K, carProto('sed', 0xe4e2da), x, 0, z, ry); b.push(x, 0, z, ry); b.collide(0, 0, 2.5, 0.95); b.pop(); K.take(x, z, 2.8); return; }
+  function volga(K, x, z, ry) { { const { b } = K; PUT(K, carProto('sed', 0xe4e2da), x, 0, z, ry); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, 5.4, 2.5, 0, 0.025); b.collide(0, 0, 2.5, 0.95); b.pop(); K.take(x, z, 2.8); return; }
     const { b } = K, w = lin([0.86, 0.86, 0.82]), ch = PAINT.galv; b.push(x, 0, z, ry);
     b.box(M.paint, 0, 0.66, 0, 4.9, 0.5, 1.8, w); b.box(M.paint, 0, 0.4, 0, 4.7, 0.16, 1.72, shade(0.2)); b.box(M.paint, -0.25, 1.17, 0, 2.3, 0.52, 1.62, w); b.box(M.glass, -0.25, 1.19, 0, 2.2, 0.4, 1.64); b.box(M.glass, -0.25, 1.19, 0, 2.32, 0.38, 1.42);
     b.box(M.paint, 1.75, 0.93, 0, 1.4, 0.06, 1.74, w); b.box(M.paint, -1.9, 0.93, 0, 1.1, 0.06, 1.74, w);
@@ -2847,6 +2858,7 @@ if (DVOR) {
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
+    for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }
     b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
     { const o = fac.userData.o; if (o && PROTO.m_win) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
       for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12;
@@ -3073,7 +3085,8 @@ if (DVOR) {
     const fr = (x, z, rad) => K.free(x, z, rad) && dvRoadD(x, z) > 7 + rad && dvDriveD(x, z) > 0.5 + rad;
     clutter(K, fr);
     if (cx === 0 && cz === 0) rubble(K, 13, 6, 0.55, fr); else if (r() < 0.45) rubble(K, K.x0 + 6 + r() * 30, K.z0 + 6 + r() * 30, r() * 6.28, fr);
-    for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5)) K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5); }
+    for (let i = 0; i < 9; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1.5) && K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5)) { const q = 4 + r() * 4; DEC(K.b, D_LF, x, z, q, q, r() * 6.3, 0.018); DEC(K.b, D_SH, x, z, 1.6, 1.6); } }
+    for (let i = 0; i < 5; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1)) { const q = 2.5 + r() * 3; DEC(K.b, D_LT, x, z, q, q, r() * 6.3, 0.022); } }
     if (r() < 0.35) for (let t = 0; t < 8; t++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } }
     for (let i = 0; i < 4; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (r() < 0.6 && fr(x, z, 0.3)) addNut(K, x, z, `md${cx},${cz},${i}`); }
     return K.finish(); }
@@ -3118,7 +3131,8 @@ if (DVOR) {
       if (r() < 0.55) { const [x, z] = W(4 + r() * 20, 4 + r() * 10); rubble(K, x, z, r() * 6.28, freeY); }
     }
     const nt = type === 'waste' ? 5 : type === 'private' ? 12 : 8;
-    for (let i = 0; i < nt; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1.2)) { if (K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5) && i === 0) smell(K, x, z, 'Пахнет мокрой землёй и тополиной гнилью.'); } }
+    for (let i = 0; i < nt; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1.2)) { const ok = K.plant(K.pick(['poplar0', 'poplar1', 'elm0', 'elm1', 'birch0', 'birch1', 'birch0', 'shrubY0', 'sticks0']), x, z, 0.9 + r() * 0.5); if (ok) { const q = 4 + r() * 4; DEC(b, D_LF, x, z, q, q, r() * 6.3, 0.018); DEC(b, D_SH, x, z, 1.6, 1.6); } if (ok && i === 0) smell(K, x, z, 'Пахнет мокрой землёй и тополиной гнилью.'); } }
+    for (let i = 0; i < 6; i++) { const [x, z] = W(3 + r() * 40, 3 + r() * 39); if (freeY(x, z, 1)) { const q = 2.5 + r() * 3; DEC(b, D_LT, x, z, q, q, r() * 6.3, 0.022); } }
     if (type === 'waste') for (let i = 0; i < 3; i++) { const [x, z] = W(5 + r() * 36, 5 + r() * 36); if (freeY(x, z, 2)) b.box(M.conc, x, 0.15, z, 3, 0.3, 1.2, shade(0.6 + r() * 0.2), 0, r() * 3, (r() - 0.5) * 0.2); }
     // находки
     if (r() < 0.45 || home) { for (let t = 0; t < 8; t++) { const [x, z] = home ? W(13 + r() * 5, 14 + r() * 3) : W(4 + r() * 36, 3 + r() * 16); if (freeY(x, z, 0.3)) { addCard(K, x, z, `cd${cx},${cz}`); break; } } }
