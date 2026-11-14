@@ -1,0 +1,1 @@
+{"mats": [{"name": "cardboard_box_01", "map": "cardboard_box_01_diff_1k.jpg", "nor": "cardboard_box_01_nor_gl_1k.jpg", "arm": "cardboard_box_01_arm_1k.jpg", "alpha": null, "color": [1, 1, 1, 1], "metal": 0, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 8757, "i": 50856, "off": 0}], "size": [0.38702359795570374, 0.3417995572090149, 0.5158704221248627]}

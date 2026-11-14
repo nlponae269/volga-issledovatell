@@ -1,0 +1,2 @@
+Ресурсы — Poly Haven (polyhaven.com), лицензия CC0.
+Текстуры: tex/, HDRI: hdri/sky.hdr (kloofendal_overcast_puresky), модели: mdl/ (сконвертированы из glTF).

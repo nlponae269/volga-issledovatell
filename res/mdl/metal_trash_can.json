@@ -1,0 +1,1 @@
+{"mats": [{"name": "metal_trash_can", "map": "metal_trash_can_diff_1k.jpg", "nor": "metal_trash_can_nor_gl_1k.jpg", "arm": "metal_trash_can_arm_1k.jpg", "alpha": null, "color": [1, 1, 1, 1], "metal": 1, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 2883, "i": 12144, "off": 0}], "size": [0.6134317219257355, 0.9061599323104019, 0.552369087934494]}

@@ -1,0 +1,1 @@
+{"mats": [{"name": "utility_box_02", "map": "utility_box_02_diff_1k.jpg", "nor": "utility_box_02_nor_gl_1k.jpg", "arm": "utility_box_02_arm_1k.jpg", "alpha": null, "color": [1, 1, 1, 1], "metal": 1, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 5068, "i": 18804, "off": 0}], "size": [0.9200001955032349, 1.1203334331512451, 0.431999996304512]}
