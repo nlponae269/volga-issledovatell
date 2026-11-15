@@ -99,7 +99,7 @@ const post = (() => {
       ${DVOR ? 'if(isSky) T = max(T, 0.62);' : ''}
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${DVOR ? 'fogC = vec3(0.78,0.775,0.76) + vec3(-0.05,-0.045,-0.035)*(1.0-smoothstep(-0.1,0.3,rdir.y));' : ''}
+      ${DVOR ? 'fogC = vec3(0.78,0.775,0.76) + vec3(-0.05,-0.045,-0.035)*(1.0-smoothstep(-0.1,0.3,rdir.y)); if(!isSky) fogC = mix(fogC, vec3(0.7,0.74,0.8), 0.4*smoothstep(40.0, 260.0, dist));' : ''}
       ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);

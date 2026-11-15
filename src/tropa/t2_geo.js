@@ -177,7 +177,7 @@ const PROTO_JOBS = (INDOOR || STROY) ? [] : GARDEN ? [
   ['sticks0', () => makeSticks(151)], ['sticks1', () => makeSticks(163)],
 ] : [
   ['poplar0', () => makePoplar(11)], ['poplar1', () => makePoplar(23)], ['poplar2', () => makePoplar(37)],
-  ['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)], ['elm2', () => makeTree(83, M.leafOlive, 0.65)],
+  ...(DVOR ? [['elm0', () => makeTree(51, M.leafAutumn, 0.3, { cards: 3, cs: 0.5, depth: 6 })], ['elm1', () => makeTree(67, M.leafAutumn, 0.12, { cards: 2, cs: 0.5, depth: 6 })], ['elm2', () => makeTree(83, M.leafAutumn, 0.4, { cards: 3, cs: 0.5 })]] : [['elm0', () => makeTree(51, M.leafAutumn, 0.45)], ['elm1', () => makeTree(67, M.leafAutumn, 0.2)], ['elm2', () => makeTree(83, M.leafOlive, 0.65)]]),
   ['shrubY0', () => makeShrub(101, M.leafAutumn, 3.2)], ['shrubY1', () => makeShrub(113, M.leafAutumn, 2.4)], ['shrubG0', () => makeShrub(127, M.leafOlive, 2.8)], ['shrubG1', () => makeShrub(139, M.leafOlive, 2.0)],
   ['sticks0', () => makeSticks(151)], ['sticks1', () => makeSticks(163)],
   ...(DVOR ? [['birch0', () => makeTree(311, M.leafAutumn, 0.12, { len: 3.4, rad: 0.12, depth: 5, spread: 0.6, upk: 0.8, bt: [1, 1, 1], bm: BIRCH() })],

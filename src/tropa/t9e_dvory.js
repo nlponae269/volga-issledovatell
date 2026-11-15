@@ -78,7 +78,7 @@ if (DVOR) {
         continue; }
       const wm = winW(o, c), tall = false, ww = wm * mx, wh = (tall ? 2.15 : o.wh) * my, x = (c * o.cw + (o.cw - wm) / 2) * mx, y = Y(o.base + f * o.fh + (tall ? 0.1 : o.sill)) - wh;
       if (o.accent && r() < 0.3) { g.fillStyle = ACC[(r() * 4) | 0]; g.fillRect(c * o.cw * mx + 2, Y(o.base + (f + 1) * o.fh) + 2, o.cw * mx - 4, o.fh * my - 4); }
-      g.fillStyle = 'rgba(25,22,18,0.12)'; g.fillRect(x + ww * 0.2, y + wh, ww * 0.6, 14 + r() * 40);                          // потёк под подоконником
+      g.fillStyle = 'rgba(25,22,18,0.12)'; g.fillRect(x + ww * 0.2, y + wh, ww * 0.6, 14 + r() * 40); if (r() < 0.35) { const sx2 = x + ww * (0.1 + r() * 0.8), sl = 20 + r() * 70, gr2 = g.createLinearGradient(0, y + wh, 0, y + wh + sl); gr2.addColorStop(0, 'rgba(110,60,30,0.35)'); gr2.addColorStop(1, 'rgba(110,60,30,0)'); g.fillStyle = gr2; g.fillRect(sx2, y + wh, 2 + r() * 3, sl); }                          // потёк под подоконником
       const lit = r() < o.lit, t = r(), glow = t < 0.08 ? '#a8c0ff' : t < 0.3 ? '#ffe6c0' : t < 0.7 ? '#ffcf8a' : '#ffbe6a';
       g.fillStyle = o.frame; g.fillRect(x - 4, y - 4, ww + 8, wh + 8);
       if (lit) { g.fillStyle = glow; g.fillRect(x, y, ww, wh); e.fillStyle = glow; e.fillRect(x, y, ww, wh);
@@ -157,6 +157,12 @@ if (DVOR) {
   const D_LT = decM(mkCanvas(512, 512, (g) => { const r = rng(43); for (let i = 0; i < 70; i++) { const x = 30 + r() * 452, y = 30 + r() * 452; g.save(); g.translate(x, y); g.rotate(r() * 6.3); const t = r();
       g.fillStyle = t < 0.45 ? `rgba(235,233,226,${0.7 + r() * 0.3})` : t < 0.6 ? 'rgba(90,110,150,0.8)' : t < 0.75 ? 'rgba(160,130,90,0.85)' : t < 0.88 ? 'rgba(40,38,36,0.7)' : 'rgba(190,60,50,0.8)'; const w = 3 + r() * 12, h = 2 + r() * 7; g.fillRect(-w / 2, -h / 2, w, h); g.restore(); }
     for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(200,196,186,0.6)'; g.fillRect(r() * 512, r() * 512, 2, 2); } }));
+  const D_MH = decM(mkCanvas(128, 128, (g) => { g.fillStyle = '#2a2826'; g.beginPath(); g.arc(64, 64, 62, 0, 6.3); g.fill(); g.strokeStyle = '#4a4440'; g.lineWidth = 5; g.beginPath(); g.arc(64, 64, 56, 0, 6.3); g.stroke(); g.lineWidth = 2.5;
+    for (let r2 = 14; r2 < 52; r2 += 9) { g.beginPath(); g.arc(64, 64, r2, 0, 6.3); g.stroke(); } for (let a = 0; a < 16; a++) { g.beginPath(); g.moveTo(64 + Math.cos(a / 16 * 6.28) * 10, 64 + Math.sin(a / 16 * 6.28) * 10); g.lineTo(64 + Math.cos(a / 16 * 6.28) * 52, 64 + Math.sin(a / 16 * 6.28) * 52); g.stroke(); }
+    const gr = g.createRadialGradient(64, 64, 30, 64, 64, 64); gr.addColorStop(0, 'rgba(120,70,40,0)'); gr.addColorStop(1, 'rgba(110,60,30,0.6)'); g.fillStyle = gr; g.beginPath(); g.arc(64, 64, 62, 0, 6.3); g.fill(); }));
+  const D_TR = decM(mkCanvas(64, 256, (g) => { const r = rng(9); for (const x0 of [12, 52]) for (let y = 0; y < 256; y += 2) { g.fillStyle = `rgba(30,24,18,${0.25 + r() * 0.3})`; const w = 7 + r() * 3; g.fillRect(x0 - w / 2 + Math.sin(y * 0.05) * 1.5, y, w, 2); if (r() < 0.3) { g.fillStyle = 'rgba(20,16,12,0.5)'; g.fillRect(x0 - 3, y, 6, 1); } }
+    const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.15, 'rgba(0,0,0,0)'); gr.addColorStop(0.85, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = gr; g.fillRect(0, 0, 64, 256); }));
+  const TORG = new THREE.TorusGeometry(0.3, 0.1, 8, 16);
   const DECG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const DEC = (b, mat, x, z, w, d, ry = 0, y = 0.02) => b.add(mat, DECG, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(w, 1, d)));
   // --- машины во дворах: кроссовер (как «Дастер»), седан, «Нива»; кузов с арками, стёкла, фары, ручки, зеркала ---
@@ -201,7 +207,7 @@ if (DVOR) {
   const CAR_REAL = [[0xe9e9e6, 34], [0xb4b7ba, 22], [0x8a8d90, 8], [0x16171a, 12], [0x1e2b3e, 7], [0x2e3d30, 7], [0x5a1a18, 5], [0xb8ad94, 5]];
   const carCol = (r) => { let t = r() * 100; for (const [c, w] of CAR_REAL) { if ((t -= w) < 0) return c; } return 0xe9e9e6; };
   function parked(K, x, z, ry) { const { b, r } = K, c = lin(hexc(CAR_PAINT[(r() * CAR_PAINT.length) | 0])); if (PROTO.m_ccar && r() < 0.2) { PUT(K, 'm_ccar', x, 0, z, ry + Math.PI / 2); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, 5.0, 2.5, 0, 0.025); b.collide(0, 0, 2.2, 0.9); b.pop(); K.take(x, z, 2.4); return; } const tp = r(), type = tp < 0.42 ? 'suv' : tp < 0.75 ? 'sed' : 'niva', hex = type === 'niva' && r() < 0.5 ? [0x2e3d30, 0xd8d4c8, 0x3a3f44][(r() * 3) | 0] : carCol(r);
-    PUT(K, carProto(type, hex), x, 0, z, ry + (r() < 0.5 ? Math.PI : 0)); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, type === 'sed' ? 5.4 : 4.9, 2.5, 0, 0.025); b.collide(0, 0, type === 'sed' ? 2.45 : 2.15, 0.9); b.pop(); K.take(x, z, 2.5); void c; }
+    PUT(K, carProto(type, hex), x, 0, z, ry + (r() < 0.5 ? Math.PI : 0)); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, type === 'sed' ? 5.4 : 4.9, 2.5, 0, 0.025); if (r() < 0.8) DEC(b, D_TR, (r() < 0.5 ? -1 : 1) * (4.5 + r()), (r() - 0.5) * 0.4, 1.7, 5 + r() * 3, Math.PI / 2 + (r() - 0.5) * 0.3, 0.021); b.collide(0, 0, type === 'sed' ? 2.45 : 2.15, 0.9); b.pop(); K.take(x, z, 2.5); void c; }
   // белая «Волга» восьмидесятых у обочины
   function volga(K, x, z, ry) { { const { b } = K; PUT(K, carProto('sed', 0xe4e2da), x, 0, z, ry); b.push(x, 0, z, ry); DEC(b, D_SH, 0, 0, 5.4, 2.5, 0, 0.025); b.collide(0, 0, 2.5, 0.95); b.pop(); K.take(x, z, 2.8); return; }
     const { b } = K, w = lin([0.86, 0.86, 0.82]), ch = PAINT.galv; b.push(x, 0, z, ry);
@@ -253,6 +259,9 @@ if (DVOR) {
         if (PROTO.m_ac) { const w = b.world(x, y - 0.45, s * (dep / 2 + 0.19)); PUT(K, 'm_ac', w.x, y - 0.45, w.z, ry + (s > 0 ? 0 : Math.PI), 0.95);
           const c1 = b.world(x + 0.45, y, s * (dep / 2 + 0.05)), c2 = b.world(x + 0.55 + r() * 0.3, y + 1.3 + r() * 0.6, s * (dep / 2 + 0.05)), c3 = b.world(x + 0.5, y - 0.6, s * (dep / 2 + 0.05)); b.lines.push(c1, c2); if (r() < 0.5) b.lines.push(c1, c3); }
         else { b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } } }
+    // спутниковые тарелки на балконах и у окон
+    for (const s of [1, -1]) for (let q = 0, nq = 2 + ((r() * 5) | 0); q < nq; q++) { const x = -len / 2 + (((r() * (len / 3)) | 0) * 3) + 1.5, y = base + (1 + ((r() * (floors - 1)) | 0)) * 2.8 + 1.2, zz = s * (dep / 2 + 0.25), a = (r() - 0.5) * 0.6;
+      b.cyl(M.paint, x, y, zz, 0.3, 0.27, 0.05, 16, shade(0.82 + r() * 0.1), Math.PI / 2 - 0.25 * s, a); b.box(M.metal, x, y - 0.32, s * (dep / 2 + 0.1), 0.04, 0.4, 0.04, shade(0.4)); b.box(M.metal, x, y - 0.05, zz + s * 0.25, 0.03, 0.03, 0.45, shade(0.4)); b.box(M.paint, x, y - 0.05, zz + s * 0.47, 0.06, 0.06, 0.08, shade(0.3)); }
     // подъезды
     const AD = home && typeof home === 'object' ? home : null; const n = Math.max(1, Math.round(len / 12)); const street = AD ? AD.st : home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = AD ? AD.n : 13;
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
@@ -276,7 +285,12 @@ if (DVOR) {
       const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), plate(String(i + 1))); const pp = b.world(lx, 2.2, fz + 0.03); pm.position.copy(pp); pm.rotation.y = ry; group.add(pm);
       INTER.push({ x: pn.x, z: pn.z, r: 1.6, group, label: () => isHome ? 'E — домой, кв. 47' : 'E — домофон', act: () => dvDoor(isHome, open, id) });
       if (isHome) smell(K, pn.x, pn.z - 1.5, 'Из форточки первого этажа пахнет жареным луком.');
-      if (!isHome && r() < 0.5) { const bp = b.world(lx + 2.2, 0, fz + 1.6); b.pop(); bench(K, bp.x, bp.z, ry + Math.PI); b.push(cx, 0, cz, ry); }
+      if (!isHome && r() < 0.85) { const bp = b.world(lx + 2.3, 0, fz + 1.6); b.pop(); bench(K, bp.x, bp.z, ry + Math.PI); b.push(cx, 0, cz, ry); }
+      if (r() < 0.8) { b.cyl(M.metal, lx - 1.55, 0.36, fz + 1.9, 0.19, 0.23, 0.72, 12, peel(GRN, r)); b.cyl(M.metal, lx - 1.55, 0.73, fz + 1.9, 0.2, 0.2, 0.03, 12, shade(0.25)); DEC(b, D_SH, lx - 1.55, fz + 1.9, 0.9, 0.9); DEC(b, D_LT, lx - 1.3, fz + 2.1, 1.6, 1.6, r() * 6); }
+      for (let k = 0, nk = (r() * 6) | 0; k < nk; k++) { const sx = (r() < 0.5 ? -1 : 1) * 0.85, t = r(); b.box(M.paint, lx + sx + (r() - 0.5) * 0.3, 1.1 + r() * 0.7, fz + 0.365, 0.12 + r() * 0.1, 0.1 + r() * 0.16, 0.004, t < 0.6 ? shade(0.95) : t < 0.8 ? lin([0.95, 0.9, 0.6]) : lin([0.75, 0.85, 0.95])); }
+      // 9 клумбы из старых шин, крашеных
+      if (r() < 0.55) { const TC = [lin([0.92, 0.92, 0.9]), lin([0.3, 0.5, 0.8]), lin([0.9, 0.75, 0.2]), lin([0.4, 0.65, 0.35]), lin([0.8, 0.3, 0.25])]; const tx0 = lx + 3.6, c0 = (r() * 5) | 0;
+        for (let k = 0; k < 4 + ((r() * 4) | 0); k++) { const tx = tx0 + k * 0.72; if (tx > lx + len / n - 3) break; b.add(M.paint, TORG, new THREE.Matrix4().compose(new V3(tx, 0.1, fz + 2.4), new THREE.Quaternion(), new V3(1, 1, 1)), TC[(c0 + (k % 2)) % 5]); } }
     }
     const am = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.35), plate(`ул. ${street}, ${num}`)); const ap = b.world(len / 2 + 0.03, 3.2, dep / 2 - 1.3); am.position.copy(ap); am.rotation.y = ry + Math.PI / 2; group.add(am);
     b.pop();
@@ -426,7 +440,7 @@ if (DVOR) {
   poleRun([884, 908, 932, 956, 980, 1004, 1028, 1052, 1076, 1100, 1124].map((x) => [x, -35]), 0, -1);
   const DIST = (cx, cz) => (cx >= -3 && cx <= 2 && cz >= -5 && cz <= 2) || (cx >= 18 && cx <= 23 && cz >= -5 && cz <= 2);
   const dvBldg = (x, z, pad) => { for (const q of DVB) if (Math.abs(x - q[0]) < q[2] + pad && Math.abs(z - q[1]) < q[3] + pad) return true; return false; };
-  function clutter(K, fr) { const { r, b } = K; if (!PROTO.m_tyre) return;
+  function clutter(K, fr) { const { r, b } = K; for (let i = 0; i < 2; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 0.6) && r() < 0.6) DEC(b, D_MH, x, z, 0.8, 0.8, r() * 6, 0.023); } if (!PROTO.m_tyre) return;
     for (let i = 0; i < 7; i++) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (!fr(x, z, 0.6)) continue; const t = r(); K.take(x, z, 0.6);
       if (t < 0.25) PUT(K, 'm_tyre', x, 0.0, z, r() * 6, 1, 1); else if (t < 0.45) PUT(K, 'm_box', x, 0, z, r() * 6, 1 + r() * 0.5); else if (t < 0.6) PUT(K, 'm_crate', x, 0, z, r() * 6, 1.2); else if (t < 0.75) PUT(K, 'm_bag', x, 0, z, r() * 6, 1); else if (t < 0.85) { PUT(K, 'm_can', x, 0, z, r() * 6, 1); b.collide(x, z, 0.3, 0.3); } else { PUT(K, 'm_shrub', x, 0, z, r() * 6, 0.6 + r() * 0.3); } }
     if (r() < 0.35) { const x = K.x0 + r() * CS, z = K.z0 + r() * CS; if (fr(x, z, 1)) { K.take(x, z, 1); PUT(K, 'm_ubox', x, 0, z, ((r() * 4) | 0) * Math.PI / 2, 1.1); b.collide(x, z, 0.5, 0.5); } } }
@@ -466,6 +480,8 @@ if (DVOR) {
       for (let t = ax === 0 ? z0 : x0; t < (ax === 0 ? z1 : x1); t += 1) { const x = ax === 0 ? v : t + 0.5, z = ax === 0 ? t + 0.5 : v;
         if (Math.abs(dvRoadD(x, z) - R) > 0.2 || !inWorld(x, z)) continue; const h = ihash(Math.round(x * 3), Math.round(z * 3), 57); if (h < 0.04) continue;
         const sink = h < 0.12 ? 0.08 + h : 0, tilt = h > 0.94 ? (h - 0.94) * 4 : 0;
+        if (h > 0.55 && h < 0.75) DEC(b, D_LF, x + (ax === 0 ? (dvRoadD(x - 0.5, z) < R ? -0.45 : 0.45) : 0), z + (ax === 1 ? (dvRoadD(x, z - 0.5) < R ? -0.45 : 0.45) : 0), ax === 0 ? 0.7 : 2.2, ax === 0 ? 2.2 : 0.7, h * 9, 0.019);
+        if (h > 0.985) DEC(b, D_MH, x + (ax === 0 ? (dvRoadD(x - 1, z) < R ? -2.2 : 2.2) : 0), z + (ax === 1 ? (dvRoadD(x, z - 1) < R ? -2.2 : 2.2) : 0), 0.8, 0.8, h * 20, 0.023);
         b.add(M.conc, CURBG, new THREE.Matrix4().compose(new V3(x, 0.05 - sink, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(ax === 0 ? 0 : tilt, ax === 0 ? (h - 0.5) * 0.04 : Math.PI / 2 + (h - 0.5) * 0.04, ax === 0 ? tilt : 0)), new V3(1, 1, 1)), shade(0.62 + h * 0.22)); } } }
   function dvDistrict(cx, cz) {
     const K = kit(cx, cz, 0xa1b2), { r } = K; K.block = (x, z, rad) => dvBldg(x, z, rad);
