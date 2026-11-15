@@ -81,11 +81,12 @@ const post = (() => {
       vec2 uv=vUv, dc=uv-0.5;
       vec3 col=texture2D(tC,uv).rgb;
       ${!MOBILE ? 'vec2 ca = dc * dot(dc, dc) * ' + (DVOR ? '0.003' : '0.012') + '; col.r = texture2D(tC, uv + ca).r; col.b = texture2D(tC, uv - ca).b;' : ''}
+      ${DVOR ? 'vec2 px = 1.0/res; vec3 nb = texture2D(tC,uv+vec2(px.x,0.0)).rgb + texture2D(tC,uv-vec2(px.x,0.0)).rgb + texture2D(tC,uv+vec2(0.0,px.y)).rgb + texture2D(tC,uv-vec2(0.0,px.y)).rgb; col = max(col + (col - nb*0.25)*0.55, 0.0);' : ''}
       float rd=texture2D(tD,uv).x; bool isSky = rd > 0.99999;
       ${!MOBILE ? `if(!isSky && aoOn > 0.5){ float d0=lz(rd); float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(22.0/d0,0.35,3.0);
         for(int i=0;i<10;i++){ float fi=float(i); float a=rn+fi*2.39996; vec2 o=vec2(cos(a),sin(a))*(3.0+fi*2.2)*sc/res;
           float d=lz(texture2D(tD,uv+o).x); float df=d0-d; ao+=smoothstep(0.02,0.5+d0*0.02,df)*(1.0-smoothstep(1.2,3.5+d0*0.05,df)); }
-        col*=1.0-0.6*ao/10.0; }` : ''}
+        col*=1.0-${DVOR ? '0.85' : '0.6'}*ao/10.0; }` : ''}
       // объёмный туман: марш по лучу через шумовую плотность
       vec4 cp = vec4(uv*2.0-1.0, (isSky ? 0.9999 : rd)*2.0-1.0, 1.0); vec4 vp = invProj*cp; vp/=vp.w; vec3 wp=(camW*vp).xyz;
       vec3 rdir = normalize(wp-camPos); float dist = isSky ? 420.0 : length(wp-camPos);

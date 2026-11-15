@@ -58,6 +58,8 @@ if (DVOR) {
     for (let i = 0; i < 500; i++) { g.fillStyle = `rgba(${r() < 0.6 ? '0,0,0' : '255,255,255'},${0.02 + r() * 0.04})`; g.fillRect(r() * W, r() * H, 6 + r() * 40, 6 + r() * 40); }
     const Y = (m) => H - m * my;
     g.fillStyle = o.plinth; g.fillRect(0, Y(o.base), W, o.base * my);
+    { const gr = g.createLinearGradient(0, Y(o.base + 1.6), 0, H); gr.addColorStop(0, 'rgba(60,50,40,0)'); gr.addColorStop(0.45, 'rgba(60,50,40,0.18)'); gr.addColorStop(1, 'rgba(45,38,30,0.5)'); g.fillStyle = gr; g.fillRect(0, Y(o.base + 1.6), W, (o.base + 1.6) * my);
+      for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(50,42,34,${0.1 + r() * 0.2})`; const x = r() * W, h = (0.1 + r() * 0.6) * my; g.fillRect(x, H - h, 1 + r() * 3, h); } }
     if (!PB) g.strokeStyle = 'rgba(0,0,0,0.22)'; else g.strokeStyle = 'rgba(0,0,0,0)'; g.lineWidth = 2; for (let f = 0; f <= o.floors; f++) { g.beginPath(); g.moveTo(0, Y(o.base + f * o.fh)); g.lineTo(W, Y(o.base + f * o.fh)); g.stroke(); }
     const ACC = ['#2f6fb0', '#e08a2a', '#6aa84f', '#c94a3a'];
     if (o.panel) { const SEC = o.sec || [o.wall];   // секции разного цвета по подъездам, как на фото
@@ -164,14 +166,16 @@ if (DVOR) {
     sed: { lo: [[-2.42, 0.4], [-2.45, 0.86], [-1.35, 0.93], [1.32, 0.93], [2.4, 0.84], [2.45, 0.42]], gh: [[-1.4, 0.91], [-0.9, 1.42], [0.48, 1.44], [1.2, 0.91]], W: 1.76, wr: 0.33, wx: [-1.5, 1.5] },
     niva: { lo: [[-1.84, 0.46], [-1.87, 1.02], [0.98, 1.04], [1.82, 0.93], [1.87, 0.48]], gh: [[-1.84, 1.0], [-1.8, 1.66], [0.48, 1.67], [1.02, 1.03]], W: 1.68, wr: 0.37, wx: [-1.12, 1.08], clad: 1 } };
   function carProto(type, hex) { const key = `car_${type}_${hex}`; if (PROTO[key]) return key; const T = CT[type], W = T.W, R = T.wr + 0.07;
-    const paint = CARM.get(hex) || CARM.set(hex, std({ color: hex, roughness: 0.3, metalness: 0.4, envMapIntensity: 1.25 })).get(hex);
+    const paint = CARM.get(hex) || CARM.set(hex, std({ color: hex, roughness: 0.3, metalness: 0.4, envMapIntensity: 1.25, vertexColors: true })).get(hex);
     const pb = new Bag(), db = new Bag(), lb = new Bag(), tb = new Bag(), gb = new Bag(), rb = new Bag(), wb = new Bag(), plb = new Bag(), I = new THREE.Matrix4();
     const T4 = (x, y, z, rx = 0, ry = 0, rz = 0) => new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new V3(1, 1, 1));
     const BX = (bag, sx, sy, sz, x, y, z, rz = 0) => bag.add(new THREE.BoxGeometry(sx, sy, sz), T4(x, y, z, 0, 0, rz));
     // профиль кузова с вырезами колёсных арок
     const lo = T.lo, yb = lo[lo.length - 1][1], pts = lo.slice(); const t0 = Math.asin(Math.min(0.99, (yb - T.wr) / R));
     for (const wx of [T.wx[1], T.wx[0]]) for (let k = 0; k <= 10; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 10; pts.push([wx + R * Math.cos(t), T.wr + R * Math.sin(t)]); }
-    pb.add(extrude(pts, W, 0.05), I);
+    const dirt = (p) => { const n = 0.5 + 0.5 * Math.sin(p.x * 7.3 + Math.sin(p.x * 2.1) * 3), k = Math.min(1, Math.max(0, (0.95 - p.y) / 0.55)) * (0.7 + 0.3 * n), sp = Math.max(0, Math.sin(p.x * 23.0) * Math.sin(p.x * 5.7)) * Math.max(0, (1.05 - p.y)) * 0.5;
+      const d = Math.min(1, k + sp); return [1 - d * 0.36, 1 - d * 0.42, 1 - d * 0.5]; };
+    pb.add(extrude(pts, W, 0.05), I, dirt);
     const g = T.gh; gb.add(extrude(g, W - 0.1), I);
     pb.add(new THREE.BoxGeometry(g[2][0] - g[1][0] + 0.08, 0.05, W - 0.06), T4((g[1][0] + g[2][0]) / 2, g[1][1] + 0.025, 0));
     const bx = (g[0][0] + g[3][0]) / 2 + 0.12; BX(pb, 0.09, g[1][1] - g[0][1], W - 0.06, bx, (g[1][1] + g[0][1]) / 2, 0);
