@@ -561,9 +561,10 @@ if (DVOR) {
   // --- дождь: редкие косые штрихи вокруг игрока ---
   const RN = MOBILE ? 500 : 1400, rp = new Float32Array(RN * 6), rb = new Float32Array(RN * 3); for (let i = 0; i < RN; i++) { rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 1] = Math.random() * 14; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; }
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.28, depthWrite: false })); rain.frustumCulled = false; scene.add(rain); REFL.hide.push(rain);
+  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.28, depthWrite: false })); rain.frustumCulled = false; scene.add(rain); REFL.hide.push(rain); rain.visible = false;
   let rainSnd = null, dripT = 2;
-  function rainUpdate(dt) { for (let i = 0; i < RN; i++) { let y = rb[i * 3 + 1] - dt * (11 + (i % 5)); if (y < 0) { y += 14; rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; } rb[i * 3 + 1] = y; const j = i * 6, x = rb[i * 3], z = rb[i * 3 + 2]; rp[j] = x; rp[j + 1] = y; rp[j + 2] = z; rp[j + 3] = x + 0.05; rp[j + 4] = y + 0.45; rp[j + 5] = z; }
+  function rainUpdate(dt) { if (!rain.visible) { dripT -= dt; if (dripT < 0 && started) { dripT = 0.9 + Math.random() * 3; blip([1200 + Math.random() * 1300], 0.05, 'sine', 0.008 + Math.random() * 0.012); } return; } for (let i = 0; i < RN; i++) { let y = rb[i * 3 + 1] - dt * (11 + (i % 5)); if (y < 0) { y += 14; rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; } rb[i * 3 + 1] = y; const j = i * 6, x = rb[i * 3], z = rb[i * 3 + 2]; rp[j] = x; rp[j + 1] = y; rp[j + 2] = z; rp[j + 3] = x + 0.05; rp[j + 4] = y + 0.45; rp[j + 5] = z; }
+    if (!rain.visible) { dripT -= dt; if (dripT < 0 && started) { dripT = 0.9 + Math.random() * 3; blip([1200 + Math.random() * 1300], 0.05, 'sine', 0.008 + Math.random() * 0.012); } return; }
     rg.attributes.position.needsUpdate = true; rain.position.set(P.x, 0, P.z);
     if (AC && !rainSnd) { const s = loopSrc(AC._white, 1), f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 5200; f.Q.value = 0.4; const g = AC.createGain(); g.gain.value = 0.035; s.connect(f).connect(g).connect(master); rainSnd = g; }
     dripT -= dt; if (dripT < 0 && started) { dripT = 0.6 + Math.random() * 2.2; blip([1300 + Math.random() * 1100], 0.06, 'sine', 0.012 + Math.random() * 0.012); } }
@@ -627,8 +628,61 @@ if (DVOR) {
         b.y = groundH(b.x, b.z); flush(i, b, 0); }
       for (const k in I) I[k].instanceMatrix.needsUpdate = true; }, dbg: () => ({ fl: FL.map((f) => [f.on, Math.round(f.x), Math.round(f.z), f.gone.toFixed(1)]), vis: B.filter((b) => b.vis).length }) };
   })();
+
+  // ====== вайб: звуки района, листья в воздухе, прохожие, интерфейс прячется ======
+  const VIBE = (() => { let hum = null, evT = 8;
+    const pan = (v) => { const p = AC.createStereoPanner(); p.pan.value = v; p.connect(master); return p; };
+    function tone(type, f0, f1, t0, dur, vol, filt, fq, out) { const o = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(); o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.linearRampToValueAtTime(f1, t0 + dur); f.type = 'bandpass'; f.frequency.value = filt; f.Q.value = fq;
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.03, dur * 0.2)); g.gain.setValueAtTime(vol, t0 + dur * 0.7); g.gain.linearRampToValueAtTime(0, t0 + dur); o.connect(f).connect(g).connect(out); o.start(t0); o.stop(t0 + dur + 0.05); }
+    const EV = {
+      dog() { const out = pan(Math.random() * 2 - 1), t = AC.currentTime, n = 2 + ((Math.random() * 4) | 0), f = 380 + Math.random() * 200; for (let k = 0; k < n; k++) { const tt = t + k * (0.28 + Math.random() * 0.2); tone('sawtooth', f * 1.3, f * 0.8, tt, 0.13, 0.03, 900, 1.5, out); } },
+      door() { const p = Math.random() * 2 - 1; burst(0.35, 'lowpass', 140, 0.9, 0.5, p); burst(0.08, 'bandpass', 2400, 2, 0.06, p); setTimeout(() => burst(0.25, 'lowpass', 300, 1, 0.08, p), 180); },
+      alarm() { const out = pan(Math.random() * 2 - 1), t = AC.currentTime; for (let k = 0; k < 10; k++) tone('square', k % 2 ? 900 : 1250, k % 2 ? 900 : 1250, t + k * 0.32, 0.28, 0.006, 1100, 1.2, out); },
+      train() { const out = pan(Math.random() < 0.5 ? -0.7 : 0.7), t = AC.currentTime; for (const f of [311, 370]) tone('sawtooth', f, f * 0.98, t, 2.2, 0.009, 700, 0.8, out); burst(6, 'lowpass', 120, 0.5, 0.12); },
+      car() { const p = Math.random() * 2 - 1; burst(4.5, 'lowpass', 260, 0.6, 0.18, p); setTimeout(() => burst(2.5, 'bandpass', 900, 0.6, 0.04, p), 800); },
+      kids() { const out = pan(Math.random() * 2 - 1), t = AC.currentTime; for (let k = 0; k < 4; k++) { const f = 500 + Math.random() * 300; tone('triangle', f, f * (0.8 + Math.random() * 0.5), t + k * 0.35 + Math.random() * 0.2, 0.25 + Math.random() * 0.2, 0.006, 1400, 0.7, out); } },
+      crowF() { crow(); } };
+    // листья в воздухе
+    const NL = MOBILE ? 24 : 48, lg = new THREE.PlaneGeometry(0.075, 0.05), lm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, side: THREE.DoubleSide });
+    const LI = new THREE.InstancedMesh(lg, lm, NL); LI.instanceMatrix.setUsage(THREE.DynamicDrawUsage); LI.frustumCulled = false; scene.add(LI); REFL.hide.push(LI);
+    const LV = []; const lc = new THREE.Color(); for (let i = 0; i < NL; i++) { lc.set(['#b8892a', '#9a6a22', '#c9a040', '#7a5a2a', '#a8823a'][i % 5]).convertSRGBToLinear(); LI.setColorAt(i, lc); LV.push({ x: 0, y: -1, z: 0, ph: Math.random() * 6, sp: 0.5 + Math.random() }); }
+    const lmx = new THREE.Matrix4(), lq = new THREE.Quaternion(), le = new THREE.Euler(), lv = new V3(), l1 = new V3(1, 1, 1);
+    // прохожие: обычные люди в куртках, идут по тротуарам вдалеке
+    const people = []; const COATS = [0x2a2d33, 0x3a3020, 0x1f2a3a, 0x4a4a48, 0x5a2a2a, 0x22261e];
+    for (let i = 0; i < 4; i++) { const g = new THREE.Group(), coat = std({ color: COATS[i % COATS.length], roughness: 0.9 }), pants = std({ color: 0x1a1b1e, roughness: 0.9 }), skin = std({ color: 0xb89a84, roughness: 0.8 }), hat = std({ color: i % 2 ? 0x1a1a1a : 0x3a3a40, roughness: 0.9 });
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.62, 4, 10), coat); body.position.y = 1.15; body.scale.z = 0.75; const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 9), skin); head.position.y = 1.66; const cap = new THREE.Mesh(new THREE.SphereGeometry(0.115, 12, 6, 0, 6.3, 0, 1.6), hat); cap.position.y = 1.68;
+      const legs = [], arms = []; for (const sx of [-0.09, 0.09]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.82, 8).translate(0, -0.41, 0), pants); l.position.set(sx, 0.84, 0); g.add(l); legs.push(l); const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.5, 3, 6).translate(0, -0.3, 0), coat); a.position.set(sx * 2.6, 1.42, 0); g.add(a); arms.push(a); }
+      if (i === 1) { const bag = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.12), std({ color: 0xd8d4c8, roughness: 0.7 })); bag.position.set(0.3, 0.75, 0); g.add(bag); }
+      g.add(body, head, cap); g.traverse((o) => { o.castShadow = Q.shadows; }); g.visible = false; scene.add(g); people.push({ g, legs, arms, a: 0, t: Math.random() * 20, ph: 0, v: 1.1 + Math.random() * 0.4 }); }
+    // интерфейс: прячется, появляется только когда что-то меняется
+    let hudT = 9, mus = null; const hud = $('hud'); if (hud) { hud.style.transition = 'opacity 1.2s'; new MutationObserver((ms) => { if (ms.some((m) => !(m.target.id === 'f_clock' || (m.target.parentNode && m.target.parentNode.id === 'f_clock')))) hudT = 5; }).observe(hud, { subtree: true, childList: true, characterData: true }); }
+    addEventListener('keydown', (e) => { if (e.code === 'Tab') { hudT = 5; e.preventDefault(); } });
+    addEventListener('touchstart', (e) => { for (const t of e.touches) if (t.clientY < innerHeight * 0.18 && t.clientX > innerWidth * 0.6) hudT = 5; }, { passive: true });
+    return { update(dt) { if (!started) return;
+      if (AC) { if (!hum) { const s2 = loopSrc(noiseBuf(4, true), 1), f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = 180; g.gain.value = 0.09; s2.connect(f).connect(g).connect(master); hum = { g, f }; }
+        hum.g.gain.value = 0.07 + Math.sin(clock * 0.07) * 0.025 + Math.sin(clock * 0.23) * 0.015;
+        evT -= dt; if (evT < 0) { evT = 5 + Math.random() * 14; const k = Math.random(); (k < 0.25 ? EV.dog : k < 0.42 ? EV.door : k < 0.52 ? EV.alarm : k < 0.6 ? EV.train : k < 0.8 ? EV.car : k < 0.9 ? EV.kids : EV.crowF)(); } }
+      // листья
+      const wx = Math.sin(clock * 0.13) * 1.2 + 0.6, wz = Math.cos(clock * 0.09) * 0.8;
+      for (let i = 0; i < NL; i++) { const L = LV[i]; L.ph += dt * L.sp * 3;
+        if (L.y < 0.02 || Math.hypot(L.x - P.x, L.z - P.z) > 22) { const a = Math.random() * 6.28, d = 3 + Math.random() * 18; L.x = P.x + Math.cos(a) * d; L.z = P.z + Math.sin(a) * d; L.y = 3 + Math.random() * 9; }
+        L.x += (wx + Math.sin(L.ph) * 0.6) * dt; L.z += (wz + Math.cos(L.ph * 0.7) * 0.6) * dt; L.y -= (0.45 + Math.sin(L.ph * 1.3) * 0.3) * dt;
+        le.set(L.ph, L.ph * 0.7, L.ph * 1.3); lq.setFromEuler(le); lmx.compose(lv.set(L.x, L.y, L.z), lq, l1); LI.setMatrixAt(i, lmx); }
+      LI.instanceMatrix.needsUpdate = true;
+      // прохожие
+      for (const p of people) { p.t -= dt; const g = p.g;
+        if (g.visible) { g.position.x += Math.sin(p.a) * p.v * dt; g.position.z += Math.cos(p.a) * p.v * dt; g.rotation.y = p.a; p.ph += dt * p.v * 5.2; const sw = Math.sin(p.ph) * 0.45;
+          p.legs[0].rotation.x = sw; p.legs[1].rotation.x = -sw; p.arms[0].rotation.x = -sw * 0.6; p.arms[1].rotation.x = sw * 0.6; g.position.y = Math.abs(Math.cos(p.ph)) * 0.03;
+          const d = Math.hypot(g.position.x - P.x, g.position.z - P.z); if (d > 95 || p.t < 0 || dvRoadD(g.position.x, g.position.z) < 4.3) { g.visible = false; p.t = 4 + Math.random() * 15; } continue; }
+        if (p.t < 0) { const a = Math.random() * 6.28, d = 25 + Math.random() * 40, x = P.x + Math.cos(a) * d, z = P.z + Math.sin(a) * d, rd = dvRoadD(x, z);
+          if (rd > 4.7 && rd < 6.2 && inWorld(x, z)) { const along = Math.abs(((x - 48) % 96 + 96) % 96 - 48) > Math.abs(((z - 48) % 96 + 96) % 96 - 48); p.a = (along ? 0 : Math.PI / 2) + (Math.random() < 0.5 ? 0 : Math.PI); g.position.set(x, 0, z); g.visible = true; p.t = 40 + Math.random() * 30; } else p.t = 0.5; } }
+      // интерфейс
+      hudT -= dt; const op = hudT > 0 ? '1' : '0'; if (hud && hud.style.opacity !== op) hud.style.opacity = op;
+      if (!mus) mus = [...document.querySelectorAll('button')].find((b) => /^♪/.test(b.textContent || '')); if (mus) { mus.style.transition = 'opacity 1.2s'; const mo = hudT > 0 ? '0.8' : '0.12'; if (mus.style.opacity !== mo) mus.style.opacity = mo; }
+    } };
+  })();
   WORLD_UPDATE = (dt) => {
-    carsUpdate(dt); rainUpdate(dt); walkerUpdate(dt); PG.update(dt);
+    carsUpdate(dt); rainUpdate(dt); PG.update(dt); VIBE.update(dt);
     if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
     smT -= dt; if (smT < 0 && started) { smT = 1; for (let k = SMELLS.length - 1; k >= 0; k--) { const m = SMELLS[k]; if (!m.group.parent) { SMELLS.splice(k, 1); continue; } if (m.text !== smLast && Math.hypot(m.x - P.x, m.z - P.z) < 4.5) { smLast = m.text; smT = 25; toast(`<span style="font-size:15px;font-style:italic;color:#d8d2c4">${m.text}</span>`); break; } } }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }

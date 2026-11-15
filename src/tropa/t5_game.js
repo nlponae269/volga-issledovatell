@@ -103,13 +103,13 @@ const post = (() => {
       ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);
-      col = aces(col*expo);
+      col = aces(col*expo${DVOR ? '*0.84' : ''});
       float Lm=dot(col,vec3(0.2126,0.7152,0.0722));
       ${DVOR ? `// «как с камеры телефона»: нейтрально-тёплый баланс, приподнятые тени, мягкая виньетка, мелкое зерно сенсора
       col=mix(vec3(Lm),col,0.9);
       col+=vec3(0.006,0.003,-0.006)*Lm;
       col=pow(max(col,0.0),vec3(1.0/2.2));
-      col=col*0.94+0.045; col=mix(col, col*col*(3.0-2.0*col), 0.25);
+      col=col*0.96+0.025; col=mix(col, col*col*(3.0-2.0*col), 0.38);
       col*=mix(0.84,1.0,smoothstep(1.05,0.35,length(dc*vec2(1.1,1.0))));
       col+=(h12(uv*res+fract(time*13.0)*91.0)-0.5)*0.018;` : `
       col=mix(vec3(Lm),col,0.82);
@@ -170,7 +170,7 @@ function collide(nx, nz) {
   if (GARDEN) nz = clamp(nz, -FENCE + 0.45, FENCE - 0.45);
   return [nx, nz];
 }
-function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 || dvDriveD(x, z) < 0.01 ? 'asph' : 'grass'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
+function surfaceAt(x, z) { if (INDOOR || TRAIN || STROY) return 'lino'; if (DVOR) return dvRoadD(x, z) < 6.4 || dvDriveD(x, z) < 0.01 ? 'asph' : 'mud'; if (SNOW) return 'snow'; if (BEACH && z < 30) return 'sand'; if (bedM(x, z)) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW) return 'asph'; if (Math.abs(z - pathC(x)) < 1.9) return 'sand'; if (Math.abs(z - ROAD_C) < ROAD_HW + 2) return 'grav'; return 'grass'; }
 
 // ---------------- звук ----------------
 let AC = null, master, windG, rustleG, humG, humF;
@@ -193,7 +193,7 @@ function initAudio() {
 }
 function blip(freqs, dur, type = 'sine', vol = 0.12) { if (!AC) return; freqs.forEach((fq, i) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = fq; const t = AC.currentTime + i * 0.07; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05); }); }
 function burst(dur, ftype, freq, q, vol, pan = 0) { if (!AC) return; const s = AC.createBufferSource(); s.buffer = AC._white; const f = AC.createBiquadFilter(); f.type = ftype; f.frequency.value = freq; f.Q.value = q; const g = AC.createGain(); const t = AC.currentTime; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); const p = AC.createStereoPanner ? AC.createStereoPanner() : null; if (p) p.pan.value = pan; s.connect(f).connect(g); (p ? g.connect(p) : g).connect(master); if (p) p.connect(master); s.start(t, Math.random() * 3, dur + 0.05); }
-function footstep(surf, run) { const v = run ? 0.5 : 0.32; if (surf === 'grass') { burst(0.16, 'bandpass', 2600 + Math.random() * 900, 0.7, v * 0.55); burst(0.09, 'highpass', 5000, 0.5, v * 0.3); } else if (surf === 'sand') { burst(0.13, 'bandpass', 1100 + Math.random() * 400, 0.9, v * 0.7); burst(0.07, 'highpass', 3500, 0.5, v * 0.2); } else if (surf === 'snow') { burst(0.16, 'lowpass', 1500 + Math.random() * 500, 0.8, v * 0.9); burst(0.1, 'bandpass', 3500, 1.5, v * 0.15); } else if (surf === 'grav') burst(0.12, 'bandpass', 1800, 0.6, v * 0.8); else burst(0.07, 'bandpass', 900, 1.4, v * 0.9); }
+function footstep(surf, run) { const v = run ? 0.5 : 0.32; if (surf === 'mud') { burst(0.14, 'lowpass', 420 + Math.random() * 200, 1.2, v * 1.1); burst(0.09, 'bandpass', 1400 + Math.random() * 600, 2.5, v * 0.35); setTimeout(() => burst(0.06, 'bandpass', 2200 + Math.random() * 800, 3, v * 0.18), 60); return; } if (surf === 'grass') { burst(0.16, 'bandpass', 2600 + Math.random() * 900, 0.7, v * 0.55); burst(0.09, 'highpass', 5000, 0.5, v * 0.3); } else if (surf === 'sand') { burst(0.13, 'bandpass', 1100 + Math.random() * 400, 0.9, v * 0.7); burst(0.07, 'highpass', 3500, 0.5, v * 0.2); } else if (surf === 'snow') { burst(0.16, 'lowpass', 1500 + Math.random() * 500, 0.8, v * 0.9); burst(0.1, 'bandpass', 3500, 1.5, v * 0.15); } else if (surf === 'grav') burst(0.12, 'bandpass', 1800, 0.6, v * 0.8); else burst(0.07, 'bandpass', 900, 1.4, v * 0.9); }
 function crow() { if (!AC) return; const pan = Math.random() * 2 - 1, n = 2 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) { const t = AC.currentTime + i * 0.42, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(340, t + 0.3); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 2.5; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32); const p = AC.createStereoPanner(); p.pan.value = pan; o.connect(f).connect(g).connect(p).connect(master); o.start(t); o.stop(t + 0.4); } }
 function creak() { if (!AC) return; const t = AC.currentTime, pan = Math.random() * 2 - 1, p = AC.createStereoPanner(); p.pan.value = pan; p.connect(master);
   const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); o.type = 'sawtooth'; const f0 = 140 + Math.random() * 80; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 0.62, t + 1.6); o.frequency.linearRampToValueAtTime(f0 * 0.8, t + 2.2);
@@ -208,7 +208,7 @@ function updateAudio(dt, gust) {
   const L = AC.listener, fw = new V3(0, 0, -1).applyQuaternion(camera.quaternion), up = new V3(0, 1, 0).applyQuaternion(camera.quaternion);
   if (L.positionX) { L.positionX.value = P.x; L.positionY.value = camera.position.y; L.positionZ.value = P.z; L.forwardX.value = fw.x; L.forwardY.value = fw.y; L.forwardZ.value = fw.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
   else { L.setPosition(P.x, camera.position.y, P.z); L.setOrientation(fw.x, fw.y, fw.z, up.x, up.y, up.z); }
-  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : ZIMA ? 1.8 : DVOR ? 0.6 : 1); rustleG.gain.value = INDOOR ? 0 : 0.004 + gust * 0.02;
+  windG.gain.value = (0.18 + gust * 0.32) * (INDOOR ? 0.25 : ZIMA ? 1.8 : DVOR ? 0.6 : 1); rustleG.gain.value = INDOOR ? 0 : (0.004 + gust * 0.02) * (DVOR ? 2.2 : 1);
   const rd = Math.abs(P.z - ROAD_C); humG.gain.value = !ROADW ? 0.025 : 0.06 + 0.25 * Math.exp(-rd / 40); humF.frequency.value = 140 + 300 * Math.exp(-rd / 30);
   for (const c of cars) { const s = c.snd; if (!s) continue; const dir = c.lane === 0 ? -1 : 1, cz = LANE_Z[c.lane];
     const dx = P.x - c.x, dz = P.z - cz, d = Math.hypot(dx, dz) || 1, vr = dir * c.v * dx / d; const dop = clamp(343 / (343 - vr), 0.7, 1.4);
@@ -242,7 +242,9 @@ let last = performance.now(), clock = 0, bob = 0, lastStep = 0, crowT = 8, gust 
 function placeCamera() {
   const gy = groundH(P.x, P.z), sp = P.speed; const bobA = Math.min(sp / 5, 1);
   camera.position.set(P.x + Math.cos(P.yaw) * Math.sin(bob * 0.5) * 0.025 * bobA, gy + P.y + 1.66 + Math.abs(Math.sin(bob * 0.5)) * 0.055 * bobA - 0.02 + Math.sin(clock * 0.9) * 0.006, P.z - Math.sin(P.yaw) * Math.sin(bob * 0.5) * 0.025 * bobA);
-  camera.rotation.set(P.pitch + Math.sin(clock * 0.7) * 0.003, P.yaw + Math.sin(clock * 0.45) * 0.002, Math.sin(bob * 0.5) * 0.004 * bobA, 'YXZ');
+  const hh = DVOR ? 1 : 0, t1 = clock;   // «ручная» камера: медленный дрейф, дыхание, лёгкий завал горизонта
+  camera.rotation.set(P.pitch + Math.sin(clock * 0.7) * 0.003 + hh * (Math.sin(t1 * 0.31) * 0.004 + Math.sin(t1 * 0.83 + 1.3) * 0.0025 + Math.sin(t1 * 1.9) * 0.0008), P.yaw + Math.sin(clock * 0.45) * 0.002 + hh * (Math.sin(t1 * 0.23 + 2.1) * 0.005 + Math.sin(t1 * 0.67) * 0.002), Math.sin(bob * 0.5) * 0.004 * bobA * (1 + hh * 1.5) + hh * (Math.sin(t1 * 0.19 + 0.7) * 0.004 + Math.sin(t1 * 0.53) * 0.0015), 'YXZ');
+  if (hh) camera.position.y += Math.sin(t1 * 1.6) * 0.006 * (1 - bobA) + Math.sin(bob) * 0.012 * bobA;
 }
 // автоподстройка качества под устройство
 const AQ = { t: 0, n: 0, acc: 0, level: 0 };

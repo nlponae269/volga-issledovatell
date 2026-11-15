@@ -141,7 +141,7 @@ groundMat.onBeforeCompile = (sh) => {
           for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) { vec2 o = vec2(float(i), float(j)), id = ci + o;
             float h = fract(sin(dot(id, vec2(127.1, 311.7))) * 43758.5453), sp = 0.6 + h * 0.8;
             float ph = fract(uTimeG * sp * 0.55 + h * 7.0); vec2 cc = o + vec2(fract(h * 13.1), fract(h * 7.7)) - 0.5, d = cf - cc; float r = length(d);
-            float ring = (1.0 - smoothstep(0.0, 0.045, abs(r - ph * 0.8))) * (1.0 - ph) * (1.0 - ph) * step(0.25, h);
+            float ring = (1.0 - smoothstep(0.0, 0.045, abs(r - ph * 0.8))) * (1.0 - ph) * (1.0 - ph) * step(${DVOR ? '0.9' : '0.25'}, h);
             rpl += ring; rn += d / max(r, 0.001) * ring; }
           rip += rn * 0.018 * pud; }
         vec3 refl = texture2D(tRefl, vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y) + rip).rgb;
