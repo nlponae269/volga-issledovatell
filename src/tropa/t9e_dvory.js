@@ -562,18 +562,19 @@ if (DVOR) {
   // --- голуби (и вороны): стаи бродят и клюют в грязи, вспархивают, если подойти ---
   const PG = (() => { const N = MOBILE ? 72 : 150, F = MOBILE ? 4 : 7, per = Math.floor(N / F);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
-    const geo = { body: new THREE.SphereGeometry(1, 10, 7).scale(0.075, 0.07, 0.15).translate(0, 0.13, 0),
-      tail: new THREE.BoxGeometry(0.075, 0.014, 0.13).translate(0, 0, -0.06),
-      wing: new THREE.BoxGeometry(0.2, 0.012, 0.13).translate(0.1, 0, 0), leg: new THREE.CylinderGeometry(0.006, 0.006, 0.08, 4).translate(0, 0.04, 0) };
-    geo.head = new THREE.SphereGeometry(0.042, 8, 6); geo.beak = new THREE.ConeGeometry(0.012, 0.035, 5).rotateX(Math.PI / 2).translate(0, -0.005, 0.05);
+    const geo = { body: new THREE.SphereGeometry(1, 14, 10).scale(0.078, 0.072, 0.15).rotateX(0.18).translate(0, 0.13, 0),
+      tail: new THREE.SphereGeometry(1, 10, 6).scale(0.048, 0.012, 0.085).translate(0, 0, -0.07),
+      neck: new THREE.SphereGeometry(1, 10, 8).scale(0.048, 0.07, 0.052),
+      wing: new THREE.SphereGeometry(1, 12, 6).scale(0.12, 0.013, 0.07).translate(0.115, 0, 0), leg: new THREE.CylinderGeometry(0.006, 0.006, 0.08, 4).translate(0, 0.04, 0) };
+    geo.head = new THREE.SphereGeometry(0.038, 12, 9); geo.beak = new THREE.ConeGeometry(0.01, 0.032, 6).rotateX(Math.PI / 2).translate(0, -0.006, 0.045);
     const mk = (g, m) => { const im = new THREE.InstancedMesh(g, m || mat, N); im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = Q.shadows; scene.add(im); return im; };
     const beakM = new THREE.MeshStandardMaterial({ color: 0x3a3330, roughness: 0.6 }), legM = new THREE.MeshStandardMaterial({ color: 0xb05a50, roughness: 0.7 });
-    const I = { body: mk(geo.body), tail: mk(geo.tail), head: mk(geo.head), wl: mk(geo.wing), wr: mk(geo.wing), beak: mk(geo.beak, beakM), l1: mk(geo.leg, legM), l2: mk(geo.leg, legM) };
+    const I = { body: mk(geo.body), tail: mk(geo.tail), neck: mk(geo.neck), head: mk(geo.head), wl: mk(geo.wing), wr: mk(geo.wing), beak: mk(geo.beak, beakM), l1: mk(geo.leg, legM), l2: mk(geo.leg, legM) };
     const col = new THREE.Color(), B = [], FL = [];
     for (let f = 0; f < F; f++) FL.push({ x: 0, z: 0, on: false, t: 0, gone: 0 });
     for (let i = 0; i < N; i++) { const crow = Math.random() < 0.07, t = Math.random();
-      const c = crow ? [0.07, 0.07, 0.08] : t < 0.62 ? [0.36, 0.38, 0.44] : t < 0.8 ? [0.24, 0.24, 0.27] : t < 0.9 ? [0.42, 0.34, 0.3] : [0.62, 0.62, 0.6];
-      col.setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace); for (const k of ['body', 'tail', 'wl', 'wr']) I[k].setColorAt(i, col); col.multiplyScalar(crow ? 1 : 0.75); I.head.setColorAt(i, col);
+      const c = crow ? [0.07, 0.07, 0.08] : t < 0.62 ? [0.3, 0.31, 0.34] : t < 0.8 ? [0.2, 0.2, 0.22] : t < 0.9 ? [0.42, 0.34, 0.3] : [0.62, 0.62, 0.6];
+      col.setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace); for (const k of ['body', 'tail', 'wl', 'wr']) I[k].setColorAt(i, col); col.multiplyScalar(crow ? 1 : 0.75); I.head.setColorAt(i, col); if (!crow && t < 0.8) col.lerp(new THREE.Color(Math.random() < 0.5 ? 0x2a4a3a : 0x4a2a4a), 0.45); I.neck.setColorAt(i, col);
       B.push({ f: Math.floor(i / per) % F, x: 0, y: 0, z: 0, yaw: Math.random() * 6.28, st: 0, t: Math.random() * 3, ph: Math.random() * 6, sp: 0, vx: 0, vy: 0, vz: 0, s: crow ? 1.45 : 0.9 + Math.random() * 0.2, crow, vis: false }); }
     const Mb = new THREE.Matrix4(), Mp = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new V3(), one = new V3(1, 1, 1), sc = new V3(), hide = new THREE.Matrix4().makeScale(0, 0, 0);
     const okAt = (x, z) => { if (!inWorld(x, z) || dvRoadD(x, z) < 4.6) return false; const c = collide(x, z); return Math.abs(c[0] - x) < 1e-4 && Math.abs(c[1] - z) < 1e-4; };
@@ -583,9 +584,10 @@ if (DVOR) {
           b.vis = ok; b.st = 0; b.y = groundH(b.x, b.z); b.t = Math.random() * 2; } return; } }
     function flush(i, b, flap) { const s = b.s;
       e.set(b.st === 2 ? -0.25 : 0, b.yaw, 0); q.setFromEuler(e); Mb.compose(v.set(b.x, b.y, b.z), q, sc.set(s, s, s));
-      I.body.setMatrixAt(i, Mb); Mp.makeTranslation(0, 0.13, -0.13); Mp.premultiply(Mb); I.tail.setMatrixAt(i, Mp);
+      I.body.setMatrixAt(i, Mb); Mp.makeTranslation(0, 0.15, -0.13); Mp.premultiply(Mb); I.tail.setMatrixAt(i, Mp);
       const peck = b.st === 1 ? Math.max(0, Math.sin(b.ph * 9)) : 0, bob = b.st === 0 && b.sp > 0 ? Math.sin(b.ph * 14) * 0.02 : 0;
-      e.set(peck * 1.1, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.22 - peck * 0.1, 0.12 + bob + peck * 0.05), q, one); Mp.premultiply(Mb); I.head.setMatrixAt(i, Mp); I.beak.setMatrixAt(i, Mp);
+      e.set(peck * 1.1, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.235 - peck * 0.11, 0.135 + bob + peck * 0.05), q, one); Mp.premultiply(Mb); I.head.setMatrixAt(i, Mp); I.beak.setMatrixAt(i, Mp);
+      e.set(0.35 + peck * 0.6, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.19 - peck * 0.05, 0.1 + bob * 0.5 + peck * 0.03), q, one); Mp.premultiply(Mb); I.neck.setMatrixAt(i, Mp);
       const wa = b.st === 2 ? Math.sin(flap) * 1.0 + 0.2 : 0, fold = b.st === 2 ? 1 : 0.35;
       for (const [k, sd] of [['wl', -1], ['wr', 1]]) { e.set(0, sd < 0 ? Math.PI : 0, wa); q.setFromEuler(e); Mp.compose(v.set(sd * 0.05, 0.17, 0.0), q, sc.set(fold, 1, 1)); if (b.st !== 2) { e.set(0, sd < 0 ? Math.PI - 1.35 : 1.35, 0); q.setFromEuler(e); Mp.compose(v.set(sd * 0.06, 0.16, 0.06), q, sc.set(0.85, 1, 0.55)); } Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); }
       const lg = b.st === 2 ? hide : null; for (const [k, sd] of [['l1', -1], ['l2', 1]]) { if (lg) { I[k].setMatrixAt(i, hide); continue; } Mp.makeTranslation(sd * 0.025, 0.0, 0.0); Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); } }

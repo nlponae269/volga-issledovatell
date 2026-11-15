@@ -98,7 +98,19 @@ groundMat.onBeforeCompile = (sh) => {
         float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
         float mka = step(av, 10.0) * ((1.0 - smoothstep(0.06, 0.09, abs(av - 0.25))) + (1.0 - smoothstep(0.06, 0.09, abs(av - 5.0))) * step(fract(wp.y / 9.0), 0.45));
         as = mix(as, vec3(0.6,0.6,0.56), (mkx + mkz + mka) * 0.5 * smoothstep(0.25, 0.7, nC.a));
+        // заплатки: прямоугольники свежего тёмного асфальта со швами
+        vec2 pcs = vec2(4.6, 2.9), pcl = floor(wp / pcs); float phs = fract(sin(dot(pcl, vec2(12.9898, 78.233))) * 43758.5453);
+        vec2 pf = fract(wp / pcs); vec2 pa = vec2(fract(phs * 7.1), fract(phs * 3.7)) * 0.35, pb2 = pa + 0.45 + vec2(fract(phs * 5.3), fract(phs * 9.1)) * 0.2;
+        float pIn = step(0.72, phs) * step(pa.x, pf.x) * step(pf.x, pb2.x) * step(pa.y, pf.y) * step(pf.y, pb2.y);
+        float pEd = pIn * (1.0 - step(0.03, min(min(pf.x - pa.x, pb2.x - pf.x) * pcs.x, min(pf.y - pa.y, pb2.y - pf.y) * pcs.y)));
+        as = mix(as, texture2D(tAsph, wp/2.4 + 0.5).rgb * 0.42, pIn * 0.85); as *= 1.0 - pEd * 0.35;
+        // трещины: тонкие ломаные линии по изолиниям шума, гуще у краёв дороги
+        float ck1 = abs(texture2D(tNoise, wp*0.09 + 0.17).r - 0.5), ck2 = abs(texture2D(tNoise, wp*0.23 + 0.61).g - 0.5);
+        float crk = (1.0 - smoothstep(0.0, 0.012, ck1)) * smoothstep(0.45, 0.7, texture2D(tNoise, wp*0.035).b + smoothstep(2.5, 4.0, rd)*0.3) + (1.0 - smoothstep(0.0, 0.008, ck2)) * smoothstep(0.55, 0.75, texture2D(tNoise, wp*0.05 + 0.3).r) * 0.7;
+        as *= 1.0 - clamp(crk, 0.0, 1.0) * (1.0 - pIn) * 0.55;
         vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
+        float wcrk = 1.0 - smoothstep(0.0, 0.016, abs(texture2D(tNoise, wp*0.13 + 0.4).g - 0.5)); wk = mix(wk * (1.0 - wcrk*0.5), vec3(0.22,0.24,0.12), wcrk * smoothstep(0.5, 0.7, nB.r) * 0.8);   // в трещинах тротуара — мох и трава
+        wk = mix(wk, texture2D(tSand, wp/2.4).rgb * vec3(1.35,1.28,1.18), smoothstep(0.55, 0.8, texture2D(tNoise, wp*0.07 + 0.9).r) * 0.6);                                                                                      // грязь натащена на тротуар
         // двор как на фото: светлая сухая грязь, тёмные сырые пятна, вытоптанные полосы, трава клочками
         float gpn = texture2D(tNoise, wp*0.031 + 0.13).g*0.7 + texture2D(tNoise, wp*0.11 + 0.71).b*0.3;
         float bare = 1.0 - smoothstep(0.52, 0.68, gpn);
@@ -133,10 +145,11 @@ groundMat.onBeforeCompile = (sh) => {
             rpl += ring; rn += d / max(r, 0.001) * ring; }
           rip += rn * 0.018 * pud; }
         vec3 refl = texture2D(tRefl, vec2(gl_FragCoord.x / uRes.x, 1.0 - gl_FragCoord.y / uRes.y) + rip).rgb;
-        dvK = uReflOn * (pud * mix(0.7, 0.9, fr) + (1.0 - pud) * (wetAll + halo*0.4) * fr * 0.32);
+        float sheen = 0.45 + 0.55*smoothstep(0.35, 0.7, texture2D(tNoise, wp*0.06 + 0.2).g); sheen *= 1.0 - pIn*0.3*road;
+        dvK = uReflOn * (pud * mix(0.7, 0.9, fr) + (1.0 - pud) * (wetAll*sheen + halo*0.4) * mix(0.08, 0.55, fr));
         dvRefl = refl * vec3(0.8,0.82,0.85) * dvK + vec3(0.9, 0.92, 0.95) * rpl * pud * 0.22 * uReflOn;
         col = mix(col, col*0.3, pud);
-        gRough = mix(mix(0.93 - halo*0.25, 0.42, wetAll), mix(0.05, 0.3, uReflOn), pud); gPath = max(road, walk); }` : ''}
+        gRough = mix(mix(0.93 - halo*0.25, mix(0.55, 0.22, sheen), wetAll), mix(0.05, 0.3, uReflOn), pud); gPath = max(road, walk); }` : ''}
       if (abs(vW.x) > 16777216.0 || abs(vW.z) > 16777216.0) discard;
       diffuseColor.rgb *= col;
       ${DVOR ? 'diffuseColor.rgb *= (1.0 - dvK); totalEmissiveRadiance += dvRefl;' : ''}
