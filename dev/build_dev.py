@@ -26,10 +26,10 @@ sys.path.insert(0, str(root / 'src')); from worlds import WORLDS
 for f in [w + '.html' for w in WORLDS]:
     s = (root / f).read_text(encoding='utf-8')
     s = patch(s, '? 5.6 : 2.3) * Math.min(1, l) *', '? 5.6 : 2.3) * Math.min(1, l) * (window.CHEAT ? CHEAT.mult : 1) *', f + ' speed')
-    s = patch(s, '    [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;\n    P.vy -= 11 * dt;', '''    if (window.CHEAT && CHEAT.fly) { const cp = Math.cos(P.pitch), v = CHEAT.flySpeed * ((keys.ShiftLeft || keys.ShiftRight || running) ? 3 : 1);
+    s = patch(s, '    [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;\n    if (GP.flyOn)', '''    if (window.CHEAT && CHEAT.fly) { const cp = Math.cos(P.pitch), v = CHEAT.flySpeed * ((keys.ShiftLeft || keys.ShiftRight || running) ? 3 : 1);
       P.x += (fwx * cp * fx - fwz * sx) * v * dt; P.z += (fwz * cp * fx + fwx * sx) * v * dt; P.y = Math.max(PODEZD ? -1e9 : 0, P.y + (Math.sin(P.pitch) * fx + CHEAT.vert()) * v * dt); P.vy = 0; P.ground = P.y < 0.01; P.speed = 0; }
     else { [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz; }
-    if (!(window.CHEAT && CHEAT.fly)) P.vy -= 11 * dt;''', f + ' fly')
+    if (window.CHEAT && CHEAT.fly) {} else if (GP.flyOn)''', f + ' fly')
     s = patch(s, 'P.vy = 0; P.ground = true; } else P.ground = false;', 'P.vy = 0; P.ground = true; } else if (!(window.CHEAT && CHEAT.fly)) P.ground = false;', f + ' ground')
     s = patch(s, 'if (dead || !ROADW || BUS) return;', 'if (dead || !ROADW || BUS || (window.CHEAT && CHEAT.fly && P.y > 2)) return;', f + ' road')
     s = s.replace('<title>', '<title>DEV ', 1).replace('<script>', cheat + '<script>', 1)
