@@ -110,6 +110,8 @@ if (DVOR) {
     facade(41, { pair: true, wall: '#c9c4b8', plinth: '#7a7268', frame: '#f0efe8', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.12, balc: true, brick: true }),
     facade(47, { sec: ['#dccfd6', '#e9e7e2', '#e5dac6'], wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
   ];
+  // фасад дома 13 по фото автора (сгенерирован, бесшовный тайл: 2 этажа × пара окон = 6.2 × 5.6 м)
+  const DOM13 = PBR_ON ? (() => { const t = pbrT('tex/ai/dom13_facade_tile.jpg', true, 1 / 6.2, 1 / 5.6); t.offset.set(0, -(1.6 - 0.15) / 5.6); return std({ map: t, roughness: 0.88 }); })() : null;
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
@@ -236,14 +238,15 @@ if (DVOR) {
     if (PROTO.m_bag) { for (let k = 0; k < 5; k++) { const w = b.world(-2.2 + r() * 4.4, 0, 0.75 + r() * 0.8); PUT(K, r() < 0.6 ? 'm_bag' : 'm_box', w.x, 0, w.z, r() * 6, 0.9 + r() * 0.4); } } else for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
   function panel(K, cx, cz, len, dep, floors, ry, fac, home) {
-    const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc;
+    const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc, PH = !!(DOM13 && fac === FAC[0] && floors === 9);
     b.push(cx, 0, cz, ry);
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
-    for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
+    for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? DOM13 : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
+    if (PH) for (const sd of [1, -1]) b.box(M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(0.52));
     for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }
     b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
-    { const o = fac.userData.o; if (o && PROTO.m_win) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
+    { const o = fac.userData.o; if (o && PROTO.m_win && !PH) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
       for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12;
         if (o.balc && col % 4 === 1) { const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp; for (let f = 1; f < floors; f++) { const y = o.base + f * o.fh, w = b.world(xl, y, s * (dep / 2 + 0.03)); K.put(ihash(Math.round(w.x * 3), f, Math.round(w.z * 3)) < 0.7 ? 'm_balc' : 'm_balc_o', new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(1, 1, 1))); } continue; } const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp;
         for (let f = 0; f < floors; f++) { const y = o.base + f * o.fh + o.sill, w = b.world(xl, y, s * (dep / 2 + 0.02));
@@ -254,13 +257,13 @@ if (DVOR) {
     // водосточные трубы
     for (const sx of [-len / 2 + 0.4, len / 2 - 0.4]) for (const s of [1, -1]) { if (PROTO.m_gutter) { for (let y = 0; y < Hh - 0.5; y += 1) { const w = b.world(sx, y, s * (dep / 2 + 0.12)); PUT(K, 'm_gutter', w.x, y, w.z, 0, 1.3, 1.0); } } else b.cyl(M.metal, sx, Hh / 2, s * (dep / 2 + 0.12), 0.07, 0.07, Hh, 6, lin([0.42, 0.44, 0.45])); }
     // кондиционеры гроздьями
-    for (const s of [1, -1]) { const ncl = 4 + ((r() * 5) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
+    if (!PH) for (const s of [1, -1]) { const ncl = 4 + ((r() * 5) | 0); for (let q = 0; q < ncl; q++) { const c = (r() * (len / 3)) | 0, f0 = 1 + ((r() * (floors - 2)) | 0), nf = 1 + ((r() * 4) | 0), off = r() < 0.5 ? 0.5 : 2.5;
       for (let f = f0; f < Math.min(floors, f0 + nf); f++) if (r() < 0.8) { const x = -len / 2 + c * 3 + off, y = base + f * 2.8 + 0.45, zz = s * (dep / 2 + 0.2);
         if (PROTO.m_ac) { const w = b.world(x, y - 0.45, s * (dep / 2 + 0.19)); PUT(K, 'm_ac', w.x, y - 0.45, w.z, ry + (s > 0 ? 0 : Math.PI), 0.95);
           const c1 = b.world(x + 0.45, y, s * (dep / 2 + 0.05)), c2 = b.world(x + 0.55 + r() * 0.3, y + 1.3 + r() * 0.6, s * (dep / 2 + 0.05)), c3 = b.world(x + 0.5, y - 0.6, s * (dep / 2 + 0.05)); b.lines.push(c1, c2); if (r() < 0.5) b.lines.push(c1, c3); }
         else { b.box(M.paint, x, y, zz, 0.78, 0.52, 0.32, shade(0.8 + r() * 0.12)); b.box(M.paint, x - 0.1, y, zz + s * 0.165, 0.42, 0.42, 0.01, shade(0.22)); } } } }
     // спутниковые тарелки на балконах и у окон
-    for (const s of [1, -1]) for (let q = 0, nq = 2 + ((r() * 5) | 0); q < nq; q++) { const x = -len / 2 + (((r() * (len / 3)) | 0) * 3) + 1.5, y = base + (1 + ((r() * (floors - 1)) | 0)) * 2.8 + 1.2, zz = s * (dep / 2 + 0.25), a = (r() - 0.5) * 0.6;
+    if (!PH) for (const s of [1, -1]) for (let q = 0, nq = 2 + ((r() * 5) | 0); q < nq; q++) { const x = -len / 2 + (((r() * (len / 3)) | 0) * 3) + 1.5, y = base + (1 + ((r() * (floors - 1)) | 0)) * 2.8 + 1.2, zz = s * (dep / 2 + 0.25), a = (r() - 0.5) * 0.6;
       b.cyl(M.paint, x, y, zz, 0.3, 0.27, 0.05, 16, shade(0.82 + r() * 0.1), Math.PI / 2 - 0.25 * s, a); b.box(M.metal, x, y - 0.32, s * (dep / 2 + 0.1), 0.04, 0.4, 0.04, shade(0.4)); b.box(M.metal, x, y - 0.05, zz + s * 0.25, 0.03, 0.03, 0.45, shade(0.4)); b.box(M.paint, x, y - 0.05, zz + s * 0.47, 0.06, 0.06, 0.08, shade(0.3)); }
     // подъезды
     const AD = home && typeof home === 'object' ? home : null; const n = Math.max(1, Math.round(len / 12)); const street = AD ? AD.st : home ? DV_STREETS[0] : DV_STREETS[(r() * DV_STREETS.length) | 0]; let num = 1 + ((r() * 60) | 0); if (num === 13) num = 15; if (home) num = AD ? AD.n : 13;
