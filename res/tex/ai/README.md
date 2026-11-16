@@ -8,3 +8,8 @@
 - Three.js: `repeat = (длина_стены/6.2, высота/5.6)`, `wrapS/T = RepeatWrapping`.
 - `dom13_facade_raw.png` — исходник 1024×1024 без обрезки.
 - Превью повторения: `docs/worlds/dom13_facade_preview.jpg`.
+
+## dom13_facade_atlas.jpg — 4 варианта окон (используется в игре)
+- 4000×1808 px = 4 тайла по ширине × 2 по высоте (4 этажа), разные шторы/лампа/форточка/газета/старые рамы, кондиционеры в разных местах.
+- Размер в мире: **24.8 м × 11.2 м**. Roblox: `StudsPerTileU = 88.5`, `StudsPerTileV = 40.0`.
+- Исходники вариантов: `dom13_facade_raw_v1..3.png`. Превью: `docs/worlds/dom13_facade_atlas_preview.jpg`.

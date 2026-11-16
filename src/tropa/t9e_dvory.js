@@ -110,8 +110,8 @@ if (DVOR) {
     facade(41, { pair: true, wall: '#c9c4b8', plinth: '#7a7268', frame: '#f0efe8', base: 1.2, fh: 2.8, floors: 5, cw: 3, ww: 1.4, wh: 1.4, sill: 0.85, lit: 0.12, balc: true, brick: true }),
     facade(47, { sec: ['#dccfd6', '#e9e7e2', '#e5dac6'], wall: '#e6e3da', plinth: '#8c8a84', frame: '#f6f6f2', base: 1.6, fh: 2.8, floors: 9, cw: 3, ww: 1.5, wh: 1.45, sill: 0.85, lit: 0.1, balc: true, panel: true }),
   ];
-  // фасад дома 13 по фото автора (сгенерирован, бесшовный тайл: 2 этажа × пара окон = 6.2 × 5.6 м)
-  const DOM13 = PBR_ON ? (() => { const t = pbrT('tex/ai/dom13_facade_tile.jpg', true, 1 / 6.2, 1 / 5.6); t.offset.set(0, -(1.6 - 0.15) / 5.6); return std({ map: t, roughness: 0.88 }); })() : null;
+  // фасад дома 13 по фото автора (сгенерирован): атлас 4 варианта окон × 2 ряда = 24.8 × 11.2 м, бесшовный
+  const DOM13 = PBR_ON ? (() => { const t = pbrT('tex/ai/dom13_facade_atlas.jpg', true, 1 / 24.8, 1 / 11.2); t.offset.set(0, -(1.6 - 0.15) / 11.2); return std({ map: t, roughness: 0.88 }); })() : null;
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
