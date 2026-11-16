@@ -114,6 +114,10 @@ if (DVOR) {
   const DOM13 = PBR_ON ? (() => { const t = pbrT('tex/ai/dom13_facade_atlas.jpg', true, 1 / 24.8, 1 / 11.2); t.offset.set(0, -(1.6 - 0.15) / 11.2); return std({ map: t, roughness: 0.88 }); })() : null;
   // панельки по фото автора (сгенерированы): 3 цветные секции (белая, бежевая, сиренево-розовая) × 4 этажа = 36 × 11.2 м
   const PANELM = PBR_ON ? (() => { const t = pbrT('tex/ai/panel_atlas.jpg', true, 1 / 36, 1 / 11.2); t.offset.set(0, -1.6 / 11.2); return std({ map: t, roughness: 0.9 }); })() : null;
+  // сгенерированные материалы двора: дверь подъезда, побелка портала, цоколь, контейнер, профнастил
+  const AIM = (f, rx, ry, o = {}) => PBR_ON ? std(Object.assign({ map: pbrT('tex/ai/' + f, true, rx, ry), roughness: 0.9 }, o)) : null;
+  const ENTR = AIM('dv_entr_door.jpg', 1 / 1.1, 1 / 2.14, { roughness: 0.55, metalness: 0.25 }), WHW = AIM('dv_whitewash.jpg', 1 / 1.5, 1 / 1.5), PLINTH = AIM('dv_plinth.jpg', 1 / 1.6, 1 / 1.6),
+    CONT = AIM('dv_container.jpg', 1, 1, { roughness: 0.6, metalness: 0.35 }), PROFM = AIM('dv_prof.jpg', 1 / 2, 1 / 2, { roughness: 0.6, metalness: 0.3 });
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
@@ -166,6 +170,7 @@ if (DVOR) {
     const gr = g.createRadialGradient(64, 64, 30, 64, 64, 64); gr.addColorStop(0, 'rgba(120,70,40,0)'); gr.addColorStop(1, 'rgba(110,60,30,0.6)'); g.fillStyle = gr; g.beginPath(); g.arc(64, 64, 62, 0, 6.3); g.fill(); }));
   const D_TR = decM(mkCanvas(64, 256, (g) => { const r = rng(9); for (const x0 of [12, 52]) for (let y = 0; y < 256; y += 2) { g.fillStyle = `rgba(30,24,18,${0.25 + r() * 0.3})`; const w = 7 + r() * 3; g.fillRect(x0 - w / 2 + Math.sin(y * 0.05) * 1.5, y, w, 2); if (r() < 0.3) { g.fillStyle = 'rgba(20,16,12,0.5)'; g.fillRect(x0 - 3, y, 6, 1); } }
     const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.15, 'rgba(0,0,0,0)'); gr.addColorStop(0.85, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = gr; g.fillRect(0, 0, 64, 256); }));
+  if (PBR_ON) { D_MH.map = pbrT('tex/ai/dv_manhole.png', true); D_MH.needsUpdate = true; }
   const TORG = new THREE.TorusGeometry(0.3, 0.1, 8, 16);
   const DECG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const DEC = (b, mat, x, z, w, d, ry = 0, y = 0.02) => b.add(mat, DECG, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(w, 1, d)));
@@ -235,7 +240,7 @@ if (DVOR) {
     b.push(x + 1.5, 0, z + 2.5, 0); const RC = bright ? [lin([0.95, 0.12, 0.1]), lin([1.0, 0.8, 0.05]), lin([0.1, 0.4, 0.95]), lin([0.1, 0.75, 0.25])] : [peel(RED, r), peel(YEL, r), peel(BLU, r), peel(GRN, r)];
     for (const sx of [-0.9, 0.9]) for (const sz of [-0.9, 0.9]) b.box(M.plank, sx, 0.85, sz, 0.09, 1.7, 0.09, shade(0.6)); b.box(M.plank, 0, 0.4, -0.9, 1.8, 0.7, 0.04, peel(YEL, r)); b.box(M.plank, -0.9, 0.4, 0, 0.04, 0.7, 1.8, peel(GRN, r)); b.box(M.plank, 0.9, 0.4, 0, 0.04, 0.7, 1.8, peel(RED, r));
     for (let k = 0; k < 4; k++) { b.box(M.paint, -0.75 + k * 0.5, 2.05, -0.5, 0.5, 0.03, 1.25, RC[k % 4], 0.62); b.box(M.paint, -0.75 + k * 0.5, 2.05, 0.5, 0.5, 0.03, 1.25, RC[(k + 2) % 4], -0.62); } b.pop(); }
-  function trashSite(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); for (const s of [-1.6, 0, 1.6]) b.box(M.metal, s, 0.6, 0, 1.4, 1.15, 1.0, peel(GRN, r));
+  function trashSite(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); for (const s of [-1.6, 0, 1.6]) b.box(CONT || M.metal, s, 0.6, 0, 1.4, 1.15, 1.0, peel(GRN, r));
     b.box(M.prof, 0, 1.0, -0.8, 5.2, 2.0, 0.05, shade(0.75)); b.box(M.prof, -2.6, 1.0, 0, 0.05, 2.0, 1.6, shade(0.75)); b.box(M.prof, 2.6, 1.0, 0, 0.05, 2.0, 1.6, shade(0.75));
     if (PROTO.m_bag) { for (let k = 0; k < 5; k++) { const w = b.world(-2.2 + r() * 4.4, 0, 0.75 + r() * 0.8); PUT(K, r() < 0.6 ? 'm_bag' : 'm_box', w.x, 0, w.z, r() * 6, 0.9 + r() * 0.4); } } else for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
@@ -245,7 +250,7 @@ if (DVOR) {
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? PHM : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
-    if (PH) for (const sd of [1, -1]) b.box(M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(0.52));
+    if (PH) for (const sd of [1, -1]) b.box(PLINTH || M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(PLINTH ? 1 : 0.52));
     for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }
     b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
     { const o = fac.userData.o; if (o && PROTO.m_win && !PH) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
@@ -272,8 +277,8 @@ if (DVOR) {
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
       // портал: белёные пилоны, дверь утоплена
       const WH = lin([0.86, 0.85, 0.82]), BL = lin([0.24, 0.34, 0.48]), YG = lin([0.85, 0.72, 0.25]);
-      for (const sx of [-0.85, 0.85]) b.box(M.paint, lx + sx, 1.3, fz + 0.18, 0.5, 2.6, 0.36, WH); b.box(M.paint, lx, 2.45, fz + 0.18, 1.2, 0.3, 0.36, WH);
-      b.box(M.metal, lx, 1.07, fz + 0.04, 1.1, 2.14, 0.06, BL); b.box(M.metal, lx + 0.4, 1.0, fz + 0.08, 0.04, 0.2, 0.04, PAINT.galv); b.box(M.metal, lx + 0.72, 1.35, fz + 0.37, 0.14, 0.24, 0.03, PAINT.galv);
+      for (const sx of [-0.85, 0.85]) b.box(WHW || M.paint, lx + sx, 1.3, fz + 0.18, 0.5, 2.6, 0.36, WH); b.box(WHW || M.paint, lx, 2.45, fz + 0.18, 1.2, 0.3, 0.36, WH);
+      b.box(ENTR || M.metal, lx, 1.07, fz + 0.04, 1.1, 2.14, 0.06, BL); if (!ENTR) b.box(M.metal, lx + 0.4, 1.0, fz + 0.08, 0.04, 0.2, 0.04, PAINT.galv); b.box(M.metal, lx + 0.72, 1.35, fz + 0.37, 0.14, 0.24, 0.03, PAINT.galv);
       if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.08));
       // бетонный козырёк, ступени, перила
       b.box(M.conc, lx, 2.68, fz + 0.85, 2.6, 0.12, 1.7, shade(0.75)); b.box(M.paint, lx, 2.75, fz + 1.69, 2.6, 0.14, 0.04, WH);
@@ -331,7 +336,7 @@ if (DVOR) {
     b.box(paverMat, 0, 0.03, D / 2 + 5.7, L - 4, 0.06, 10); const lawn = new THREE.CylinderGeometry(1, 1, 0.08, 24); b.add(M.paint, lawn, new THREE.Matrix4().compose(new V3(-6, 0.06, D / 2 + 7.5), new THREE.Quaternion(), new V3(6.5, 1, 2.6)), lin([0.3, 0.42, 0.2]));
     for (const [px, pc] of [[10, lin([0.55, 0.22, 0.2])], [-16, lin([0.42, 0.24, 0.18])], [3, lin([0.6, 0.6, 0.62])]]) { const pz = D / 2 + 6.5 + r() * 1.5; for (const dx of [-2, 2]) for (const dz of [-1.5, 1.5]) b.box(M.metal, px + dx, 1.2, pz + dz, 0.08, 2.4, 0.08, shade(0.3)); b.box(M.prof, px, 2.45, pz, 4.6, 0.06, 3.6, pc, 0.06); b.collide(px, pz, 2.3, 1.8); }
     b.pop(); }
-  function profFence(b, x0, x1, z, gap) { for (let x = x0; x < x1 - 0.1; x += 2.5) { if (gap && Math.abs(x + 1.25 - gap) < 2) continue; b.box(M.prof, x + 1.25, 1.0, z, 2.45, 2.0, 0.04, lin([0.16, 0.36, 0.26])); b.box(M.metal, x, 1.05, z, 0.06, 2.1, 0.06, shade(0.25)); } }
+  function profFence(b, x0, x1, z, gap) { for (let x = x0; x < x1 - 0.1; x += 2.5) { if (gap && Math.abs(x + 1.25 - gap) < 2) continue; b.box(PROFM || M.prof, x + 1.25, 1.0, z, 2.45, 2.0, 0.04, lin([0.16, 0.36, 0.26])); b.box(M.metal, x, 1.05, z, 0.06, 2.1, 0.06, shade(0.25)); } }
   function fenceRun(b, x0, x1, z, c) { for (let x = x0; x < x1 - 0.1; x += 2.5) { b.box(M.metal, x, 0.8, z, 0.05, 1.6, 0.05, c); b.box(M.metal, x + 1.25, 1.5, z, 2.5, 0.04, 0.04, c); b.box(M.metal, x + 1.25, 0.3, z, 2.5, 0.04, 0.04, c); for (let k = 1; k < 8; k++) b.box(M.metal, x + 0.31 * k, 0.9, z, 0.02, 1.2, 0.02, c); } }
   function school(K, cx, cz, ry, num) { const end = schoolBody(K, cx, cz, ry, SCHOOL, `ШКОЛА № ${num}`, 36, 14), { b } = K; fenceRun(b, -21, 21, -12, GRN); fenceRun(b, -21, -3, 15, GRN); fenceRun(b, 3, 21, 15, GRN); b.collide(-12, 15, 9, 0.1); b.collide(12, 15, 9, 0.1); b.collide(0, -12, 21, 0.1); end(); }
   // новая школа № 121: светлые панели с цветными вставками и резиновый стадион
@@ -382,6 +387,7 @@ if (DVOR) {
     const nmap = mkCanvas(W, H, (g) => { g.fillStyle = 'rgb(128,128,255)'; g.fillRect(0, 0, W, H);
       for (let y = 16; y < H - 16; y += cs) for (let x = 16; x < W - 16; x += cs) { const c = x + cs / 2, d = y + cs / 2, h = cs / 2 - 3;
         for (const [pts, col] of [[[[c - h, d - h], [c + h, d - h], [c, d]], 'rgb(128,200,220)'], [[[c - h, d - h], [c, d], [c - h, d + h]], 'rgb(56,128,220)'], [[[c + h, d - h], [c + h, d + h], [c, d]], 'rgb(200,128,220)'], [[[c - h, d + h], [c, d], [c + h, d + h]], 'rgb(128,56,220)']]) { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.lineTo(pts[2][0], pts[2][1]); g.fill(); } } });
+    if (PBR_ON) return std({ map: pbrT('tex/ai/dv_po2.jpg', true, 1 / 4, 1 / 2.5), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.95 });
     return std({ color: 0xd2cfc8, map: texFrom(cmap, true), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.95 }); })();
   function concFence(b, x0, x1, z) { for (let x = x0; x < x1 - 0.5; x += 4.05) { if (dvRoadD(x + 2, z) < 7.5 || ihash(Math.round(x), z | 0, 31) < 0.04) continue; b.collide(x + 2, z, 2.05, 0.12); b.add(PO2, new THREE.BoxGeometry(4, 2.5, 0.14), new THREE.Matrix4().makeTranslation(x + 2.0, 1.32, z)); b.box(M.conc, x, 1.35, z, 0.22, 2.7, 0.24, shade(0.62)); } }
   function rails(K) { const { b, x0, x1 } = K; for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) { b.box(M.conc, (x0 + x1) / 2, 0.1, zt, x1 - x0, 0.2, 3.4, lin([0.3, 0.28, 0.26]));

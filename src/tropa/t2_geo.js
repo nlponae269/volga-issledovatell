@@ -160,7 +160,7 @@ function BIRCH() { if (_birch) return _birch; const r = rng(77);
     for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(20,18,16,${0.5 + r() * 0.5})`; const x = r() * w, y = r() * h, L = 6 + r() * 26; g.fillRect(x, y, L, 1.5 + r() * 2.5); }
     for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(30,26,22,0.85)'; g.beginPath(); const x = r() * w, y = r() * h; g.ellipse(x, y, 4 + r() * 10, 2 + r() * 5, 0, 0, 6.3); g.fill(); }
     for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '160,150,135' : '255,255,250'},0.25)`; g.fillRect(r() * w, r() * h, 2, 1); } }));
-  _birch = std({ map: t, vertexColors: true, roughness: 0.8 }); return _birch; }
+  _birch = std({ map: (PBR_ON && DVOR) ? pbrT('tex/ai/bark_birch.jpg', true, 1 / 0.5, 1 / 0.6) : t, vertexColors: true, roughness: 0.8 }); return _birch; }
 // Прототипы (строятся один раз, порциями, чтобы не подвешивать загрузку)
 const PROTO = {};
 const appleCol = (r) => { const t = r(); return t < 0.6 ? lin([0.62 + r() * 0.15, 0.12 + r() * 0.1, 0.07]) : t < 0.85 ? lin([0.75, 0.55, 0.15]) : lin([0.55, 0.62, 0.2]); };

@@ -54,10 +54,14 @@ function loadHDR(file) {
 }
 if (PBR_ON) {
   if (DVOR) {
-    loadHDR('hdri/sky.hdr'); M.bark.color.setRGB(0.72, 0.74, 0.76);
+    loadHDR('hdri/sky.hdr'); TX.yard = pbrT('tex/ai/ground_mud.jpg', true);   // земля двора, сгенерирована по фото автора M.bark.color.setRGB(0.72, 0.74, 0.76);
     // земля: асфальт, сухая земля, пожухлая трава — настоящие сканы
     TX.asph = pbrT('tex/asphalt_02_diff.jpg', true); TX.sand = pbrT('tex/brown_mud_dry_diff.jpg', true); TX.grass = pbrT('tex/withered_grass_diff.jpg', true); TX.leavesN = pbrT('tex/brown_mud_dry_nor.jpg', false);
     pbrApply(M.conc, 'chipped_concrete', 2.5); pbrApply(M.brick, 'brick_wall_003', 1.6);
+    // сгенерированные текстуры двора (по фото автора / Nano Banana Pro)
+    TX.asph = pbrT('tex/ai/dv_asph.jpg', true); TX.walk = pbrT('tex/ai/dv_walk.jpg', true);
+    M.conc.map = pbrT('tex/ai/dv_conc.jpg', true, 1 / 2.5); M.conc.needsUpdate = true;
+    M.bark.map = pbrT('tex/ai/bark_poplar.jpg', true, 1 / 0.5, 1 / 0.6); M.bark.color.setRGB(1, 1, 1); M.bark.needsUpdate = true;
     PBR.brick = { map: pbrT('tex/brick_wall_003_diff.jpg', true), nor: pbrT('tex/brick_wall_003_nor.jpg', false), arm: pbrT('tex/brick_wall_003_arm.jpg', false) };
     for (const [n, k, o] of [['exterior_aircon_unit', 'm_ac'], ['security_light', 'm_slight', { emissive: 0xfff2d8 }], ['metal_trash_can', 'm_can', { col: true }], ['trashbag', 'm_bag'], ['old_tyre', 'm_tyre'],
       ['cardboard_box_01', 'm_box'], ['plastic_crate_01', 'm_crate'], ['utility_box_02', 'm_ubox', { col: true }], ['concrete_road_barrier', 'm_barrier', { col: true }], ['covered_car', 'm_ccar', { col: true }],

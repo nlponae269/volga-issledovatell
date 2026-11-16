@@ -36,14 +36,14 @@ scene.add(sun, sun.target);
 const GS = MOBILE ? 180 : 260, GSEG = MOBILE ? 90 : 130;
 const groundMat = std({ map: TX.grass, normalMap: TX.leavesN, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 1 });
 groundMat.onBeforeCompile = (sh) => {
-  Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tNoise: { value: TX.noise }, tRefl: REFL.tex, uRes: REFL.res, uReflOn: REFL.on, uTimeG: SHARED.uTime });
+  Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tYard: { value: TX.yard || TX.sand }, tWalk: { value: TX.walk || TX.asph }, tNoise: { value: TX.noise }, tRefl: REFL.tex, uRes: REFL.res, uReflOn: REFL.on, uTimeG: SHARED.uTime });
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW;\n' + GLSL_WORLD)
     .replace('#include <beginnormal_vertex>', `
        vec3 objectNormal = normalize(vec3(h0-groundH(wp0.xz+vec2(0.5,0.0)), 0.5, h0-groundH(wp0.xz+vec2(0.0,0.5))));`)
     .replace('#include <begin_vertex>', 'vec3 transformed = vec3(position.x, h0, position.z); vW = vec3(wp0.x, h0, wp0.z);')
     .replace('#include <uv_vertex>', '#include <uv_vertex>\n vec3 wp0 = (modelMatrix*vec4(position,1.0)).xyz; float h0 = groundH(wp0.xz); vMapUv = wp0.xz; vNormalMapUv = wp0.xz/2.0;');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-    varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tNoise, tRefl; uniform vec2 uRes; uniform float uReflOn, uTimeG; float gRough = 1.0; float gPath = 0.0; vec3 dvRefl = vec3(0.0); float dvK = 0.0;\n` + GLSL_WORLD)
+    varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tYard, tWalk, tNoise, tRefl; uniform vec2 uRes; uniform float uReflOn, uTimeG; float gRough = 1.0; float gPath = 0.0; vec3 dvRefl = vec3(0.0); float dvK = 0.0;\n` + GLSL_WORLD)
     .replace('#include <map_fragment>', `
       vec2 wp = vW.xz;
       vec4 nA = texture2D(tNoise, wp*0.0105), nB = texture2D(tNoise, wp*0.043+0.31), nC = texture2D(tNoise, wp*0.17+0.77);
@@ -93,7 +93,7 @@ groundMat.onBeforeCompile = (sh) => {
         float road = 1.0 - smoothstep(3.95, 4.05, rd);
         float curb = (1.0 - smoothstep(4.0, 4.3, rd)) * (1.0 - road);
         float walk = (1.0 - smoothstep(6.3, 6.6, rd + nB.r*0.4)) * (1.0 - road) * (1.0 - curb);
-        vec3 as = texture2D(tAsph, wp/3.2).rgb * mix(0.5, 0.74, nB.g);                                   // мокрый асфальт
+        vec3 as = texture2D(tAsph, wp/4.0).rgb * mix(0.62, 0.82, nB.g);                                   // мокрый асфальт (фото-текстура)
         float mkx = (1.0 - smoothstep(0.06, 0.09, ax)) * step(fract(wp.y/6.0), 0.5) * step(4.5, az);
         float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
         float mka = step(av, 10.0) * ((1.0 - smoothstep(0.06, 0.09, abs(av - 0.25))) + (1.0 - smoothstep(0.06, 0.09, abs(av - 5.0))) * step(fract(wp.y / 9.0), 0.45));
@@ -108,17 +108,17 @@ groundMat.onBeforeCompile = (sh) => {
         float ck1 = abs(texture2D(tNoise, wp*0.09 + 0.17).r - 0.5), ck2 = abs(texture2D(tNoise, wp*0.23 + 0.61).g - 0.5);
         float crk = (1.0 - smoothstep(0.0, 0.012, ck1)) * smoothstep(0.45, 0.7, texture2D(tNoise, wp*0.035).b + smoothstep(2.5, 4.0, rd)*0.3) + (1.0 - smoothstep(0.0, 0.008, ck2)) * smoothstep(0.55, 0.75, texture2D(tNoise, wp*0.05 + 0.3).r) * 0.7;
         as *= 1.0 - clamp(crk, 0.0, 1.0) * (1.0 - pIn) * 0.55;
-        vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
+        vec3 wk = texture2D(tWalk, wp/3.0 + 0.37).rgb * mix(0.72, 0.92, nC.g);                           // старый тротуар (фото-текстура)
         float wcrk = 1.0 - smoothstep(0.0, 0.016, abs(texture2D(tNoise, wp*0.13 + 0.4).g - 0.5)); wk = mix(wk * (1.0 - wcrk*0.5), vec3(0.22,0.24,0.12), wcrk * smoothstep(0.5, 0.7, nB.r) * 0.8);   // в трещинах тротуара — мох и трава
         wk = mix(wk, texture2D(tSand, wp/2.4).rgb * vec3(1.35,1.28,1.18), smoothstep(0.55, 0.8, texture2D(tNoise, wp*0.07 + 0.9).r) * 0.6);                                                                                      // грязь натащена на тротуар
         // двор как на фото: светлая сухая грязь, тёмные сырые пятна, вытоптанные полосы, трава клочками
         float gpn = texture2D(tNoise, wp*0.031 + 0.13).g*0.7 + texture2D(tNoise, wp*0.11 + 0.71).b*0.3;
         float bare = 1.0 - smoothstep(0.52, 0.68, gpn);
-        vec3 m1 = texture2D(tSand, wp/2.4).rgb, m2 = texture2D(tSand, wp/6.7 + 0.41).rgb, mt = mix(m1, m2, 0.4);
-        vec3 mud = mix(vec3(dot(mt, vec3(0.3,0.5,0.2))), mt, 0.35) * vec3(1.5,1.43,1.32) * (0.8 + 0.32*nC.r);
+        vec3 m1 = texture2D(tYard, wp/3.0).rgb, m2 = texture2D(tYard, wp/7.7 + 0.41).rgb, mt = mix(m1, m2, 0.3);
+        vec3 mud = mix(vec3(dot(mt, vec3(0.33))), mt, 1.25) * 0.62 * (0.86 + 0.24*nC.r);                                                       // фото-текстура земли двора
         float damp = smoothstep(0.42, 0.74, texture2D(tNoise, wp*0.045 + 0.77).g*0.65 + texture2D(tNoise, wp*0.16).r*0.35);
         float strk = smoothstep(0.58, 0.82, texture2D(tNoise, vec2(wp.x*0.33 + wp.y*0.05, wp.y*0.045) + 0.2).r);
-        mud = mix(mud, mud*vec3(0.5,0.47,0.44), clamp(damp*0.8 + strk*0.35, 0.0, 0.85));
+        mud = mix(mud, mud*vec3(0.55,0.52,0.49), clamp(damp*0.55 + strk*0.25, 0.0, 0.7));
         mud = mix(mud, mud*vec3(1.25,1.24,1.22), smoothstep(0.7, 0.95, nC.g)*0.5);
         vec3 grs = mix(vec3(dot(col, vec3(0.333))), col, 0.5) * vec3(0.62,0.66,0.42);
         vec3 yard = mix(grs, mud, bare);

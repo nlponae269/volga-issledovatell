@@ -59,7 +59,19 @@ if (PODEZD && PBR.wallN) {
       .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(1.0), texture2D(tDet, vNormalMapUv).rgb * 1.55, 0.6);'); }; });
   // стены подъезда по фото-текстурам (сгенерированы): бирюзовая масляная краска + побелка, надписи; два варианта чередуются по этажам
   if (PODEZD) { const mk = (f) => { const m = PWALL[0].clone(); m.map = pbrT(f, true, 1 / 2.8, 1 / 2.8); m.onBeforeCompile = () => {}; m.needsUpdate = true; return m; };
-    PWALL.photo = [mk('tex/ai/podezd_wall_1.jpg'), mk('tex/ai/podezd_wall_2.jpg')]; }
+    PWALL.photo = [mk('tex/ai/podezd_wall_1.jpg'), mk('tex/ai/podezd_wall_2.jpg'), mk('tex/ai/podezd_wall_3.jpg'), mk('tex/ai/podezd_wall_4.jpg')];
+    // сгенерированные текстуры: плитка площадки, ступени из мраморной крошки, потолок с копотью, двери, лифт, почтовые ящики
+    const T = (f, rx = 1, ry = rx) => pbrT('tex/ai/' + f, true, rx, ry);
+    Object.assign(MP.tile, { map: T('pod_floor.jpg', 1 / 1.2), normalMap: null, roughnessMap: null, metalnessMap: null, roughness: 0.4, metalness: 0 }); MP.tile.needsUpdate = true;
+    M.conc.map = T('pod_steps.jpg', 1); M.conc.needsUpdate = true;
+    MP.ceil = std({ map: T('pod_ceil.jpg', 1 / 2), roughness: 0.95 });
+    MP.leather.map = T('door_derm.jpg', 1 / 0.9, 1 / 2.04); MP.leather.needsUpdate = true;
+    MP.metalDoor = std({ map: T('door_metal.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.45, metalness: 0.35, vertexColors: true });
+    MP.woodDoor = std({ map: T('door_wood.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.7, vertexColors: true });
+    Object.assign(MPL.door, { map: T('lift_door.jpg'), metalness: 0.35, roughness: 0.5 }); MPL.door.color.set(0xffffff); MPL.door.needsUpdate = true;
+    MPL.wood.map = T('lift_wall.jpg', 1 / 1.3, 1 / 2.4); MPL.wood.needsUpdate = true;
+    MPL.floor = std({ map: T('lift_floor.jpg'), roughness: 0.6 });
+    MP.mail = std({ map: T('mailboxes.jpg'), roughness: 0.6 }); }
 }
 const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
@@ -71,7 +83,7 @@ function buildFloor(n) {
   b.push(0, y0, 0);
   // площадка этажа (плитка) и плита потолка над ней
   b.box(MP.tile, (LX0 + LX1) / 2, -0.06, -LAND / 2, LX1 - LX0, 0.12, LAND);
-  b.box(MP.conc, (LX0 + LX1) / 2, FH - 0.2, -LAND / 2, LX1 - LX0, 0.16, LAND, shade(0.95));
+  b.box(MP.ceil || MP.conc, (LX0 + LX1) / 2, FH - 0.2, -LAND / 2, LX1 - LX0, 0.16, LAND, shade(0.95));
   // межэтажная площадка
   b.box(MP.conc, PW / 2, FH / 2 - 0.1, PL + MIDD / 2, PW, 0.2, MIDD, shade(0.85));
   // марши: ступени
@@ -109,13 +121,14 @@ function buildFloor(n) {
   b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
   // номер этажа
   const num = new THREE.Mesh(new THREE.PlaneGeometry(String(FD).length > 3 ? 0.22 * String(FD).length : 0.45, 0.45), floorNumMat(FD)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
+  if (FD === 1 && MP.mail) { const mb = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.6), MP.mail); mb.position.set(LX0 / 2, y0 + 1.05, -0.006); mb.rotation.y = Math.PI; group.add(mb); }   // почтовые ящики на первом этаже
   // квартирные двери (дерматин), номера
   const pk = r() < 0.35 ? (r() * 4) | 0 : -1;
   const doors = [[0.25, -LAND, 0], [PW - 0.25 - 0.9, -LAND, 0], [LX0, -LAND / 2 - 0.45, 1], [LX1, -LAND / 2 + 0.45, -1]];
   doors.forEach(([dx, dz, side], k) => {
-    const dc = shade(0.75 + r() * 0.4), metal = r() < 0.3;
-    if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
-    else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
+    const dc = shade(0.75 + r() * 0.4), metal = r() < 0.3, wood = !metal && MP.woodDoor && r() < 0.3, DM = metal ? (MP.metalDoor || M.metal) : wood ? MP.woodDoor : MP.leather, DCc = metal ? (MP.metalDoor ? shade(1) : lin([0.35, 0.22, 0.15])) : dc;
+    if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(DM, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, DCc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
+    else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(DM, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, DCc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
     const ax = side === 0 ? dx + 0.45 : dx + side * 0.3, az = side === 0 ? dz + 0.3 : dz;
     const apt = HOMEPOD ? 36 + (FD - 1) * 4 + k + 1 : FD * 4 + k + 1, mine = HOMEPOD && apt === 47 && F === 3;
     doorsLive.push({ knock: true, party: k === pk && !mine, home: mine, label: mine ? 'E — домой, кв. 47' : undefined, x: ax, z: az, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
@@ -208,7 +221,7 @@ const MPL = {
 function liftBuild(b, group, y0, FD, r) {
   // проём, рама, кабина за ним
   for (const [x, y, sx, sy] of [[EX0 + 0.03, 1.07, 0.08, 2.14], [EX1 - 0.03, 1.07, 0.08, 2.14], [EXC, 2.14, EX1 - EX0, 0.08]]) b.box(M.metal, x, y, -LAND + 0.01, sx, sy, 0.04, lin([0.35, 0.33, 0.3]));
-  b.box(M.paint, EXC, -0.05, (EZ1 - LAND) / 2, EX1 - EX0, 0.1, -LAND - EZ1, shade(0.25));
+  b.box(MPL.floor || M.paint, EXC, -0.05, (EZ1 - LAND) / 2, EX1 - EX0, 0.1, -LAND - EZ1, shade(MPL.floor ? 1 : 0.25));
   b.box(MPL.wood, EX0 - 0.02, 1.2, (EZ1 - LAND) / 2 - 0.06, 0.04, 2.4, -LAND - EZ1 - 0.12); b.box(MPL.wood, EX1 + 0.02, 1.2, (EZ1 - LAND) / 2 - 0.06, 0.04, 2.4, -LAND - EZ1 - 0.12); b.box(MPL.wood, EXC, 1.2, EZ1, EX1 - EX0, 2.4, 0.04);
   b.box(M.paint, EXC, 2.38, (EZ1 - LAND) / 2, EX1 - EX0, 0.04, -LAND - EZ1, shade(0.7)); b.box(MPL.lamp, EXC, 2.35, (EZ1 - LAND) / 2, 0.5, 0.02, 0.3);
   b.box(MPL.panel, EX1 - 0.03, 1.35, -LAND - 0.45, 0.04, 0.5, 0.22); b.box(MPL.disp, EX1 - 0.055, 1.52, -LAND - 0.45, 0.01, 0.08, 0.16);
