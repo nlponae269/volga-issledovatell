@@ -73,7 +73,8 @@ if (PODEZD && PBR.wallN) {
     MP.metalGrey = std({ map: T('door_metal_grey.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.45, metalness: 0.35, vertexColors: true });
     MP.tile2 = MP.tile.clone(); MP.tile2.map = T('pod_floor2.jpg', 1 / 1.2);
     MP.rad = std({ map: T('pod_radiator.jpg', 1 / 1.0, 1 / 0.55), roughness: 0.5 });
-    MP.board = std({ map: T('pod_notices.jpg'), roughness: 0.9 }); }
+    MP.board = std({ map: T('pod_notices.jpg'), roughness: 0.9 });
+    MP.shield = std({ map: T('pod_shchitok.jpg'), roughness: 0.6, metalness: 0.2 }); MP.chute = std({ map: T('pod_chute.jpg'), roughness: 0.6, metalness: 0.2 }); }
 }
 const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
@@ -123,6 +124,8 @@ function buildFloor(n) {
   b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
   // номер этажа
   const num = new THREE.Mesh(new THREE.PlaneGeometry(String(FD).length > 3 ? 0.22 * String(FD).length : 0.45, 0.45), floorNumMat(FD)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
+  if (MP.shield) { const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.66), MP.shield); sh.position.set(LX1 - 0.012, y0 + 1.5, -1.45); sh.rotation.y = -Math.PI / 2; group.add(sh); }
+  if (MP.chute && (FD % 2)) { const ch = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), MP.chute); ch.position.set(LX0 + 0.012, y0 + 0.9, -1.45); ch.rotation.y = Math.PI / 2; group.add(ch); }
   if (MP.board) { const bd = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), MP.board); bd.position.set(1.25, y0 + 1.55, -LAND + 0.012); group.add(bd); }   // доска объявлений
   if (FD === 1 && MP.mail) { const mb = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.6), MP.mail); mb.position.set(LX0 / 2, y0 + 1.05, -0.006); mb.rotation.y = Math.PI; group.add(mb); }   // почтовые ящики на первом этаже
   // квартирные двери (дерматин), номера

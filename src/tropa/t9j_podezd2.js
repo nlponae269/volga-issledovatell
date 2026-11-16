@@ -11,8 +11,16 @@ if (PODEZD) {
   function stepsAbove() { if (!AC) return; const p = pan(), n = 6 + ((Math.random() * 6) | 0); for (let k = 0; k < n; k++) setTimeout(() => burst(0.07, 'lowpass', 260 + Math.random() * 120, 1.2, 0.09, p), k * (430 + Math.random() * 80)); }
   function glasses() { if (!AC) return; const p = pan(); [1320, 1760, 1480].forEach((f, i) => setTimeout(() => blip([f * (0.98 + Math.random() * 0.04)], 0.35, 'sine', 0.01), i * 120)); for (let k = 0; k < 5; k++) setTimeout(() => burst(0.15, 'bandpass', 420 + Math.random() * 200, 4, 0.03, p), 600 + k * 130); }
   function cough() { if (!AC) return; const p = pan(); burst(0.22, 'bandpass', 700, 2, 0.08, p); setTimeout(() => burst(0.18, 'bandpass', 620, 2, 0.06, p), 260); }
+
+  // пылинки в воздухе вокруг игрока: видны в свете лампочки
+  const dn = MOBILE ? 60 : 120, dp = new Float32Array(dn * 3), dv = new Float32Array(dn * 3);
+  for (let i = 0; i < dn; i++) { dp[i * 3] = (Math.random() - 0.5) * 7; dp[i * 3 + 1] = (Math.random() - 0.3) * 3; dp[i * 3 + 2] = (Math.random() - 0.5) * 7; dv[i * 3] = (Math.random() - 0.5) * 0.04; dv[i * 3 + 1] = (Math.random() - 0.5) * 0.03; dv[i * 3 + 2] = (Math.random() - 0.5) * 0.04; }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(dn * 3), 3));
+  const dustTex = texFrom(mkCanvas(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,240,210,1)'); gr.addColorStop(1, 'rgba(255,240,210,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); }));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ size: 0.011, map: dustTex, color: 0xffeeb8, transparent: true, opacity: 0.55, depthWrite: false })); dust.frustumCulled = false; scene.add(dust);
   const prev = WORLD_UPDATE;
   WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return;
+    { const a = dg.attributes.position.array; for (let i = 0; i < dn; i++) { for (let k = 0; k < 3; k++) { dp[i * 3 + k] += dv[i * 3 + k] * dt * 60 * 0.016 * 4 + Math.sin(clock * 0.5 + i) * 0.0006; } if (Math.abs(dp[i * 3]) > 3.5) dp[i * 3] *= -0.95; if (dp[i * 3 + 1] > 2.2 || dp[i * 3 + 1] < -1.2) dp[i * 3 + 1] *= -0.9; if (Math.abs(dp[i * 3 + 2]) > 3.5) dp[i * 3 + 2] *= -0.95; a[i * 3] = P.x + dp[i * 3]; a[i * 3 + 1] = P.y + 1.4 + dp[i * 3 + 1]; a[i * 3 + 2] = P.z + dp[i * 3 + 2]; } dg.attributes.position.needsUpdate = true; }
     fwT -= dt; if (fwT > 0) { fw.intensity = fwBase * Math.max(0, fwT / 0.9) * (0.7 + 0.3 * Math.sin(clock * 40)); } else fw.intensity = 0;
     const fy = Math.floor((P.y + 0.3) / FH) * FH + FH / 2 + 1.5; fw.position.set(PW / 2, fy, PL + MIDD + 0.4);
     for (const k in lastSnd) { lastSnd[k] -= dt; if (lastSnd[k] > 0) continue;

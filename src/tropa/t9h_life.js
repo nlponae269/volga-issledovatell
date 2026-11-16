@@ -119,6 +119,7 @@ if (DVOR) {
 
   // ---------- 10. ЗВУКИ: радио из окна, трамвай, порывы ветра; гаражи ----------
   if (PBR_ON) { window.__garDoor = std({ map: T('dv_garage_door.jpg', 1 / 2.9, 1 / 2.15), roughness: 0.7, metalness: 0.3 }); window.__garWall = std({ map: T('dv_graffiti.jpg', 1 / 3, 1 / 3), roughness: 0.9 }); }
+  if (PBR_ON && typeof mosaicMat !== 'undefined') { mosaicMat.map = T('dv_mosaic.jpg'); mosaicMat.needsUpdate = true; }
   let radioT = 25, tramT = 40, windT = 6;
   function radio() { if (!AC) return; let best = null, bd = 60; for (const list of colliders.values()) for (const c of list) if (c.hx > 12 || c.hz > 12) { const d = Math.hypot(c.x - P.x, c.z - P.z); if (d < bd) { bd = d; best = c; } } if (!best) return;
     const p = pan(best.x, best.z), v = 0.022 * Math.max(0.2, 1 - bd / 60), t0 = AC.currentTime, mel = [57, 60, 64, 62, 60, 59, 57, 52, 57, 60, 64, 65, 64, 62, 60, 59], dur = 0.42;
