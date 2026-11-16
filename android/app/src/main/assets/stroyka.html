@@ -1922,7 +1922,8 @@ if (PODEZD && PBR.wallN) {
     MP.metalGrey = std({ map: T('door_metal_grey.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.45, metalness: 0.35, vertexColors: true });
     MP.tile2 = MP.tile.clone(); MP.tile2.map = T('pod_floor2.jpg', 1 / 1.2);
     MP.rad = std({ map: T('pod_radiator.jpg', 1 / 1.0, 1 / 0.55), roughness: 0.5 });
-    MP.board = std({ map: T('pod_notices.jpg'), roughness: 0.9 }); }
+    MP.board = std({ map: T('pod_notices.jpg'), roughness: 0.9 });
+    MP.shield = std({ map: T('pod_shchitok.jpg'), roughness: 0.6, metalness: 0.2 }); MP.chute = std({ map: T('pod_chute.jpg'), roughness: 0.6, metalness: 0.2 }); }
 }
 const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
@@ -1972,6 +1973,8 @@ function buildFloor(n) {
   b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
   // номер этажа
   const num = new THREE.Mesh(new THREE.PlaneGeometry(String(FD).length > 3 ? 0.22 * String(FD).length : 0.45, 0.45), floorNumMat(FD)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
+  if (MP.shield) { const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.66), MP.shield); sh.position.set(LX1 - 0.012, y0 + 1.5, -1.45); sh.rotation.y = -Math.PI / 2; group.add(sh); }
+  if (MP.chute && (FD % 2)) { const ch = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), MP.chute); ch.position.set(LX0 + 0.012, y0 + 0.9, -1.45); ch.rotation.y = Math.PI / 2; group.add(ch); }
   if (MP.board) { const bd = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), MP.board); bd.position.set(1.25, y0 + 1.55, -LAND + 0.012); group.add(bd); }   // доска объявлений
   if (FD === 1 && MP.mail) { const mb = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.6), MP.mail); mb.position.set(LX0 / 2, y0 + 1.05, -0.006); mb.rotation.y = Math.PI; group.add(mb); }   // почтовые ящики на первом этаже
   // квартирные двери (дерматин), номера
@@ -3711,6 +3714,7 @@ if (DVOR) {
 
   // ---------- 10. ЗВУКИ: радио из окна, трамвай, порывы ветра; гаражи ----------
   if (PBR_ON) { window.__garDoor = std({ map: T('dv_garage_door.jpg', 1 / 2.9, 1 / 2.15), roughness: 0.7, metalness: 0.3 }); window.__garWall = std({ map: T('dv_graffiti.jpg', 1 / 3, 1 / 3), roughness: 0.9 }); }
+  if (PBR_ON && typeof mosaicMat !== 'undefined') { mosaicMat.map = T('dv_mosaic.jpg'); mosaicMat.needsUpdate = true; }
   let radioT = 25, tramT = 40, windT = 6;
   function radio() { if (!AC) return; let best = null, bd = 60; for (const list of colliders.values()) for (const c of list) if (c.hx > 12 || c.hz > 12) { const d = Math.hypot(c.x - P.x, c.z - P.z); if (d < bd) { bd = d; best = c; } } if (!best) return;
     const p = pan(best.x, best.z), v = 0.022 * Math.max(0.2, 1 - bd / 60), t0 = AC.currentTime, mel = [57, 60, 64, 62, 60, 59, 57, 52, 57, 60, 64, 65, 64, 62, 60, 59], dur = 0.42;
@@ -3811,6 +3815,25 @@ if (DVOR) {
   };
 }
 
+// ===== цикл 7: небо дрейфует, стаи птиц пролетают и перекликаются =====
+if (DVOR) {
+  const birdG = new THREE.BufferGeometry(), NB = 18, bp = new Float32Array(NB * 3).fill(-9999); birdG.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+  const dot = texFrom(mkCanvas(32, 32, (g) => { g.fillStyle = '#000'; g.beginPath(); g.moveTo(2, 14); g.quadraticCurveTo(16, 4, 30, 14); g.quadraticCurveTo(16, 10, 2, 14); g.fill(); }));
+  const birds = new THREE.Points(birdG, new THREE.PointsMaterial({ size: 1.9, map: dot, color: ALT ? 0x300000 : 0x1c1c20, transparent: true, depthWrite: false, alphaTest: 0.1 })); birds.frustumCulled = false; scene.add(birds); REFL.hide.push(birds);
+  const off = [], r0 = rng(9); for (let i = 0; i < NB; i++) { const k = i % 9, row = Math.floor(i / 9); off.push([-Math.abs(k - 4) * 3.2 - row * 1.5, (k - 4) * 2.4 + (r0() - 0.5) * 3, r0() * 6]); }
+  let flock = null, flockT = 20;
+  function caw(x, z) { if (!AC) return; const d = Math.hypot(x - P.x, z - P.z), v = 0.035 * Math.max(0, 1 - d / 200); if (v <= 0) return; const a = Math.atan2(x - P.x, z - P.z) - (P.yaw + Math.PI), p = Math.max(-1, Math.min(1, -Math.sin(a)));
+    for (let k = 0; k < 2 + ((Math.random() * 3) | 0); k++) setTimeout(() => { const t = AC.currentTime, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(320, t + 0.28); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 2.5; sp.pan.value = p; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.3); o.connect(f).connect(g).connect(sp).connect(master); o.start(t); o.stop(t + 0.35); }, k * 380); }
+  const prevB = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { prevB(dt); if (!started) return;
+    if (scene.background && scene.background.isTexture && 'backgroundRotation' in scene) { scene.backgroundRotation.y += dt * 0.0025; scene.environmentRotation.y = scene.backgroundRotation.y; }
+    flockT -= dt; if (!flock && flockT < 0) { const a = Math.random() * 6.28; flock = { x: P.x - Math.sin(a) * 260, z: P.z - Math.cos(a) * 260, vx: Math.sin(a) * (14 + Math.random() * 6), vz: Math.cos(a) * (14 + Math.random() * 6), y: 38 + Math.random() * 30, ph: 0, cawT: 4 }; }
+    if (flock) { const f = flock; f.x += f.vx * dt; f.z += f.vz * dt; f.ph += dt * 9; f.cawT -= dt; const sp = Math.hypot(f.vx, f.vz), ux = f.vx / sp, uz = f.vz / sp;
+      for (let i = 0; i < NB; i++) { const o = off[i]; bp[i * 3] = f.x + ux * o[0] - uz * o[1]; bp[i * 3 + 2] = f.z + uz * o[0] + ux * o[1]; bp[i * 3 + 1] = f.y + Math.sin(f.ph + o[2]) * 0.9; } birdG.attributes.position.needsUpdate = true;
+      if (f.cawT < 0) { f.cawT = 4 + Math.random() * 5; caw(f.x, f.z); }
+      if (Math.hypot(f.x - P.x, f.z - P.z) > 290 && (f.x - P.x) * f.vx + (f.z - P.z) * f.vz > 0) { flock = null; flockT = 70 + Math.random() * 90; bp.fill(-9999); birdG.attributes.position.needsUpdate = true; } } };
+}
+
 // ===================== ПОДЪЕЗД, цикл 2: новогодняя ночь — салюты за окном, куранты, телевизоры, шаги этажом выше =====================
 if (PODEZD) {
   // цветные вспышки салюта в окне межэтажной площадки (один PointLight следует за этажом игрока)
@@ -3824,8 +3847,16 @@ if (PODEZD) {
   function stepsAbove() { if (!AC) return; const p = pan(), n = 6 + ((Math.random() * 6) | 0); for (let k = 0; k < n; k++) setTimeout(() => burst(0.07, 'lowpass', 260 + Math.random() * 120, 1.2, 0.09, p), k * (430 + Math.random() * 80)); }
   function glasses() { if (!AC) return; const p = pan(); [1320, 1760, 1480].forEach((f, i) => setTimeout(() => blip([f * (0.98 + Math.random() * 0.04)], 0.35, 'sine', 0.01), i * 120)); for (let k = 0; k < 5; k++) setTimeout(() => burst(0.15, 'bandpass', 420 + Math.random() * 200, 4, 0.03, p), 600 + k * 130); }
   function cough() { if (!AC) return; const p = pan(); burst(0.22, 'bandpass', 700, 2, 0.08, p); setTimeout(() => burst(0.18, 'bandpass', 620, 2, 0.06, p), 260); }
+
+  // пылинки в воздухе вокруг игрока: видны в свете лампочки
+  const dn = MOBILE ? 60 : 120, dp = new Float32Array(dn * 3), dv = new Float32Array(dn * 3);
+  for (let i = 0; i < dn; i++) { dp[i * 3] = (Math.random() - 0.5) * 7; dp[i * 3 + 1] = (Math.random() - 0.3) * 3; dp[i * 3 + 2] = (Math.random() - 0.5) * 7; dv[i * 3] = (Math.random() - 0.5) * 0.04; dv[i * 3 + 1] = (Math.random() - 0.5) * 0.03; dv[i * 3 + 2] = (Math.random() - 0.5) * 0.04; }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(dn * 3), 3));
+  const dustTex = texFrom(mkCanvas(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,240,210,1)'); gr.addColorStop(1, 'rgba(255,240,210,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); }));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ size: 0.011, map: dustTex, color: 0xffeeb8, transparent: true, opacity: 0.55, depthWrite: false })); dust.frustumCulled = false; scene.add(dust);
   const prev = WORLD_UPDATE;
   WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return;
+    { const a = dg.attributes.position.array; for (let i = 0; i < dn; i++) { for (let k = 0; k < 3; k++) { dp[i * 3 + k] += dv[i * 3 + k] * dt * 60 * 0.016 * 4 + Math.sin(clock * 0.5 + i) * 0.0006; } if (Math.abs(dp[i * 3]) > 3.5) dp[i * 3] *= -0.95; if (dp[i * 3 + 1] > 2.2 || dp[i * 3 + 1] < -1.2) dp[i * 3 + 1] *= -0.9; if (Math.abs(dp[i * 3 + 2]) > 3.5) dp[i * 3 + 2] *= -0.95; a[i * 3] = P.x + dp[i * 3]; a[i * 3 + 1] = P.y + 1.4 + dp[i * 3 + 1]; a[i * 3 + 2] = P.z + dp[i * 3 + 2]; } dg.attributes.position.needsUpdate = true; }
     fwT -= dt; if (fwT > 0) { fw.intensity = fwBase * Math.max(0, fwT / 0.9) * (0.7 + 0.3 * Math.sin(clock * 40)); } else fw.intensity = 0;
     const fy = Math.floor((P.y + 0.3) / FH) * FH + FH / 2 + 1.5; fw.position.set(PW / 2, fy, PL + MIDD + 0.4);
     for (const k in lastSnd) { lastSnd[k] -= dt; if (lastSnd[k] > 0) continue;
@@ -3835,6 +3866,29 @@ if (PODEZD) {
       else if (k === 'chime') { lastSnd.chime = 150 + Math.random() * 120; chimes(); toast('<span style="font-size:14px;opacity:.75">где-то бьют куранты…</span>'); }
       else if (k === 'glass') { lastSnd.glass = 60 + Math.random() * 60; glasses(); }
       else if (k === 'cough') { lastSnd.cough = 80 + Math.random() * 90; cough(); } } };
+
+  // ===== пасхалки лифта: особые этажи =====
+  const EGG = {
+    13: ['13-го этажа не бывает.', 'Лифт привёз тебя на «12-А». Это то же самое, только честнее.'],
+    14: ['Этаж 14.', 'Иногда лифт врёт про этаж. Не верь табло.'],
+    0: ['Нулевой этаж.', 'Пахнет сыростью и чужими кошками.'],
+    9: ['Девятый. Выше только крыша.', 'На крышу не пускают — замок, и ключ у деда Васи, который умер в 2009-м.'],
+    47: ['Этаж 47.', 'Квартиры тут другие. Твоя — на третьем.'],
+    404: ['<b style="color:#ff9a3a">404</b>', 'Этаж не найден. Лифт стоит и смотрит на тебя.'],
+    777: ['<b style="color:#ffd35a">777</b>', 'Из-за двери звенят монеты. Тебе не открывают.'],
+    1337: ['Этаж 1337.', 'На двери наклейка: «здесь живёт хакер». Дверь заварена изнутри.'],
+    1991: ['1991.', 'Из-за двери: «…в стране сегодня…». Ты уходишь, пока не стало поздно.'],
+    2007: ['2007.', 'Где-то играет «Кино». На двери нацарапано: «ВИТЯ».'],
+    666: ['<b style="color:#ff3030">666</b>', 'Свет стал красным. Одна из дверей чуть приоткрыта. Из щели кто-то машет.'],
+    1111: ['Этаж 1111.', 'Одинаковые двери. Одинаковые коврики. Одинаковый запах борща. Ты идёшь по кругу.'],
+  };
+  let prevSt = LIFT.st, redT = 0;
+  const _w = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { _w(dt);
+    if (prevSt === 'ride' && LIFT.st === 'idle') { const d = LIFT.dest; if (d < 0) { toast(`<b>Этаж ${d}.</b><br><span style="font-size:14px">Ты спустился ниже подвала. Здесь тоже кто-то живёт.</span>`); }
+      else if (EGG[d]) { toast(`${EGG[d][0]}<br><span style="font-size:14px">${EGG[d][1]}</span>`); if (d === 666) { redT = 25; if (AC) { burst(4, 'lowpass', 55, 0.7, 0.7); setTimeout(() => burst(1.2, 'lowpass', 80, 0.6, 0.5), 2500); } } if (d === 404 && AC) burst(0.6, 'bandpass', 2000, 0.4, 0.3); if (d === 777 && AC) [988, 1319, 1568, 1976].forEach((f, i) => setTimeout(() => blip([f], 0.25, 'triangle', 0.05), i * 110)); if (d === 2007 && AC) setTimeout(tvMurmur, 800); } }
+    prevSt = LIFT.st;
+    if (redT > 0) { redT -= dt; for (const l of LPOOL) l.color.setRGB(1, 0.05, 0.03); if (redT <= 0) for (const l of LPOOL) l.color.setRGB(1, 0.85, 0.6); } };
 }
 
 // ===================== ДВОРЫ, цикл 3: курильщики, выбивание ковра, «скорая» вдалеке =====================
@@ -3897,6 +3951,39 @@ if (ALT) {
     darkT -= dt; if (darkT < 0) { darkT = 35 + Math.random() * 50; dark = 1; if (AC) burst(0.5, 'lowpass', 120, 0.8, 0.45); }
     if (dark > 0) { dark = Math.max(0, dark - dt * 0.9); post.U.expo.value = 0.15 + (1 - dark) * 0.6 * (Math.random() < 0.15 ? 0.3 : 1); } else post.U.expo.value += (0.9 - post.U.expo.value) * Math.min(1, dt * 2);
     whisT -= dt; if (whisT < 0) { whisT = 40 + Math.random() * 40; toast('<i style="color:#ff6050">' + NAMES[(Math.random() * NAMES.length) | 0] + '</i>'); } };
+}
+
+// ===================== КВАРТИРА 47, цикл 2: тиканье часов, гул холодильника, капель, соседи за стеной, пылинки у окон =====================
+if (KV) {
+  let tick = 0, tickOdd = false, neighT = 18, dripT = 5, creakT = 40, sirenT = 90, fridge = null;
+  const pan = (x) => Math.max(-1, Math.min(1, (x - P.x) / 3));
+  const near = (x, z, R) => Math.max(0, 1 - Math.hypot(x - P.x, z - P.z) / R);
+  function tickSnd() { if (!AC) return; const v = 0.05 * near(4.5, 2.2, 7) + 0.008; burst(0.03, 'bandpass', tickOdd ? 3400 : 2900, 6, v, pan(4.5)); }
+  function fridgeHum() { if (!AC || fridge) return; const s = loopSrc(AC._brown, 1), f = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = 130; g.gain.value = 0; s.connect(f).connect(g).connect(sp).connect(master); fridge = { g, sp }; }
+  const neigh = [
+    () => { for (let k = 0; k < 14; k++) setTimeout(() => burst(0.07 + Math.random() * 0.1, 'bandpass', 300 + Math.random() * 400, 4, 0.025, -0.9), k * (100 + Math.random() * 120)); },          // бубнит телевизор
+    () => { for (let k = 0; k < 6; k++) setTimeout(() => burst(0.12, 'lowpass', 140, 1.2, 0.18, 0.9), k * 650); },                                                                  // кто-то ходит
+    () => { burst(2.2, 'bandpass', 260, 2.5, 0.06, -0.8); for (let k = 0; k < 4; k++) setTimeout(() => burst(0.3, 'bandpass', 420, 2, 0.05, -0.8), 800 + k * 420); },               // дрель
+    () => { burst(0.35, 'lowpass', 120, 1, 0.3, 0.9); setTimeout(() => burst(0.2, 'lowpass', 100, 1, 0.22, 0.9), 300); },                                                         // хлопнула дверь
+    () => { for (let k = 0; k < 3; k++) setTimeout(() => blip([392, 330, 262][k], 0.5, 'triangle', 0.012), k * 520); },                                                                   // пианино через стену
+  ];
+  // пылинки в луче у окон (кухня и комната)
+  const dn = MOBILE ? 40 : 90, dp = new Float32Array(dn * 3), dg = new THREE.BufferGeometry(), da = new Float32Array(dn * 3); dg.setAttribute('position', new THREE.BufferAttribute(da, 3));
+  for (let i = 0; i < dn; i++) { dp[i * 3] = Math.random(); dp[i * 3 + 1] = Math.random(); dp[i * 3 + 2] = Math.random(); }
+  const dtex = texFrom(mkCanvas(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); }));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ size: 0.02, map: dtex, color: 0xfff4dd, transparent: true, opacity: 0.55, depthWrite: false })); dust.frustumCulled = false; scene.add(dust);
+  const BEAMS = [[3.2, 0.4, 1.3, 1.6], [5.4, 5.0, 1.0, 1.5], [-1.6, 0.4, 1.0, 1.4]];   // x, z центра, ширина, глубина
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return;
+    tick -= dt; if (tick < 0) { tick = 1; tickOdd = !tickOdd; tickSnd(); }
+    fridgeHum(); if (fridge) { fridge.g.gain.value = 0.045 * near(4.25, 1.25, 7) + 0.004; fridge.sp.pan.value = pan(4.25); }
+    neighT -= dt; if (neighT < 0) { neighT = 25 + Math.random() * 45; neigh[(Math.random() * neigh.length) | 0](); }
+    dripT -= dt; if (dripT < 0) { dripT = 2.5 + Math.random() * 2; if (AC) blip([1500 + Math.random() * 300, 1000], 0.07, 'sine', 0.02 * near(0.3, 4.6, 9)); }
+    creakT -= dt; if (creakT < 0) { creakT = 45 + Math.random() * 60; creak(); }
+    sirenT -= dt; if (sirenT < 0) { sirenT = 120 + Math.random() * 120; if (AC) { const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(); o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 900; for (let k = 0; k < 10; k++) o.frequency.setValueAtTime(k % 2 ? 700 : 960, t + k * 0.6); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.012, t + 2); g.gain.linearRampToValueAtTime(0, t + 6); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + 6.1); } }
+    const a = dg.attributes.position.array; for (let i = 0; i < dn; i++) { const bm = BEAMS[i % 3]; dp[i * 3] += (Math.sin(clock * 0.3 + i) * 0.01 + 0.004) * dt * 10; dp[i * 3 + 1] += (Math.cos(clock * 0.25 + i * 2) * 0.01 - 0.003) * dt * 10; dp[i * 3 + 2] += Math.sin(clock * 0.2 + i * 3) * 0.008 * dt * 10;
+      for (let k = 0; k < 3; k++) { if (dp[i * 3 + k] > 1) dp[i * 3 + k] -= 1; if (dp[i * 3 + k] < 0) dp[i * 3 + k] += 1; }
+      a[i * 3] = bm[0] + (dp[i * 3] - 0.5) * bm[2]; a[i * 3 + 1] = 0.9 + dp[i * 3 + 1] * 1.4; a[i * 3 + 2] = bm[1] + dp[i * 3 + 2] * bm[3]; } dg.attributes.position.needsUpdate = true; };
 }
 
 })();
