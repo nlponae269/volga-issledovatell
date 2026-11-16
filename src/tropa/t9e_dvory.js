@@ -26,6 +26,19 @@ function dvAmbient() { if (!AC) return; const t = Math.random(), pan = Math.rand
   else { for (let k = 0; k < 5; k++) setTimeout(() => blip([1500 + Math.random() * 900], 0.07, 'sine', 0.015), k * (180 + Math.random() * 300)); } }
 
 if (DVOR) {
+  if (ALT) DV_LORE.splice(0, DV_LORE.length,
+    'Это не твой двор. Он просто так выглядит.<br><i>Посчитай окна. Их на одно больше, чем вчера.</i>',
+    'Не смотри на них долго. И не отворачивайся.<br>Они ходят, только когда ты не видишь.',
+    'Голуби не улетают. Они висят. Время здесь застряло между взмахами.',
+    'Часы идут назад. Если дойдут до 14:50:00 — <b>что-то</b> начнётся заново.',
+    'Дома не стоят на земле. Им здесь незачем.',
+    'В окнах свет красный. Там кто-то стоит. Там всегда кто-то стоит.',
+    'Чёрные шары — это дыры. Тронешь — окажешься где-то ещё. Может, ближе к выходу. Может, нет.',
+    'Мама сказала: если двор станет красным — найди открытый подъезд и выходи.',
+    'Домофон шепчет. Не называй ему своё имя.',
+    'Ты уже был здесь. Ты всегда здесь был.',
+    'Выход есть. Подъезд, у которого дверь не заперта.',
+    '<i>14:50 · 14:50 · 14:50 · 14:50 · 14:50</i>');
   KEY_POS.dvory = [-187.5, 0, 100.5]; window.__game && (window.__game.home = { x: 36, z: 26, n: 'К дому 13' });
   const FINAL = dvLS('dream_final') === '1';
   SPAWN = { x: 8, z: 2, yaw: 0 };                       // спавн — во дворе дома № 13, лицом на север
@@ -173,6 +186,8 @@ if (DVOR) {
   if (PBR_ON) { D_MH.map = pbrT('tex/ai/dv_manhole.png', true); D_MH.needsUpdate = true; }
   const TORG = new THREE.TorusGeometry(0.3, 0.1, 8, 16);
   const DECG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const ALTSIL = std({ map: texFrom(mkCanvas(64, 160, (g) => { g.fillStyle = '#000'; g.beginPath(); g.ellipse(32, 26, 14, 18, 0, 0, 6.3); g.fill(); g.fillRect(14, 40, 36, 120); g.fillStyle = '#fff'; g.fillRect(25, 24, 4, 3); g.fillRect(36, 24, 4, 3); })), transparent: true, alphaTest: 0.3, emissive: 0x220000, roughness: 1 });
+  const ALTSILG = new THREE.PlaneGeometry(0.55, 1.35);
   const DEC = (b, mat, x, z, w, d, ry = 0, y = 0.02) => b.add(mat, DECG, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(w, 1, d)));
   // --- машины во дворах: кроссовер (как «Дастер»), седан, «Нива»; кузов с арками, стёкла, фары, ручки, зеркала ---
   const CARM = new Map(), CDARK = std({ color: 0x1a1b1d, roughness: 0.65 }), CLITE = std({ color: 0xe0ddd4, roughness: 0.12, metalness: 0.4 }), CTAIL = std({ color: 0x7a0c0a, roughness: 0.25 }), CPLATE = std({ color: 0xeeeeea, roughness: 0.5 });
@@ -246,10 +261,13 @@ if (DVOR) {
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
   function panel(K, cx, cz, len, dep, floors, ry, fac, home) {
     const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc, PHM = floors !== 9 ? null : fac === FAC[0] ? DOM13 : fac.userData.o && fac.userData.o.panel ? PANELM : null, PH = !!PHM;
-    b.push(cx, 0, cz, ry);
+    const FLY = ALT && PH && ihash(Math.round(cx), Math.round(cz), 999) < 0.35 ? 3 + ihash(Math.round(cz), Math.round(cx), 998) * 10 : 0;   // ALT: дом висит в воздухе
+    b.push(cx, FLY, cz, ry);
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? PHM : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
-    b.collide(0, 0, len / 2, dep / 2);
+    if (!FLY) b.collide(0, 0, len / 2, dep / 2);
+    if (ALT && PH) for (const sd of [1, -1]) for (let q = 0; q < 7; q++) { const fx = -len / 2 + 1.5 + ((r() * (len / 3 - 1)) | 0) * 3, ff = (r() * floors) | 0;   // силуэты в окнах
+      b.add(ALTSIL, ALTSILG, new THREE.Matrix4().compose(new V3(fx, base + ff * 2.8 + 1.5, sd * (dep / 2 + 0.04)), new THREE.Quaternion().setFromAxisAngle(UP, sd > 0 ? 0 : Math.PI), new V3(1, 1, 1))); }
     if (PH) for (const sd of [1, -1]) b.box(PLINTH || M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(PLINTH ? 1 : 0.52));
     for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }
     b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
@@ -367,6 +385,8 @@ if (DVOR) {
   const INTERCOM = ['Домофон пищит. Никто не отвечает.', '— Кто там?.. — и короткие гудки.', 'В трубке шипит радио. Дверь не открывается.', 'Код не подходит. Ты точно помнил этот код.', 'Домофон играет мелодию. Долго. Слишком долго.', 'Тишина. Только капает с козырька.'];
   function dvDoor(isHome, open, id) {
     blip([1046, 784, 1046, 784], 0.25, 'square', 0.025);
+    if (ALT) { if (open || isHome) { setTimeout(() => goWorld('dvory', 'Ты вывалился из подъезда.<br><span style="font-size:14px">Ноябрь. 14:50. Всё как обычно. Почти.</span>'), 500); return; }
+      toast(['За дверью кто-то дышит.', 'Домофон шепчет твоё имя.', 'Ты слышишь, как за дверью кто-то тоже нажимает кнопки.', 'Код не тот. Код никогда не тот.', '<i>«не открывай»</i>'][(Math.random() * 5) | 0]); return; }
     if (isHome) { try { sessionStorage.setItem('pod_home', '1'); } catch (e) {} setTimeout(() => goWorld('podezd', 'Домофон пискнул. Дверь открылась.<br><span style="font-size:14px">Твой подъезд.</span>'), 500); return; }
     if (open) { setTimeout(() => goWorld('podezd', 'Дверь подъезда поддалась.<br><span style="font-size:14px">Это не твой подъезд.</span>'), 500); return; }
     toast(INTERCOM[(ihash(id.length, Math.floor(clock * 3)) * INTERCOM.length) | 0]); }
@@ -628,9 +648,10 @@ if (DVOR) {
     return { update(dt) { const run = typeof running !== 'undefined' && running;
       for (const fl of FL) { const fi = FL.indexOf(fl); if (fl.gone > 0) { fl.gone -= dt; if (fl.gone <= 0) fl.on = false; }
         if (!fl.on) { place(fl); continue; } const d = Math.hypot(fl.x - P.x, fl.z - P.z); if (d > 85 && fl.gone <= 0) { fl.on = false; continue; }
-        if (fl.gone <= 0) { let near = 99; for (const b of B) if (b.f === fi && b.vis && b.st !== 2) near = Math.min(near, Math.hypot(b.x - P.x, b.z - P.z));
+        if (fl.gone <= 0 && !ALT) { let near = 99; for (const b of B) if (b.f === fi && b.vis && b.st !== 2) near = Math.min(near, Math.hypot(b.x - P.x, b.z - P.z));
           if (near < (run ? 6.5 : 3.6)) { fl.gone = 9; flutter(fl.x, fl.z); for (const b of B) if (b.f === fi && b.vis) { const a = Math.atan2(b.x - P.x, b.z - P.z) + (Math.random() - 0.5) * 1.2, sp = 4 + Math.random() * 3; b.st = 2; b.vx = Math.sin(a) * sp; b.vz = Math.cos(a) * sp; b.vy = 2.5 + Math.random() * 2; b.yaw = a; b.t = Math.random() * 0.25; } } } }
       coo -= dt; if (coo < 0) { coo = 4 + Math.random() * 7; const fl = FL.find((f) => f.on && f.gone <= 0 && Math.hypot(f.x - P.x, f.z - P.z) < 25); if (fl && AC) { const t = AC.currentTime; for (let k = 0; k < 3; k++) { const o = AC.createOscillator(), g = AC.createGain(), tt = t + k * 0.32; o.frequency.setValueAtTime(330, tt); o.frequency.linearRampToValueAtTime(260, tt + 0.28); g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.018, tt + 0.05); g.gain.exponentialRampToValueAtTime(0.0005, tt + 0.3); o.connect(g).connect(master); o.start(tt); o.stop(tt + 0.32); } } }
+      if (ALT) { for (let i = 0; i < N; i++) { const b = B[i], fl = FL[b.f]; if (!b.vis || !fl.on) { for (const k in I) I[k].setMatrixAt(i, hide); continue; } if (b.fz !== fl.x) { b.fz = fl.x; b.st = 2; b.y = groundH(b.x, b.z) + 1.2 + Math.random() * 6; b.yaw = Math.random() * 6.28; b.ph = Math.random() * 3; } flush(i, b, b.ph); } for (const k in I) I[k].instanceMatrix.needsUpdate = true; return; }
       for (let i = 0; i < N; i++) { const b = B[i], fl = FL[b.f]; if (!b.vis || !fl.on) { for (const k in I) I[k].setMatrixAt(i, hide); continue; }
         b.ph += dt; b.t -= dt;
         if (b.st === 2) { b.vy -= dt * 0.6; b.vy = Math.max(b.vy, 0.6); b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; if (b.y > 24 || fl.gone < 0.1) b.vis = false; flush(i, b, b.ph * 26); continue; }
@@ -672,7 +693,8 @@ if (DVOR) {
     return { update(dt) { if (!started) return;
       if (AC) { if (!hum) { const s2 = loopSrc(noiseBuf(4, true), 1), f = AC.createBiquadFilter(), g = AC.createGain(); f.type = 'lowpass'; f.frequency.value = 180; g.gain.value = 0.09; s2.connect(f).connect(g).connect(master); hum = { g, f }; }
         hum.g.gain.value = 0.07 + Math.sin(clock * 0.07) * 0.025 + Math.sin(clock * 0.23) * 0.015;
-        evT -= dt; if (evT < 0) { evT = 5 + Math.random() * 14; const k = Math.random(); (k < 0.25 ? EV.dog : k < 0.42 ? EV.door : k < 0.52 ? EV.alarm : k < 0.6 ? EV.train : k < 0.8 ? EV.car : k < 0.9 ? EV.kids : EV.crowF)(); } }
+        if (ALT) { hum.f.frequency.value = 90; hum.g.gain.value = 0.16 + Math.sin(clock * 0.31) * 0.06; evT -= dt; if (evT < 0) { evT = 3 + Math.random() * 9; ALTSND(); } }
+        else { evT -= dt; if (evT < 0) { evT = 5 + Math.random() * 14; const k = Math.random(); (k < 0.25 ? EV.dog : k < 0.42 ? EV.door : k < 0.52 ? EV.alarm : k < 0.6 ? EV.train : k < 0.8 ? EV.car : k < 0.9 ? EV.kids : EV.crowF)(); } } }
       // листья
       const wx = Math.sin(clock * 0.13) * 1.2 + 0.6, wz = Math.cos(clock * 0.09) * 0.8;
       for (let i = 0; i < NL; i++) { const L = LV[i]; L.ph += dt * L.sp * 3;
@@ -692,9 +714,55 @@ if (DVOR) {
       if (!mus) mus = [...document.querySelectorAll('button')].find((b) => /^♪/.test(b.textContent || '')); if (mus) { mus.style.transition = 'opacity 1.2s'; const mo = hudT > 0 ? '0.8' : '0.12'; if (mus.style.opacity !== mo) mus.style.opacity = mo; }
     } };
   })();
+
+  // ====== ALTERNATIVE: аномалии ======
+  const ALTSND = () => { if (!AC) return; const k = Math.random(), p = Math.random() * 2 - 1;
+    if (k < 0.3) { for (let i = 0; i < 6; i++) setTimeout(() => burst(0.25 + Math.random() * 0.3, 'bandpass', 900 + Math.random() * 1400, 4, 0.05, p), i * 160); }        // шёпот
+    else if (k < 0.45) { const t = AC.currentTime, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(950, t); o.frequency.exponentialRampToValueAtTime(260, t + 1.6); f.type = 'lowpass'; f.frequency.value = 1400; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.03, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0005, t + 1.7); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + 1.8); }   // далёкий крик
+    else if (k < 0.65) { for (let i = 0; i < 3; i++) setTimeout(() => burst(0.2, 'lowpass', 110, 1, 0.55, p), i * 420); }   // стук
+    else if (k < 0.8) { const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(320, t); for (let i = 1; i <= 4; i++) o.frequency.linearRampToValueAtTime(i % 2 ? 680 : 320, t + i * 1.4); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.012, t + 0.8); g.gain.linearRampToValueAtTime(0, t + 5.6); o.connect(g).connect(master); o.start(t); o.stop(t + 5.7); }   // сирена
+    else { burst(2.5, 'lowpass', 70, 0.6, 0.5, p); } };                                                                                                   // гул из-под земли
+  const ALTRUN = (() => { if (!ALT) return null;
+    const BG = new THREE.Color(0x1c0806); M.leafAutumn.color.setRGB(0.22, 0.04, 0.03); M.bark.color.setRGB(0.28, 0.25, 0.25);
+    for (const f of FAC) { f.emissive.setRGB(1, 0.08, 0.04); f.emissiveIntensity = 1.6; }
+    const black = new THREE.MeshBasicMaterial({ color: 0x000000 }), eye = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    // безликие: стоят, пока на них смотришь
+    const FG = []; for (let i = 0; i < 3; i++) { const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 1.45, 4, 10), black); body.position.y = 1.05; body.scale.z = 0.7;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), black); head.position.y = 2.05; head.scale.y = 1.25;
+      for (const sx of [-0.05, 0.05]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), eye); e.position.set(sx, 2.08, 0.13); g.add(e); }
+      for (const sx of [-0.27, 0.27]) { const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.95, 3, 6), black); a.position.set(sx, 1.3, 0); a.rotation.z = sx * 0.12; g.add(a); }
+      g.add(body, head); g.visible = false; scene.add(g); REFL.hide.push(g); FG.push({ g, t: 2 + i * 4 }); }
+    // аномалии: чёрные сферы с красным ореолом
+    const ORB = []; const orbM = new THREE.MeshBasicMaterial({ color: 0x000000 }), haloM = new THREE.MeshBasicMaterial({ color: 0xff2010, transparent: true, opacity: 0.35, side: THREE.BackSide, depthWrite: false });
+    for (let i = 0; i < 6; i++) { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.SphereGeometry(0.7, 20, 14), orbM), h = new THREE.Mesh(new THREE.SphereGeometry(0.95, 20, 14), haloM); g.add(c, h); g.visible = false; scene.add(g); ORB.push({ g, h, ph: Math.random() * 6 }); }
+    const camDir = new V3(), tmp = new V3(); let shake = 0, scareT = 0;
+    const place = (o, dmin, dmax, front) => { for (let k = 0; k < 10; k++) { const a = (front ? P.yaw + Math.PI + (Math.random() - 0.5) * 1.6 : Math.random() * 6.28), d = dmin + Math.random() * (dmax - dmin), x = P.x - Math.sin(a + Math.PI) * d * -1, z = P.z - Math.cos(a + Math.PI) * d * -1;
+      const c = collide(x, z); if (Math.abs(c[0] - x) < 1e-3 && Math.abs(c[1] - z) < 1e-3 && inWorld(x, z)) { o.g.position.set(x, groundH(x, z), z); o.g.visible = true; return true; } } return false; };
+    setTimeout(() => toast('<b style="color:#ff5040">ALTERNATIVE</b><br><span style="font-size:14px">Это твой двор. Только не тот.<br>Не отворачивайся от них надолго.</span>'), 1800);
+    return { update(dt) { if (scene.background !== BG) { scene.background = BG; hemi.intensity = 0.28; hemi.color.setRGB(0.9, 0.55, 0.5); }
+      if (!started) return; camera.getWorldDirection(camDir);
+      // безликие
+      for (const f of FG) { const g = f.g; f.t -= dt;
+        if (!g.visible) { if (f.t < 0 && place(f, 22, 40, Math.random() < 0.5)) f.t = 0; continue; }
+        tmp.set(g.position.x - P.x, 0, g.position.z - P.z); const d = tmp.length(); g.rotation.y = Math.atan2(-tmp.x, -tmp.z);
+        tmp.normalize(); const seen = tmp.x * camDir.x + tmp.z * camDir.z > 0.62;
+        if (d > 80) { g.visible = false; f.t = 3; continue; }
+        if (!seen) { const sp = Math.min(6, 2.2 + 30 / (d + 2)) * dt, nx = g.position.x - tmp.x * sp, nz = g.position.z - tmp.z * sp, c = collide(nx, nz); g.position.x = c[0]; g.position.z = c[1]; }
+        if (d < 1.4 && scareT <= 0) { scareT = 3; flash = 1; shake = 1.2; if (AC) { burst(1.2, 'highpass', 1800, 0.5, 0.9); burst(0.9, 'lowpass', 300, 0.6, 1.2); }
+          const sp = SPAWN || { x: 0, z: 0 }; Object.assign(P, { x: sp.x, z: sp.z, y: 0, vy: 0 }); toast('<b style="color:#ff3020">ОН ТЕБЯ НАШЁЛ</b>'); for (const q of FG) { q.g.visible = false; q.t = 6 + Math.random() * 6; } } }
+      scareT -= dt; flash = Math.max(0, flash - dt * 1.5);
+      // аномалии
+      for (const o of ORB) { o.ph += dt; if (!o.g.visible || Math.hypot(o.g.position.x - P.x, o.g.position.z - P.z) > 90) { place(o, 15, 70, false); continue; }
+        o.g.position.y = groundH(o.g.position.x, o.g.position.z) + 1.6 + Math.sin(o.ph * 1.3) * 0.3; o.h.scale.setScalar(1 + Math.sin(o.ph * 7) * 0.08); o.g.rotation.y += dt;
+        const d = Math.hypot(o.g.position.x - P.x, o.g.position.z - P.z);
+        if (d < 7) shake = Math.max(shake, (7 - d) / 7 * 0.6);
+        if (d < 1.2) { flash = 0.8; const a = Math.random() * 6.28, r2 = 60 + Math.random() * 90; P.x += Math.sin(a) * r2; P.z += Math.cos(a) * r2; if (AC) burst(0.6, 'bandpass', 400, 0.5, 0.7); toast('<span style="color:#ff6050">Тебя выбросило где-то ещё.</span>'); o.g.visible = false; } }
+      if (shake > 0) { shake = Math.max(0, shake - dt * 0.8); camera.rotation.z += (Math.random() - 0.5) * 0.03 * shake; camera.rotation.x += (Math.random() - 0.5) * 0.02 * shake; } } };
+  })();
   WORLD_UPDATE = (dt) => {
-    carsUpdate(dt); rainUpdate(dt); PG.update(dt); VIBE.update(dt);
-    if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
+    carsUpdate(dt); rainUpdate(dt); PG.update(dt); VIBE.update(dt); if (ALTRUN) ALTRUN.update(dt);
+    if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : ALT ? 59 - (Math.floor(secs) % 60) : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = ALT && Math.random() < 0.25 ? ['ноябрь · 14:5Ø:', 'нояб̷рь · 41:05:', 'ноябрь · 14:50:', 'ты · 14:50:'][(Math.random() * 4) | 0] + String(s).padStart(2, '0') : `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
     smT -= dt; if (smT < 0 && started) { smT = 1; for (let k = SMELLS.length - 1; k >= 0; k--) { const m = SMELLS[k]; if (!m.group.parent) { SMELLS.splice(k, 1); continue; } if (m.text !== smLast && Math.hypot(m.x - P.x, m.z - P.z) < 4.5) { smLast = m.text; smT = 25; toast(`<span style="font-size:15px;font-style:italic;color:#d8d2c4">${m.text}</span>`); break; } } }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };

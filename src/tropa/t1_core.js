@@ -14,7 +14,7 @@ if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBI
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }
 if (window.WORLD === 'podezd') { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'kvartira') { Q.R = 0; Q.grass = 16; Q.fogSteps = 4; }
-if (window.WORLD === 'dvory') { Q.grass = MOBILE ? 4000 : 12000; }
+if (window.WORLD === 'dvory' || window.WORLD === 'alt') { Q.grass = MOBILE ? 4000 : 12000; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
@@ -39,7 +39,7 @@ const HOUSE = WORLD === 'dom';
 const PODEZD = WORLD === 'podezd';
 const GRID = ['dom', 'shkola', 'bolnica', 'magazin'].includes(WORLD);   // мир-сетка комнат
 const METRO = WORLD === 'metro', TRAIN = WORLD === 'elektrichka', STROY = WORLD === 'stroyka';
-const DVOR = WORLD === 'dvory', ZIMA = WORLD === 'zima';
+const ALT = WORLD === 'alt', DVOR = WORLD === 'dvory' || ALT, ZIMA = WORLD === 'zima';   // ALT — альтернативные Дворы (аномалии)
 const SNOW = ZIMA;
 const NIGHT = WORLD === 'lager', BEACH = WORLD === 'plyazh', FIELD = WORLD === 'pole', BUS = WORLD === 'ostanovka';
 const KV = WORLD === 'kvartira', GAR = false;

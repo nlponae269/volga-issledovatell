@@ -66,7 +66,7 @@ const post = (() => {
   const blurH = mk(blurFS, { t: { value: bA.texture }, dir: { value: new THREE.Vector2() } });
   const blurV = mk(blurFS, { t: { value: bB.texture }, dir: { value: new THREE.Vector2() } });
   const U = { tC: { value: main.texture }, tD: { value: main.depthTexture }, tB: { value: bA.texture }, tN: { value: TX.noise }, res: { value: new THREE.Vector2(4, 4) },
-    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : DVOR ? 0.0032 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
+    nearF: { value: camera.near }, farF: { value: camera.far }, time: { value: 0 }, expo: { value: 1.0 }, aoOn: { value: Q.ssao ? 1 : 0 }, dens: { value: KV ? 0.005 : HOUSE ? 0.03 : PODEZD ? 0.022 : METRO ? 0.012 : GRID ? 0.024 : NIGHT ? 0.03 : STROY ? 0.03 : ALT ? 0.011 : DVOR ? 0.0032 : SNOW ? 0.05 : BEACH ? 0.026 : 0.042 }, flash: { value: 0 }, dark: { value: 0 },
     invProj: { value: new THREE.Matrix4() }, camW: { value: new THREE.Matrix4() }, camPos: { value: new V3() }, sunDir: skyU.sunDir };
   const comp = mk(`varying vec2 vUv; uniform sampler2D tC,tD,tB,tN; uniform vec2 res; uniform float nearF,farF,time,expo,dens,flash,dark,aoOn; uniform mat4 invProj,camW; uniform vec3 camPos,sunDir;
     float lz(float d){ float z=d*2.0-1.0; return 2.0*nearF*farF/(farF+nearF-z*(farF-nearF)); }
@@ -80,7 +80,7 @@ const post = (() => {
     void main(){
       vec2 uv=vUv, dc=uv-0.5;
       vec3 col=texture2D(tC,uv).rgb;
-      ${!MOBILE ? 'vec2 ca = dc * dot(dc, dc) * ' + (DVOR ? '0.003' : '0.012') + '; col.r = texture2D(tC, uv + ca).r; col.b = texture2D(tC, uv - ca).b;' : ''}
+      ${!MOBILE ? 'vec2 ca = dc * dot(dc, dc) * ' + (ALT ? '0.03' : DVOR ? '0.003' : '0.012') + '; col.r = texture2D(tC, uv + ca).r; col.b = texture2D(tC, uv - ca).b;' : ''}
       ${DVOR ? 'vec2 px = 1.0/res; vec3 nb = texture2D(tC,uv+vec2(px.x,0.0)).rgb + texture2D(tC,uv-vec2(px.x,0.0)).rgb + texture2D(tC,uv+vec2(0.0,px.y)).rgb + texture2D(tC,uv-vec2(0.0,px.y)).rgb; col = max(col + (col - nb*0.25)*0.55, 0.0);' : ''}
       float rd=texture2D(tD,uv).x; bool isSky = rd > 0.99999;
       ${!MOBILE ? `if(!isSky && aoOn > 0.5){ float d0=lz(rd); float ao=0.0, rn=h12(uv*res+time)*6.283, sc=clamp(22.0/d0,0.35,3.0);
@@ -99,18 +99,18 @@ const post = (() => {
       ${DVOR ? 'if(isSky) T = max(T, 0.62);' : ''}
       float sf = max(dot(rdir, sunDir), 0.0);
       vec3 fogC = vec3(0.56,0.585,0.61) + vec3(0.17,0.14,0.10)*pow(sf, 5.0) + vec3(-0.03,-0.02,0.0)*(1.0-smoothstep(-0.1,0.3,rdir.y));
-      ${DVOR ? 'fogC = vec3(0.78,0.775,0.76) + vec3(-0.05,-0.045,-0.035)*(1.0-smoothstep(-0.1,0.3,rdir.y)); if(!isSky) fogC = mix(fogC, vec3(0.7,0.74,0.8), 0.4*smoothstep(40.0, 260.0, dist));' : ''}
+      ${DVOR ? 'fogC = vec3(0.78,0.775,0.76) + vec3(-0.05,-0.045,-0.035)*(1.0-smoothstep(-0.1,0.3,rdir.y)); if(!isSky) fogC = mix(fogC, vec3(0.7,0.74,0.8), 0.4*smoothstep(40.0, 260.0, dist));' : ''}${ALT ? 'fogC = vec3(0.26,0.07,0.06) + vec3(0.1,0.02,0.0)*smoothstep(-0.2,0.4,rdir.y);' : ''}
       ${INDOOR ? 'if(!isSky) fogC = vec3(0.012,0.0115,0.011);' : ''}${NIGHT ? 'fogC = vec3(0.022,0.026,0.038);' : ''}${ZIMA ? 'fogC = vec3(0.62,0.13,0.42)*(isSky ? 1.0 : 0.85);' : ''}
       col = col*T + fogC*(1.0-T);
       col += texture2D(tB,uv).rgb*${BLOOM_K.toFixed(2)}*(0.5+0.5*T);
-      col = aces(col*expo${DVOR ? '*0.84' : ''});
+      col = aces(col*expo${ALT ? '*0.7' : DVOR ? '*0.84' : ''});
       float Lm=dot(col,vec3(0.2126,0.7152,0.0722));
       ${DVOR ? `// «как с камеры телефона»: нейтрально-тёплый баланс, приподнятые тени, мягкая виньетка, мелкое зерно сенсора
       col=mix(vec3(Lm),col,0.9);
       col+=vec3(0.006,0.003,-0.006)*Lm;
       col=pow(max(col,0.0),vec3(1.0/2.2));
       col=col*0.96+0.025; col=mix(col, col*col*(3.0-2.0*col), 0.38);
-      col*=mix(0.84,1.0,smoothstep(1.05,0.35,length(dc*vec2(1.1,1.0))));
+      col*=mix(${ALT ? '0.35' : '0.84'},1.0,smoothstep(1.05,0.35,length(dc*vec2(1.1,1.0))));${ALT ? ' col=mix(col, vec3(dot(col,vec3(0.33)))*vec3(1.25,0.85,0.8), 0.55); col+=vec3(0.03,0.0,0.0)*step(0.995,h12(vec2(floor(time*3.0),floor(uv.y*40.0)))) ;' : ''}
       col+=(h12(uv*res+fract(time*13.0)*91.0)-0.5)*0.018;` : `
       col=mix(vec3(Lm),col,0.82);
       col+=vec3(-0.01,0.0,0.018)*(1.0-Lm)+vec3(0.018,0.01,-0.012)*Lm;
