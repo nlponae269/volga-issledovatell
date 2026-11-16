@@ -112,6 +112,8 @@ if (DVOR) {
   ];
   // фасад дома 13 по фото автора (сгенерирован): атлас 4 варианта окон × 2 ряда = 24.8 × 11.2 м, бесшовный
   const DOM13 = PBR_ON ? (() => { const t = pbrT('tex/ai/dom13_facade_atlas.jpg', true, 1 / 24.8, 1 / 11.2); t.offset.set(0, -(1.6 - 0.15) / 11.2); return std({ map: t, roughness: 0.88 }); })() : null;
+  // панельки по фото автора (сгенерированы): 3 цветные секции (белая, бежевая, сиренево-розовая) × 4 этажа = 36 × 11.2 м
+  const PANELM = PBR_ON ? (() => { const t = pbrT('tex/ai/panel_atlas.jpg', true, 1 / 36, 1 / 11.2); t.offset.set(0, -1.6 / 11.2); return std({ map: t, roughness: 0.9 }); })() : null;
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
@@ -238,10 +240,10 @@ if (DVOR) {
     if (PROTO.m_bag) { for (let k = 0; k < 5; k++) { const w = b.world(-2.2 + r() * 4.4, 0, 0.75 + r() * 0.8); PUT(K, r() < 0.6 ? 'm_bag' : 'm_box', w.x, 0, w.z, r() * 6, 0.9 + r() * 0.4); } } else for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
   function panel(K, cx, cz, len, dep, floors, ry, fac, home) {
-    const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc, PH = !!(DOM13 && fac === FAC[0] && floors === 9);
+    const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc, PHM = floors !== 9 ? null : fac === FAC[0] ? DOM13 : fac.userData.o && fac.userData.o.panel ? PANELM : null, PH = !!PHM;
     b.push(cx, 0, cz, ry);
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
-    for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? DOM13 : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
+    for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? PHM : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
     if (PH) for (const sd of [1, -1]) b.box(M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(0.52));
     for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }

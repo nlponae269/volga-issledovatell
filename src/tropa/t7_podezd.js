@@ -57,6 +57,9 @@ if (PODEZD && PBR.wallN) {
   PWALL.forEach((m) => { m.normalMap = PBR.wallN; m.normalScale = new THREE.Vector2(1.1, 1.1); m.roughnessMap = PBR.wallArm;
     m.onBeforeCompile = (sh) => { sh.uniforms.tDet = { value: PBR.wallDet }; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tDet;')
       .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(1.0), texture2D(tDet, vNormalMapUv).rgb * 1.55, 0.6);'); }; });
+  // стены подъезда по фото-текстурам (сгенерированы): бирюзовая масляная краска + побелка, надписи; два варианта чередуются по этажам
+  if (PODEZD) { const mk = (f) => { const m = PWALL[0].clone(); m.map = pbrT(f, true, 1 / 2.8, 1 / 2.8); m.onBeforeCompile = () => {}; m.needsUpdate = true; return m; };
+    PWALL.photo = [mk('tex/ai/podezd_wall_1.jpg'), mk('tex/ai/podezd_wall_2.jpg')]; }
 }
 const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
@@ -64,7 +67,7 @@ function floorNumMat(n) { if (!floorNumMats.has(n)) floorNumMats.set(n, new THRE
 // --- модуль этажа ---
 const podMods = new Map();
 function buildFloor(n) {
-  const group = new THREE.Group(), b = new Batch(), y0 = n * FH, F = podBase + n + 1, FD = F | 0, r = rng(Math.imul(FD, 7919) + 31), wallM = PWALL[0], wc = shade(0.9 + r() * 0.15);
+  const group = new THREE.Group(), b = new Batch(), y0 = n * FH, F = podBase + n + 1, FD = F | 0, r = rng(Math.imul(FD, 7919) + 31), wallM = PWALL.photo ? PWALL.photo[(FD % 2 + 2) % 2] : PWALL[0], wc = shade(0.9 + r() * 0.15);
   b.push(0, y0, 0);
   // площадка этажа (плитка) и плита потолка над ней
   b.box(MP.tile, (LX0 + LX1) / 2, -0.06, -LAND / 2, LX1 - LX0, 0.12, LAND);
