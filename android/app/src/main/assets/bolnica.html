@@ -1519,17 +1519,18 @@ function placeCamera() {
 // автоподстройка качества под устройство
 const AQ = { t: 0, n: 0, acc: 0, level: 0 };
 function autoQuality(dt) {
-  if (ULTRA || TEST || !started || AQ.level >= 4) return;
+  if (TEST || !started || AQ.level >= 4) return;   // в ULTRA — мягкая страховка: только если совсем тормозит (< 21 к/с)
   AQ.t += dt; if (AQ.t < 1.5) return; AQ.acc += dt; AQ.n++;
   if (AQ.acc < 2.5) return;
   const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;
-  if (fps > 40) { if (AQ.t > 12) AQ.level = 4; return; }
+  if (fps > (ULTRA ? 21 : 40)) { if (AQ.t > (ULTRA ? 30 : 12)) AQ.level = 4; return; }
   AQ.level++;
+  if (ULTRA && !AQ.told) { AQ.told = true; toast('<span style="font-size:14px">Телефон не тянет ультра — убавляю качество.<br>Вернуть: в меню «Графика».</span>'); }
   if (REFL.on.value > 0) { REFL.on.value = 0; return; }           // первым делом отключаем отражения в лужах
   if (AQ.level === 1 && Q.shadows) { Q.shadows = false; sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
-  else if (AQ.level <= 2) { post.U.aoOn.value = 0; renderer.setPixelRatio(Math.max(0.7, renderer.getPixelRatio() * 0.75)); resize(); }
+  else if (AQ.level <= 2) { post.U.aoOn.value = 0; renderer.setPixelRatio(Math.max(ULTRA ? 1.0 : 0.7, renderer.getPixelRatio() * 0.75)); resize(); }
   else if (AQ.level === 3) { Q.R = 1; grass.mesh.geometry.instanceCount = Math.floor(Q.grass * 0.5); }
-  else { renderer.setPixelRatio(Math.max(0.6, renderer.getPixelRatio() * 0.8)); resize(); }
+  else { renderer.setPixelRatio(Math.max(ULTRA ? 0.85 : 0.6, renderer.getPixelRatio() * 0.8)); resize(); }
 }
 function frame(now) {
   if (!TEST) requestAnimationFrame(frame);
@@ -2858,7 +2859,7 @@ if (DVOR) {
   const PUT = (K, key, x, y, z, ry = 0, s = 1, sy = s) => K.put(key, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, sy, s)));
 
   // --- уличные фонари (днём не горят) и провода ---
-  function lampPole(K, x, z, ax, az) { const { b } = K; if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
+  function lampPole(K, x, z, ax, az) { const { b } = K; if (window.__poles) window.__poles.push({ x, z, g: K.group }); if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
     b.box(lampOff, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, null, 0, Math.atan2(az, ax) * -1); b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function wire(b, a, c, sag) { const N = 8; for (let k = 0; k < N; k++) { const t0 = k / N, t1 = (k + 1) / N, s0 = Math.sin(t0 * Math.PI) * sag, s1 = Math.sin(t1 * Math.PI) * sag; b.lines.push(new V3(lerp(a.x, c.x, t0), lerp(a.y, c.y, t0) - s0, lerp(a.z, c.z, t0)), new V3(lerp(a.x, c.x, t1), lerp(a.y, c.y, t1) - s1, lerp(a.z, c.z, t1))); } }
   function bench(K, x, z, ry) { const { b, r } = K; if (window.__benches) window.__benches.push({ x, z, ry, g: K.group }); b.push(x, 0, z, ry); b.box(BENCHM || M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(BENCHM || M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); DEC(b, D_SH, 0, 0, 2.4, 1.0); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
@@ -3334,7 +3335,7 @@ if (DVOR) {
       e.set(peck * 1.1, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.235 - peck * 0.11, 0.135 + bob + peck * 0.05), q, one); Mp.premultiply(Mb); I.head.setMatrixAt(i, Mp); I.beak.setMatrixAt(i, Mp);
       e.set(0.35 + peck * 0.6, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.19 - peck * 0.05, 0.1 + bob * 0.5 + peck * 0.03), q, one); Mp.premultiply(Mb); I.neck.setMatrixAt(i, Mp);
       const wa = b.st === 2 ? Math.sin(flap) * 1.0 + 0.2 : 0, fold = b.st === 2 ? 1 : 0.35;
-      for (const [k, sd] of [['wl', -1], ['wr', 1]]) { e.set(0, sd < 0 ? Math.PI : 0, wa); q.setFromEuler(e); Mp.compose(v.set(sd * 0.05, 0.17, 0.0), q, sc.set(fold, 1, 1)); if (b.st !== 2) { e.set(0, sd < 0 ? Math.PI - 1.35 : 1.35, 0); q.setFromEuler(e); Mp.compose(v.set(sd * 0.06, 0.16, 0.06), q, sc.set(0.85, 1, 0.55)); } Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); }
+      for (const [k, sd] of [['wl', -1], ['wr', 1]]) { e.set(0, sd < 0 ? Math.PI : 0, wa); q.setFromEuler(e); Mp.compose(v.set(sd * 0.05, 0.17, 0.0), q, sc.set(fold, 1, 1)); if (b.st !== 2) { e.set(0, Math.PI / 2, sd * 0.55); q.setFromEuler(e); Mp.compose(v.set(sd * 0.065, 0.165, 0.09), q, sc.set(0.7, 1.6, 0.6)); } Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); }
       const lg = b.st === 2 ? hide : null; for (const [k, sd] of [['l1', -1], ['l2', 1]]) { if (lg) { I[k].setMatrixAt(i, hide); continue; } Mp.makeTranslation(sd * 0.025, 0.0, 0.0); Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); } }
     function flutter(x, z) { if (!AC) return; const d = Math.hypot(x - P.x, z - P.z), vol = Math.min(0.5, 2.5 / (d + 1)); for (let k = 0; k < 7; k++) setTimeout(() => burst(0.09, 'bandpass', 700 + Math.random() * 500, 0.8, vol * (0.6 + Math.random() * 0.4)), k * 55 + Math.random() * 40); }
     let coo = 6;
@@ -3889,6 +3890,23 @@ if (PODEZD) {
       else if (EGG[d]) { toast(`${EGG[d][0]}<br><span style="font-size:14px">${EGG[d][1]}</span>`); if (d === 666) { redT = 25; if (AC) { burst(4, 'lowpass', 55, 0.7, 0.7); setTimeout(() => burst(1.2, 'lowpass', 80, 0.6, 0.5), 2500); } } if (d === 404 && AC) burst(0.6, 'bandpass', 2000, 0.4, 0.3); if (d === 777 && AC) [988, 1319, 1568, 1976].forEach((f, i) => setTimeout(() => blip([f], 0.25, 'triangle', 0.05), i * 110)); if (d === 2007 && AC) setTimeout(tvMurmur, 800); } }
     prevSt = LIFT.st;
     if (redT > 0) { redT -= dt; for (const l of LPOOL) l.color.setRGB(1, 0.05, 0.03); if (redT <= 0) for (const l of LPOOL) l.color.setRGB(1, 0.85, 0.6); } };
+
+  // ===== глазок: если долго стоять у двери, за ней кто-то подойдёт =====
+  let dwell = 0, dwellDoor = null, cool = 40;
+  const _w2 = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { _w2(dt); cool -= dt; let best = null, bd = 1.3; for (const d of doorsLive) { if (Math.abs(d.y - P.y) > 1.5) continue; const x = Math.hypot(d.x - P.x, d.z - P.z); if (x < bd) { bd = x; best = d; } }
+    if (best && best === dwellDoor) dwell += dt; else { dwell = 0; dwellDoor = best; }
+    if (dwell > 4.5 && cool < 0) { dwell = 0; cool = 60 + Math.random() * 60; const k = Math.random();
+      if (AC) { if (k < 0.5) { for (let i = 0; i < 4; i++) setTimeout(() => burst(0.05, 'lowpass', 400, 1, 0.06 + i * 0.02, 0.2), i * 380); } else { burst(0.18, 'bandpass', 2300, 3, 0.07); setTimeout(() => burst(0.14, 'bandpass', 2100, 3, 0.06), 140); } }
+      toast(k < 0.5 ? '<span style="font-size:14px;opacity:.85">За дверью подошли. Остановились.<br>Глазок потемнел.</span>' : '<span style="font-size:14px;opacity:.85">Звякнула цепочка.</span>'); } };
+
+  // ===== гул лампочек: рядом с горящей слышно жужжание, у мигающих срывается =====
+  let buzz = null;
+  const _w3 = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { _w3(dt); if (!AC) return;
+    if (!buzz) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.value = 100; o2.type = 'square'; o2.frequency.value = 200; f.type = 'bandpass'; f.frequency.value = 280; f.Q.value = 1.2; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(); o2.start(); buzz = { g, sp, o }; }
+    let best = null, bd = 4; for (const a of bulbAnchors) { if (Math.abs((a.fy || 0) - P.y) > 2.2) continue; const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } }
+    let v = best ? 0.012 * (1 - bd / 4) : 0; if (best && best.flick && Math.sin(clock * 23 + best.x) > 0.4) v *= 0.15 + 2.4 * Math.max(0, Math.sin(clock * 61)); buzz.g.gain.value += (v - buzz.g.gain.value) * Math.min(1, dt * 12); buzz.sp.pan.value = best ? Math.max(-1, Math.min(1, (best.x - P.x) / 3)) : 0; };
 }
 
 // ===================== ДВОРЫ, цикл 3: курильщики, выбивание ковра, «скорая» вдалеке =====================
@@ -3984,6 +4002,38 @@ if (KV) {
     const a = dg.attributes.position.array; for (let i = 0; i < dn; i++) { const bm = BEAMS[i % 3]; dp[i * 3] += (Math.sin(clock * 0.3 + i) * 0.01 + 0.004) * dt * 10; dp[i * 3 + 1] += (Math.cos(clock * 0.25 + i * 2) * 0.01 - 0.003) * dt * 10; dp[i * 3 + 2] += Math.sin(clock * 0.2 + i * 3) * 0.008 * dt * 10;
       for (let k = 0; k < 3; k++) { if (dp[i * 3 + k] > 1) dp[i * 3 + k] -= 1; if (dp[i * 3 + k] < 0) dp[i * 3 + k] += 1; }
       a[i * 3] = bm[0] + (dp[i * 3] - 0.5) * bm[2]; a[i * 3 + 1] = 0.9 + dp[i * 3 + 1] * 1.4; a[i * 3 + 2] = bm[1] + dp[i * 3 + 2] * bm[3]; } dg.attributes.position.needsUpdate = true; };
+}
+
+// ===================== Окно кв. 47: тёплый свет и силуэт мамы, которая иногда машет рукой (только обычные Дворы) =====================
+if (DVOR && !ALT) {
+  const frameBars = [];
+  const W = 1.35, H = 1.35, X = 39.44, Y = 8.9, Z = 33.0;   // третий этаж дома 13, подъезд «твой»
+  const glow = new THREE.MeshBasicMaterial({ map: texFrom(mkCanvas(64, 64, (g) => { const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, '#ffe2a8'); gr.addColorStop(1, '#ffc070'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); g.fillStyle = 'rgba(120,70,30,0.5)'; g.fillRect(0, 0, 8, 64); g.fillRect(56, 0, 8, 64); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(30, 0, 4, 64); })), fog: true });
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(W, H), glow); win.position.set(X, Y, Z); win.rotation.y = -Math.PI / 2; scene.add(win);
+  { const fm = new THREE.MeshBasicMaterial({ color: 0xe8e8e2 }); for (const [dy, dz, sy, sz] of [[0, 0.7, 1.45, 0.07], [0, -0.7, 1.45, 0.07], [0.7, 0, 0.07, 1.45], [-0.7, 0, 0.07, 1.45]]) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.05, sy, sz), fm); f.position.set(X - 0.01, Y + dy, Z + dz); scene.add(f); frameBars.push(f); } }
+  const sil = new THREE.Group(), blk = new THREE.MeshBasicMaterial({ color: 0x1a1008 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.4, 4, 8), blk); body.position.set(0, -0.2, 0); const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), blk); head.position.set(0, 0.2, 0);
+  const arm = new THREE.Group(); arm.position.set(0.17, 0.05, 0); const aR = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.36, 3, 6).translate(0, 0.2, 0), blk); arm.add(aR); sil.add(body, head, arm);
+  sil.position.set(X + 0.015, Y - 0.1, Z - 0.1); sil.rotation.y = -Math.PI / 2; sil.visible = false; scene.add(sil);
+  // тёплый свет на фасаде
+  const lt = new THREE.PointLight(0xffc070, 0, 9, 2); lt.position.set(X - 0.6, Y, Z); scene.add(lt);
+  let t = 12, wave = 0, seen = false;
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return;
+    const d = Math.hypot(X - P.x, Z - P.z), vis = d < 140; win.visible = vis; frameBars.forEach((f) => { f.visible = vis; }); lt.intensity = vis ? 1.1 + Math.sin(clock * 0.8) * 0.06 : 0;
+    t -= dt; if (t < 0 && d < 70) { t = 45 + Math.random() * 60; wave = 4; sil.visible = true; if (!seen && d < 50) { seen = true; toast('<span style="font-size:14px">В окне на третьем этаже горит свет.<br>Там кто-то стоит.</span>'); } }
+    if (wave > 0) { wave -= dt; arm.rotation.z = -2.3 + Math.sin(clock * 6) * 0.45; if (wave <= 0) sil.visible = false; } };
+}
+
+// ===================== Гул проводов: вблизи столбов с линиями слышно электрическое жужжание, на ветру громче =====================
+if (DVOR) {
+  window.__poles = window.__poles || [];
+  let hum = null;
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started || !AC) return;
+    if (!hum) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.value = 100; o2.type = 'sine'; o2.frequency.value = 150; f.type = 'bandpass'; f.frequency.value = 220; f.Q.value = 2; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(); o2.start(); hum = { g, sp }; }
+    let best = null, bd = 14; for (let i = window.__poles.length - 1; i >= 0; i--) { const p = window.__poles[i]; if (!p.g.parent) { window.__poles.splice(i, 1); continue; } const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; best = p; } }
+    const v = best ? (0.016 + gust * 0.012) * Math.pow(1 - bd / 14, 1.5) : 0; hum.g.gain.value += (v - hum.g.gain.value) * Math.min(1, dt * 4); hum.sp.pan.value = best ? Math.max(-1, Math.min(1, -Math.sin(Math.atan2(best.x - P.x, best.z - P.z) - (P.yaw + Math.PI)))) : 0; };
 }
 
 })();
