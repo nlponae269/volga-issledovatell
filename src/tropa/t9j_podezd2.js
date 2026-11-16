@@ -62,4 +62,12 @@ if (PODEZD) {
     if (dwell > 4.5 && cool < 0) { dwell = 0; cool = 60 + Math.random() * 60; const k = Math.random();
       if (AC) { if (k < 0.5) { for (let i = 0; i < 4; i++) setTimeout(() => burst(0.05, 'lowpass', 400, 1, 0.06 + i * 0.02, 0.2), i * 380); } else { burst(0.18, 'bandpass', 2300, 3, 0.07); setTimeout(() => burst(0.14, 'bandpass', 2100, 3, 0.06), 140); } }
       toast(k < 0.5 ? '<span style="font-size:14px;opacity:.85">За дверью подошли. Остановились.<br>Глазок потемнел.</span>' : '<span style="font-size:14px;opacity:.85">Звякнула цепочка.</span>'); } };
+
+  // ===== гул лампочек: рядом с горящей слышно жужжание, у мигающих срывается =====
+  let buzz = null;
+  const _w3 = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { _w3(dt); if (!AC) return;
+    if (!buzz) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.value = 100; o2.type = 'square'; o2.frequency.value = 200; f.type = 'bandpass'; f.frequency.value = 280; f.Q.value = 1.2; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(); o2.start(); buzz = { g, sp, o }; }
+    let best = null, bd = 4; for (const a of bulbAnchors) { if (Math.abs((a.fy || 0) - P.y) > 2.2) continue; const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } }
+    let v = best ? 0.012 * (1 - bd / 4) : 0; if (best && best.flick && Math.sin(clock * 23 + best.x) > 0.4) v *= 0.15 + 2.4 * Math.max(0, Math.sin(clock * 61)); buzz.g.gain.value += (v - buzz.g.gain.value) * Math.min(1, dt * 12); buzz.sp.pan.value = best ? Math.max(-1, Math.min(1, (best.x - P.x) / 3)) : 0; };
 }

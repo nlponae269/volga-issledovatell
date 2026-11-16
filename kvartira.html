@@ -2859,7 +2859,7 @@ if (DVOR) {
   const PUT = (K, key, x, y, z, ry = 0, s = 1, sy = s) => K.put(key, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, sy, s)));
 
   // --- уличные фонари (днём не горят) и провода ---
-  function lampPole(K, x, z, ax, az) { const { b } = K; if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
+  function lampPole(K, x, z, ax, az) { const { b } = K; if (window.__poles) window.__poles.push({ x, z, g: K.group }); if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
     b.box(lampOff, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, null, 0, Math.atan2(az, ax) * -1); b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function wire(b, a, c, sag) { const N = 8; for (let k = 0; k < N; k++) { const t0 = k / N, t1 = (k + 1) / N, s0 = Math.sin(t0 * Math.PI) * sag, s1 = Math.sin(t1 * Math.PI) * sag; b.lines.push(new V3(lerp(a.x, c.x, t0), lerp(a.y, c.y, t0) - s0, lerp(a.z, c.z, t0)), new V3(lerp(a.x, c.x, t1), lerp(a.y, c.y, t1) - s1, lerp(a.z, c.z, t1))); } }
   function bench(K, x, z, ry) { const { b, r } = K; if (window.__benches) window.__benches.push({ x, z, ry, g: K.group }); b.push(x, 0, z, ry); b.box(BENCHM || M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(BENCHM || M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); DEC(b, D_SH, 0, 0, 2.4, 1.0); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
@@ -3899,6 +3899,14 @@ if (PODEZD) {
     if (dwell > 4.5 && cool < 0) { dwell = 0; cool = 60 + Math.random() * 60; const k = Math.random();
       if (AC) { if (k < 0.5) { for (let i = 0; i < 4; i++) setTimeout(() => burst(0.05, 'lowpass', 400, 1, 0.06 + i * 0.02, 0.2), i * 380); } else { burst(0.18, 'bandpass', 2300, 3, 0.07); setTimeout(() => burst(0.14, 'bandpass', 2100, 3, 0.06), 140); } }
       toast(k < 0.5 ? '<span style="font-size:14px;opacity:.85">За дверью подошли. Остановились.<br>Глазок потемнел.</span>' : '<span style="font-size:14px;opacity:.85">Звякнула цепочка.</span>'); } };
+
+  // ===== гул лампочек: рядом с горящей слышно жужжание, у мигающих срывается =====
+  let buzz = null;
+  const _w3 = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { _w3(dt); if (!AC) return;
+    if (!buzz) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.value = 100; o2.type = 'square'; o2.frequency.value = 200; f.type = 'bandpass'; f.frequency.value = 280; f.Q.value = 1.2; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(); o2.start(); buzz = { g, sp, o }; }
+    let best = null, bd = 4; for (const a of bulbAnchors) { if (Math.abs((a.fy || 0) - P.y) > 2.2) continue; const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } }
+    let v = best ? 0.012 * (1 - bd / 4) : 0; if (best && best.flick && Math.sin(clock * 23 + best.x) > 0.4) v *= 0.15 + 2.4 * Math.max(0, Math.sin(clock * 61)); buzz.g.gain.value += (v - buzz.g.gain.value) * Math.min(1, dt * 12); buzz.sp.pan.value = best ? Math.max(-1, Math.min(1, (best.x - P.x) / 3)) : 0; };
 }
 
 // ===================== ДВОРЫ, цикл 3: курильщики, выбивание ковра, «скорая» вдалеке =====================
@@ -4015,6 +4023,17 @@ if (DVOR && !ALT) {
     const d = Math.hypot(X - P.x, Z - P.z), vis = d < 140; win.visible = vis; frameBars.forEach((f) => { f.visible = vis; }); lt.intensity = vis ? 1.1 + Math.sin(clock * 0.8) * 0.06 : 0;
     t -= dt; if (t < 0 && d < 70) { t = 45 + Math.random() * 60; wave = 4; sil.visible = true; if (!seen && d < 50) { seen = true; toast('<span style="font-size:14px">В окне на третьем этаже горит свет.<br>Там кто-то стоит.</span>'); } }
     if (wave > 0) { wave -= dt; arm.rotation.z = -2.3 + Math.sin(clock * 6) * 0.45; if (wave <= 0) sil.visible = false; } };
+}
+
+// ===================== Гул проводов: вблизи столбов с линиями слышно электрическое жужжание, на ветру громче =====================
+if (DVOR) {
+  window.__poles = window.__poles || [];
+  let hum = null;
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started || !AC) return;
+    if (!hum) { const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.value = 100; o2.type = 'sine'; o2.frequency.value = 150; f.type = 'bandpass'; f.frequency.value = 220; f.Q.value = 2; g.gain.value = 0; o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(); o2.start(); hum = { g, sp }; }
+    let best = null, bd = 14; for (let i = window.__poles.length - 1; i >= 0; i--) { const p = window.__poles[i]; if (!p.g.parent) { window.__poles.splice(i, 1); continue; } const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; best = p; } }
+    const v = best ? (0.016 + gust * 0.012) * Math.pow(1 - bd / 14, 1.5) : 0; hum.g.gain.value += (v - hum.g.gain.value) * Math.min(1, dt * 4); hum.sp.pan.value = best ? Math.max(-1, Math.min(1, -Math.sin(Math.atan2(best.x - P.x, best.z - P.z) - (P.yaw + Math.PI)))) : 0; };
 }
 
 })();
