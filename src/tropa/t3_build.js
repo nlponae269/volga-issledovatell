@@ -115,9 +115,9 @@ function garages(b, r, x, z, ry) {
   b.push(x, groundH(x, z) - 0.03, z, ry);
   for (let i = 0; i < n; i++) {
     const gx = (i - (n - 1) / 2) * (gw + 0.06), c = r() < 0.5 ? PAINT.blue : r() < 0.5 ? PAINT.galv : r() < 0.5 ? PAINT.green : PAINT.rust;
-    b.box(M.prof, gx, 1.25, 0, gw, 2.5, 5.6, c);
+    b.box(window.__garWall || M.prof, gx, 1.25, 0, gw, 2.5, 5.6, window.__garWall ? null : c);
     b.box(M.prof, gx, 2.6, -0.1, gw + 0.15, 0.04, 6.0, PAINT.galv, 0.05);
-    b.box(M.metal, gx - 0.74, 1.12, 2.82, 1.42, 2.15, 0.04, c); b.box(M.metal, gx + 0.74, 1.12, 2.82, 1.42, 2.15, 0.04, c);
+    if (window.__garDoor) b.box(window.__garDoor, gx, 1.12, 2.83, 2.9, 2.15, 0.04); else { b.box(M.metal, gx - 0.74, 1.12, 2.82, 1.42, 2.15, 0.04, c); b.box(M.metal, gx + 0.74, 1.12, 2.82, 1.42, 2.15, 0.04, c); }
     b.box(M.metal, gx, 1.12, 2.85, 0.06, 2.15, 0.03, PAINT.dark); b.box(M.metal, gx + 0.15, 1.1, 2.88, 0.05, 0.3, 0.05, PAINT.dark);
     b.box(M.conc, gx, 0.04, 3.4, gw, 0.08, 1.0, shade(0.7));
   }
