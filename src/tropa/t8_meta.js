@@ -70,3 +70,6 @@ function wakeUp(lines) {
 }
 addEventListener('load', showKeys); showKeys();
 if (GARDEN && allKeys()) setTimeout(() => toast('<b style="color:#ffd35a">Где-то в заборе появились ворота.</b>'), 4000);
+
+// хук для обвязки площадок (Яндекс Игры: полёт/телепорт/ускорение)
+window.__game = { P, WORLD, KEY_POS, get SPAWN() { return SPAWN; }, toast: (h) => toast(h), keysGot: () => keysGot(), home: null };

@@ -268,13 +268,15 @@ function frame(now) {
   if (started && !dead && !(jumping || goWorld.busy)) {
     let fx = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, sx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
     const l = Math.hypot(fx, sx); if (l > 1) { fx /= l; sx /= l; }
-    const target = (keys.ShiftLeft || keys.ShiftRight || running ? 5.6 : 2.3) * Math.min(1, l);
+    const GP = window.__gp || {};   // пропуски (Яндекс Игры): ускорение, полёт
+    const target = (keys.ShiftLeft || keys.ShiftRight || running ? 5.6 : 2.3) * Math.min(1, l) * (GP.speed && GP.speedOn !== false ? 1.8 : 1) * (GP.flyOn ? 1.7 : 1);
     P.speed = lerp(P.speed, target, 1 - Math.exp(-dt * 6));
     const fwx = -Math.sin(P.yaw), fwz = -Math.cos(P.yaw);
     if (l > 0.01) { P.dx = (fwx * fx - fwz * sx) / l; P.dz = (fwz * fx + fwx * sx) / l; }
     let nx = P.x + (P.dx || 0) * P.speed * dt, nz = P.z + (P.dz || 0) * P.speed * dt;
     [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;
-    P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? stroySurface(P.x, P.z) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false;
+    if (GP.flyOn) { const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? 0 : 0; P.vy = 0; P.y += ((keys.Space || GP.up ? 1 : 0) - (keys.KeyC || keys.ControlLeft || GP.down ? 1 : 0)) * 6 * dt; if (!PODEZD && P.y < gy) P.y = gy; P.ground = P.y <= gy + 0.01; }
+    else { P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? stroySurface(P.x, P.z) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false; }
     if (P.ground && P.speed > 0.3) { bob += dt * (3.2 + P.speed * 1.3); if (bob - lastStep > Math.PI * 2) { lastStep = bob; footstep(surfaceAt(P.x, P.z), P.speed > 4); } }
     killCheck();
     for (let i = coinsLive.length - 1; i >= 0; i--) { const c = coinsLive[i], t = taken.get(c.id); const vis = t === undefined || clock - t > RESPAWN; if (vis && t !== undefined) taken.delete(c.id); c.obj.visible = vis; if (!vis) continue;

@@ -26,7 +26,7 @@ function dvAmbient() { if (!AC) return; const t = Math.random(), pan = Math.rand
   else { for (let k = 0; k < 5; k++) setTimeout(() => blip([1500 + Math.random() * 900], 0.07, 'sine', 0.015), k * (180 + Math.random() * 300)); } }
 
 if (DVOR) {
-  KEY_POS.dvory = [-187.5, 0, 100.5];
+  KEY_POS.dvory = [-187.5, 0, 100.5]; window.__game && (window.__game.home = { x: 36, z: 26, n: 'К дому 13' });
   const FINAL = dvLS('dream_final') === '1';
   SPAWN = { x: 8, z: 2, yaw: 0 };                       // спавн — во дворе дома № 13, лицом на север
   P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = SPAWN.yaw; P.pitch = 0.04;
