@@ -3815,6 +3815,25 @@ if (DVOR) {
   };
 }
 
+// ===== цикл 7: небо дрейфует, стаи птиц пролетают и перекликаются =====
+if (DVOR) {
+  const birdG = new THREE.BufferGeometry(), NB = 18, bp = new Float32Array(NB * 3).fill(-9999); birdG.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+  const dot = texFrom(mkCanvas(32, 32, (g) => { g.fillStyle = '#000'; g.beginPath(); g.moveTo(2, 14); g.quadraticCurveTo(16, 4, 30, 14); g.quadraticCurveTo(16, 10, 2, 14); g.fill(); }));
+  const birds = new THREE.Points(birdG, new THREE.PointsMaterial({ size: 1.9, map: dot, color: ALT ? 0x300000 : 0x1c1c20, transparent: true, depthWrite: false, alphaTest: 0.1 })); birds.frustumCulled = false; scene.add(birds); REFL.hide.push(birds);
+  const off = [], r0 = rng(9); for (let i = 0; i < NB; i++) { const k = i % 9, row = Math.floor(i / 9); off.push([-Math.abs(k - 4) * 3.2 - row * 1.5, (k - 4) * 2.4 + (r0() - 0.5) * 3, r0() * 6]); }
+  let flock = null, flockT = 20;
+  function caw(x, z) { if (!AC) return; const d = Math.hypot(x - P.x, z - P.z), v = 0.035 * Math.max(0, 1 - d / 200); if (v <= 0) return; const a = Math.atan2(x - P.x, z - P.z) - (P.yaw + Math.PI), p = Math.max(-1, Math.min(1, -Math.sin(a)));
+    for (let k = 0; k < 2 + ((Math.random() * 3) | 0); k++) setTimeout(() => { const t = AC.currentTime, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.setValueAtTime(560, t); o.frequency.exponentialRampToValueAtTime(320, t + 0.28); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 2.5; sp.pan.value = p; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.3); o.connect(f).connect(g).connect(sp).connect(master); o.start(t); o.stop(t + 0.35); }, k * 380); }
+  const prevB = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { prevB(dt); if (!started) return;
+    if (scene.background && scene.background.isTexture && 'backgroundRotation' in scene) { scene.backgroundRotation.y += dt * 0.0025; scene.environmentRotation.y = scene.backgroundRotation.y; }
+    flockT -= dt; if (!flock && flockT < 0) { const a = Math.random() * 6.28; flock = { x: P.x - Math.sin(a) * 260, z: P.z - Math.cos(a) * 260, vx: Math.sin(a) * (14 + Math.random() * 6), vz: Math.cos(a) * (14 + Math.random() * 6), y: 38 + Math.random() * 30, ph: 0, cawT: 4 }; }
+    if (flock) { const f = flock; f.x += f.vx * dt; f.z += f.vz * dt; f.ph += dt * 9; f.cawT -= dt; const sp = Math.hypot(f.vx, f.vz), ux = f.vx / sp, uz = f.vz / sp;
+      for (let i = 0; i < NB; i++) { const o = off[i]; bp[i * 3] = f.x + ux * o[0] - uz * o[1]; bp[i * 3 + 2] = f.z + uz * o[0] + ux * o[1]; bp[i * 3 + 1] = f.y + Math.sin(f.ph + o[2]) * 0.9; } birdG.attributes.position.needsUpdate = true;
+      if (f.cawT < 0) { f.cawT = 4 + Math.random() * 5; caw(f.x, f.z); }
+      if (Math.hypot(f.x - P.x, f.z - P.z) > 290 && (f.x - P.x) * f.vx + (f.z - P.z) * f.vz > 0) { flock = null; flockT = 70 + Math.random() * 90; bp.fill(-9999); birdG.attributes.position.needsUpdate = true; } } };
+}
+
 // ===================== ПОДЪЕЗД, цикл 2: новогодняя ночь — салюты за окном, куранты, телевизоры, шаги этажом выше =====================
 if (PODEZD) {
   // цветные вспышки салюта в окне межэтажной площадки (один PointLight следует за этажом игрока)
