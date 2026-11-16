@@ -131,6 +131,14 @@ if (DVOR) {
   const AIM = (f, rx, ry, o = {}) => PBR_ON ? std(Object.assign({ map: pbrT('tex/ai/' + f, true, rx, ry), roughness: 0.9 }, o)) : null;
   const ENTR = AIM('dv_entr_door.jpg', 1 / 1.1, 1 / 2.14, { roughness: 0.55, metalness: 0.25 }), WHW = AIM('dv_whitewash.jpg', 1 / 1.5, 1 / 1.5), PLINTH = AIM('dv_plinth.jpg', 1 / 1.6, 1 / 1.6),
     CONT = AIM('dv_container.jpg', 1, 1, { roughness: 0.6, metalness: 0.35 }), PROFM = AIM('dv_prof.jpg', 1 / 2, 1 / 2, { roughness: 0.6, metalness: 0.3 });
+  // дешёвые сгенерированные: второй кирпич, пятиэтажки, крыши, лавочки, газовая труба, щебень
+  const BRICK2M = AIM('facade_brick2.jpg', 1 / 6, 1 / 5.6), FIVEM = AIM('facade_5et.jpg', 1 / 6, 1 / 5.6), ROOFM = AIM('dv_roof.jpg', 1 / 3, 1 / 3),
+    BENCHM = AIM('dv_bench.jpg', 1, 1, { roughness: 0.8 }), GASM = AIM('dv_gaspipe.jpg', 1 / 0.5, 1 / 0.5, { roughness: 0.5, metalness: 0.4 }), BALLM = AIM('dv_ballast.jpg', 1 / 2, 1 / 2);
+  if (BRICK2M) BRICK2M.map.offset.set(0, -1.6 / 5.6); if (FIVEM) FIVEM.map.offset.set(0, -1.2 / 5.6);
+  // ALTERNATIVE: те же фасады, но «не те» (сгенерированы правкой оригиналов)
+  const ALTDOM = ALT ? AIM('alt_dom13.jpg', 1 / 6.2, 1 / 5.6) : null, ALTPAN = ALT ? AIM('alt_panel.jpg', 1 / 12, 1 / 11.2) : null;
+  if (ALTDOM) { ALTDOM.map.offset.set(0, -(1.6 - 0.15) / 5.6); ALTDOM.emissiveMap = ALTDOM.map; ALTDOM.emissive = new THREE.Color(0.5, 0.06, 0.04); }
+  if (ALTPAN) { ALTPAN.map.offset.set(0, -1.6 / 11.2); ALTPAN.emissiveMap = ALTPAN.map; ALTPAN.emissive = new THREE.Color(0.5, 0.06, 0.04); }
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
@@ -168,7 +176,7 @@ if (DVOR) {
   function lampPole(K, x, z, ax, az) { const { b } = K; if (PROTO.m_pole) PUT(K, 'm_pole', x, 0, z, K.r() * 6, 1.25, 0.95); else b.cyl(M.metal, x, 3.2, z, 0.09, 0.06, 6.4, 8, PAINT.dark); b.pipe(M.metal, new V3(x, 6.3, z), new V3(x + ax * 1.3, 6.45, z + az * 1.3), 0.04, PAINT.dark);
     b.box(lampOff, x + ax * 1.4, 6.38, z + az * 1.4, 0.55, 0.12, 0.28, null, 0, Math.atan2(az, ax) * -1); b.collide(x, z, 0.15, 0.15); K.take(x, z, 0.6); }
   function wire(b, a, c, sag) { const N = 8; for (let k = 0; k < N; k++) { const t0 = k / N, t1 = (k + 1) / N, s0 = Math.sin(t0 * Math.PI) * sag, s1 = Math.sin(t1 * Math.PI) * sag; b.lines.push(new V3(lerp(a.x, c.x, t0), lerp(a.y, c.y, t0) - s0, lerp(a.z, c.z, t0)), new V3(lerp(a.x, c.x, t1), lerp(a.y, c.y, t1) - s1, lerp(a.z, c.z, t1))); } }
-  function bench(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); b.box(M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); DEC(b, D_SH, 0, 0, 2.4, 1.0); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
+  function bench(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); b.box(BENCHM || M.plank, 0, 0.45, 0, 1.8, 0.05, 0.42, peel(GRN, r)); b.box(BENCHM || M.plank, 0, 0.8, -0.2, 1.8, 0.3, 0.05, peel(GRN, r)); for (const s of [-0.7, 0.7]) b.box(M.conc, s, 0.22, 0, 0.12, 0.44, 0.4, shade(0.7)); DEC(b, D_SH, 0, 0, 2.4, 1.0); b.collide(0, 0, 0.9, 0.25); b.pop(); K.take(x, z, 1.1); }
   // --- наземные декали: контактные тени, затенение у стен, опавшие листья, мусор ---
   const decM = (c) => { const t = texFrom(c, true); return new THREE.MeshStandardMaterial({ map: t, transparent: true, depthWrite: false, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); };
   const D_SH = decM(mkCanvas(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(8,7,6,0.78)'); gr.addColorStop(0.55, 'rgba(8,7,6,0.5)'); gr.addColorStop(1, 'rgba(8,7,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }));
@@ -183,7 +191,7 @@ if (DVOR) {
     const gr = g.createRadialGradient(64, 64, 30, 64, 64, 64); gr.addColorStop(0, 'rgba(120,70,40,0)'); gr.addColorStop(1, 'rgba(110,60,30,0.6)'); g.fillStyle = gr; g.beginPath(); g.arc(64, 64, 62, 0, 6.3); g.fill(); }));
   const D_TR = decM(mkCanvas(64, 256, (g) => { const r = rng(9); for (const x0 of [12, 52]) for (let y = 0; y < 256; y += 2) { g.fillStyle = `rgba(30,24,18,${0.25 + r() * 0.3})`; const w = 7 + r() * 3; g.fillRect(x0 - w / 2 + Math.sin(y * 0.05) * 1.5, y, w, 2); if (r() < 0.3) { g.fillStyle = 'rgba(20,16,12,0.5)'; g.fillRect(x0 - 3, y, 6, 1); } }
     const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.15, 'rgba(0,0,0,0)'); gr.addColorStop(0.85, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = gr; g.fillRect(0, 0, 64, 256); }));
-  if (PBR_ON) { D_MH.map = pbrT('tex/ai/dv_manhole.png', true); D_MH.needsUpdate = true; }
+  if (PBR_ON) { D_MH.map = pbrT('tex/ai/dv_manhole.png', true); D_MH.needsUpdate = true; D_LF.map = pbrT('tex/ai/dv_leaves_decal.png', true); D_LF.needsUpdate = true; }
   const TORG = new THREE.TorusGeometry(0.3, 0.1, 8, 16);
   const DECG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const ALTSIL = std({ map: texFrom(mkCanvas(64, 160, (g) => { g.fillStyle = '#000'; g.beginPath(); g.ellipse(32, 26, 14, 18, 0, 0, 6.3); g.fill(); g.fillRect(14, 40, 36, 120); g.fillStyle = '#fff'; g.fillRect(25, 24, 4, 3); g.fillRect(36, 24, 4, 3); })), transparent: true, alphaTest: 0.3, emissive: 0x220000, roughness: 1 });
@@ -260,17 +268,17 @@ if (DVOR) {
     if (PROTO.m_bag) { for (let k = 0; k < 5; k++) { const w = b.world(-2.2 + r() * 4.4, 0, 0.75 + r() * 0.8); PUT(K, r() < 0.6 ? 'm_bag' : 'm_box', w.x, 0, w.z, r() * 6, 0.9 + r() * 0.4); } } else for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
   function panel(K, cx, cz, len, dep, floors, ry, fac, home) {
-    const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc, PHM = floors !== 9 ? null : fac === FAC[0] ? DOM13 : fac.userData.o && fac.userData.o.panel ? PANELM : null, PH = !!PHM;
+    const { b, group, r } = K, base = floors === 9 ? 1.6 : 1.2, Hh = base + floors * 2.8 + 0.5, uo = ((r() * 12) | 0) * 3, wc = fac.userData.wc, PHM = fac === FAC[0] && floors === 9 ? (ALTDOM || DOM13) : fac === FAC[1] && floors === 9 ? (ALTDOM || BRICK2M) : fac === FAC[3] ? FIVEM : fac.userData.o && fac.userData.o.panel && floors === 9 ? (ALTPAN || PANELM) : null, PH = !!PHM;
     const FLY = ALT && PH && ihash(Math.round(cx), Math.round(cz), 999) < 0.35 ? 3 + ihash(Math.round(cz), Math.round(cx), 998) * 10 : 0;   // ALT: дом висит в воздухе
     b.push(cx, FLY, cz, ry);
-    b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
+    b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(ROOFM || M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(ROOFM ? 1 : 0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? PHM : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     if (!FLY) b.collide(0, 0, len / 2, dep / 2);
     if (ALT && PH) for (const sd of [1, -1]) for (let q = 0; q < 7; q++) { const fx = -len / 2 + 1.5 + ((r() * (len / 3 - 1)) | 0) * 3, ff = (r() * floors) | 0;   // силуэты в окнах
       b.add(ALTSIL, ALTSILG, new THREE.Matrix4().compose(new V3(fx, base + ff * 2.8 + 1.5, sd * (dep / 2 + 0.04)), new THREE.Quaternion().setFromAxisAngle(UP, sd > 0 ? 0 : Math.PI), new V3(1, 1, 1))); }
     if (PH) for (const sd of [1, -1]) b.box(PLINTH || M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(PLINTH ? 1 : 0.52));
     for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }
-    b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
+    b.cyl(GASM || M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
     { const o = fac.userData.o; if (o && PROTO.m_win && !PH) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
       for (let k = 0; k * 3 < len - 0.5; k++) { const col = ((k + uo2 / 3) % 12 + 12) % 12;
         if (o.balc && col % 4 === 1) { const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp; for (let f = 1; f < floors; f++) { const y = o.base + f * o.fh, w = b.world(xl, y, s * (dep / 2 + 0.03)); K.put(ihash(Math.round(w.x * 3), f, Math.round(w.z * 3)) < 0.7 ? 'm_balc' : 'm_balc_o', new THREE.Matrix4().compose(new V3(w.x, y, w.z), new THREE.Quaternion().setFromAxisAngle(UP, ry + (s > 0 ? 0 : Math.PI)), new V3(1, 1, 1))); } continue; } const xp = -len / 2 + k * 3 + 1.5, xl = s > 0 ? xp : -xp;
@@ -305,7 +313,7 @@ if (DVOR) {
         for (let k = 0; k < 7; k++) { const z = fz + 0.45 + k * 0.22; b.box(M.metal, lx + sx, 0.62, z, 0.02, 0.66, 0.02, PAINT.dark); } }
       b.collide(lx, fz + 1.3, 1.0, 0.75);
       // газовая труба: жёлтый стояк у подъезда
-      b.cyl(M.metal, lx + 1.25, Hh / 2, fz + 0.12, 0.04, 0.04, Hh - 1, 8, YG);
+      b.cyl(GASM || M.metal, lx + 1.25, Hh / 2, fz + 0.12, 0.04, 0.04, Hh - 1, 8, YG);
       // иногда — подвальная синяя дверь и розовый цоколь
       if (i < n - 1 && r() < 0.55) { const dx = lx + len / (2 * n); b.box(M.metal, dx, 0.95, fz + 0.03, 0.9, 1.9, 0.05, BL); b.box(M.paint, dx, 0.5, fz + 0.015, 2.4, 1.0, 0.03, lin([0.62, 0.36, 0.34])); }
       if (PROTO.m_slight) { const w = b.world(lx, 2.3, fz + 0.02); PUT(K, 'm_slight', w.x, 2.3, w.z, ry, 1.1); } else b.box(lampOff, lx, 2.52, fz + 0.3, 0.3, 0.08, 0.18);
@@ -410,7 +418,7 @@ if (DVOR) {
     if (PBR_ON) return std({ map: pbrT('tex/ai/dv_po2.jpg', true, 1 / 4, 1 / 2.5), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.95 });
     return std({ color: 0xd2cfc8, map: texFrom(cmap, true), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.95 }); })();
   function concFence(b, x0, x1, z) { for (let x = x0; x < x1 - 0.5; x += 4.05) { if (dvRoadD(x + 2, z) < 7.5 || ihash(Math.round(x), z | 0, 31) < 0.04) continue; b.collide(x + 2, z, 2.05, 0.12); b.add(PO2, new THREE.BoxGeometry(4, 2.5, 0.14), new THREE.Matrix4().makeTranslation(x + 2.0, 1.32, z)); b.box(M.conc, x, 1.35, z, 0.22, 2.7, 0.24, shade(0.62)); } }
-  function rails(K) { const { b, x0, x1 } = K; for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) { b.box(M.conc, (x0 + x1) / 2, 0.1, zt, x1 - x0, 0.2, 3.4, lin([0.3, 0.28, 0.26]));
+  function rails(K) { const { b, x0, x1 } = K; for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) { b.box(BALLM || M.conc, (x0 + x1) / 2, 0.1, zt, x1 - x0, 0.2, 3.4, lin([0.3, 0.28, 0.26]));
       for (const s2 of [-0.76, 0.76]) b.box(M.metal, (x0 + x1) / 2, 0.32, zt + s2, x1 - x0, 0.14, 0.07, lin([0.32, 0.22, 0.16]));
       for (let x = x0 + 0.3; x < x1; x += 0.6) b.box(M.plank, x, 0.22, zt, 0.24, 0.12, 2.6, shade(0.32)); }
     concFence(b, x0, x1, DV_RAIL - 9.8);
@@ -760,8 +768,19 @@ if (DVOR) {
         if (d < 1.2) { flash = 0.8; const a = Math.random() * 6.28, r2 = 60 + Math.random() * 90; P.x += Math.sin(a) * r2; P.z += Math.cos(a) * r2; if (AC) burst(0.6, 'bandpass', 400, 0.5, 0.7); toast('<span style="color:#ff6050">Тебя выбросило где-то ещё.</span>'); o.g.visible = false; } }
       if (shake > 0) { shake = Math.max(0, shake - dt * 0.8); camera.rotation.z += (Math.random() - 0.5) * 0.03 * shake; camera.rotation.x += (Math.random() - 0.5) * 0.02 * shake; } } };
   })();
+
+  // секрет: в обычных Дворах где-то между домами висит чёрный шар — вход в ALTERNATIVE
+  const PORTAL = (() => { if (ALT) return null; const g = new THREE.Group(), h = new THREE.Mesh(new THREE.SphereGeometry(0.85, 20, 14), new THREE.MeshBasicMaterial({ color: 0xff2010, transparent: true, opacity: 0.3, side: THREE.BackSide, depthWrite: false }));
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 14), new THREE.MeshBasicMaterial({ color: 0x000000 })), h); scene.add(g); REFL.hide.push(g);
+    const CAND = [[-118, -180], [95, -205], [-125, 55], [118, -70], [-20, 120]]; let ci = 0, ok = false, hint = false; g.position.set(CAND[0][0], 1.8, CAND[0][1]);
+    return { update(dt) { h.scale.setScalar(1 + Math.sin(clock * 6) * 0.08); g.rotation.y += dt; g.position.y = groundH(g.position.x, g.position.z) + 1.8 + Math.sin(clock * 1.2) * 0.25;
+      const d = Math.hypot(g.position.x - P.x, g.position.z - P.z);
+      if (!ok && d < 70) { const c = collide(g.position.x, g.position.z); if (Math.abs(c[0] - g.position.x) > 1e-3 || Math.abs(c[1] - g.position.z) > 1e-3) { ci = (ci + 1) % CAND.length; g.position.x = CAND[ci][0]; g.position.z = CAND[ci][1]; } else ok = true; }
+      if (!hint && d < 35 && started) { hint = true; toast('<span style="color:#ff6050">Между домами висит что-то чёрное.</span>'); }
+      if (d < 10 && AC && Math.random() < dt * 2) burst(0.3, 'lowpass', 60, 0.6, 0.15);
+      if (d < 1.3 && started && !goWorld.busy) goWorld('alt', 'Чёрный шар втянул тебя.<br><span style="font-size:14px;color:#ff6050">Двор тот же. Двор не тот.</span>'); } }; })();
   WORLD_UPDATE = (dt) => {
-    carsUpdate(dt); rainUpdate(dt); PG.update(dt); VIBE.update(dt); if (ALTRUN) ALTRUN.update(dt);
+    carsUpdate(dt); rainUpdate(dt); PG.update(dt); VIBE.update(dt); if (ALTRUN) ALTRUN.update(dt); if (PORTAL) PORTAL.update(dt);
     if (started && !clockStop) { secs += dt; const s = FINAL ? 59 : ALT ? 59 - (Math.floor(secs) % 60) : Math.floor(secs) % 60; if (s !== lastS) { lastS = s; const e = $('f_clock'); if (e) e.textContent = ALT && Math.random() < 0.25 ? ['ноябрь · 14:5Ø:', 'нояб̷рь · 41:05:', 'ноябрь · 14:50:', 'ты · 14:50:'][(Math.random() * 4) | 0] + String(s).padStart(2, '0') : `ноябрь · 14:50:${String(s).padStart(2, '0')}`; } }
     smT -= dt; if (smT < 0 && started) { smT = 1; for (let k = SMELLS.length - 1; k >= 0; k--) { const m = SMELLS[k]; if (!m.group.parent) { SMELLS.splice(k, 1); continue; } if (m.text !== smLast && Math.hypot(m.x - P.x, m.z - P.z) < 4.5) { smLast = m.text; smT = 25; toast(`<span style="font-size:15px;font-style:italic;color:#d8d2c4">${m.text}</span>`); break; } } }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }

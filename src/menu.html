@@ -127,6 +127,7 @@ const IMG = /*THUMBS*/{}, BLUR = /*BLUR*/{};
 const its = (w, ic) => () => { const n = +ls(w + '_items') || 0; return n ? `${ic} ${n}` : ''; };
 const WORLDS = [
   { id: 'dvory', name: 'ДВОРЫ', tag: 'СЮЖЕТ', desc: '415-й микрорайон, Героев Тулы, 13. Ноябрь, 14:50, после дождя. Ключа нет, домофон молчит. Главная история.', stat: () => { const c = Math.min(12, +ls('dvory_cards') || 0), m = +ls('dvory_mand') || 0; return (c ? `✉ ${c}/12 ` : '') + (m ? `🌰 ${m}` : ''); } },
+  { id: 'alt', name: 'ALTERNATIVE', tag: 'АНОМАЛИИ', desc: 'Тот же двор, но красный. Часы идут назад, дома висят в воздухе, безликие ходят, когда не смотришь.', stat: () => '' },
   { id: 'tishina', name: 'ТИШИНА', desc: 'Волга, осень, костёр. Горы, лес, брошенные деревни. 10 записок.', stat: () => '' },
   { id: 'tropa', name: 'ТРОПА', desc: 'Бесконечная тропа вдоль трассы. Туман, тополя, магазины с монетами.', stat: () => { const m = +ls('tropa_money') || 0; return m ? `🪙 ${m}` : ''; } },
   { id: 'vorota', name: 'ВОРОТА', desc: 'Дачный участок без конца. Найди ворота. Яблоки, груши, малина.', stat: () => { try { const f = JSON.parse(ls('vorota_fruit') || '{}'); const s = (f.apple || 0) + (f.pear || 0) + (f.plum || 0); return s || f.rasp ? `🍎 ${s} · малина ${f.rasp || 0}` : ''; } catch (e) { return ''; } } },
@@ -149,12 +150,12 @@ const KEYW = ['dvory', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola
 function keysTxt() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} const n = KEYW.filter((w) => k.includes(w)).length; return ls('dream_done') ? 'ты проснулся · сон пройден' : `ключи от ворот: ${n} / ${KEYW.length}` + (n >= KEYW.length ? ' — ворота ждут' : ''); }
 function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 
-const PAL = { dvory: ['#ff7a59', '#7b5cff'], tishina: ['#e8a96d', '#3d8ab8'], tropa: ['#b9d4a0', '#5a7a9a'], vorota: ['#d8e05a', '#e0566b'], dom: ['#d88a3a', '#4a3a9a'], podezd: ['#3fd8e0', '#2a5ad8'], garages: ['#ff3b3b', '#8a1aff'],
+const PAL = { alt: ['#ff2a1a', '#3a0000'], dvory: ['#ff7a59', '#7b5cff'], tishina: ['#e8a96d', '#3d8ab8'], tropa: ['#b9d4a0', '#5a7a9a'], vorota: ['#d8e05a', '#e0566b'], dom: ['#d88a3a', '#4a3a9a'], podezd: ['#3fd8e0', '#2a5ad8'], garages: ['#ff3b3b', '#8a1aff'],
   zima: ['#ff4fc8', '#2be0e0'], ostanovka: ['#f0a030', '#3a6ad8'], shkola: ['#3a9ae8', '#e8c840'], bolnica: ['#5ae0c0', '#7ab0ff'], metro: ['#e8b84a', '#c82a3a'], magazin: ['#ff5a5a', '#ffd040'], plyazh: ['#4ac0f0', '#f0c890'], lager: ['#ff5040', '#4060c0'],
   pole: ['#f8c840', '#4aa0f0'], elektrichka: ['#4ae070', '#4ab0e0'], stroyka: ['#ff8a20', '#8a9aa8'] };
 const pal = (id) => PAL[id] || ['#d9b45a', '#5a7ad9'], $ = (id) => document.getElementById(id), root = document.documentElement;
 // главные миры — Дворы и Подъезд; остальные спрятаны в «Ещё миры»
-const MAIN = ['dvory', 'podezd']; WORLDS.sort((a, b) => (MAIN.includes(b.id) ? 1 : 0) - (MAIN.includes(a.id) ? 1 : 0) || MAIN.indexOf(a.id) - MAIN.indexOf(b.id));
+const MAIN = ['dvory', 'podezd', 'alt']; WORLDS.sort((a, b) => (MAIN.includes(b.id) ? 1 : 0) - (MAIN.includes(a.id) ? 1 : 0) || MAIN.indexOf(a.id) - MAIN.indexOf(b.id));
 const strip = $('strip'), N = WORLDS.length, TILES = [];
 // лента
 WORLDS.forEach((w, i) => { const [a1, a2] = pal(w.id), t = document.createElement('div'); t.className = 't'; t.style.setProperty('--b1', a1); t.style.setProperty('--b2', a2); t.style.animationDelay = (0.25 + i * 0.04) + 's';
