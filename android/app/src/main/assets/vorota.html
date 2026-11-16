@@ -455,10 +455,14 @@ function loadHDR(file) {
 }
 if (PBR_ON) {
   if (DVOR) {
-    loadHDR('hdri/sky.hdr'); M.bark.color.setRGB(0.72, 0.74, 0.76);
+    loadHDR('hdri/sky.hdr'); TX.yard = pbrT('tex/ai/ground_mud.jpg', true);   // земля двора, сгенерирована по фото автора M.bark.color.setRGB(0.72, 0.74, 0.76);
     // земля: асфальт, сухая земля, пожухлая трава — настоящие сканы
     TX.asph = pbrT('tex/asphalt_02_diff.jpg', true); TX.sand = pbrT('tex/brown_mud_dry_diff.jpg', true); TX.grass = pbrT('tex/withered_grass_diff.jpg', true); TX.leavesN = pbrT('tex/brown_mud_dry_nor.jpg', false);
     pbrApply(M.conc, 'chipped_concrete', 2.5); pbrApply(M.brick, 'brick_wall_003', 1.6);
+    // сгенерированные текстуры двора (по фото автора / Nano Banana Pro)
+    TX.asph = pbrT('tex/ai/dv_asph.jpg', true); TX.walk = pbrT('tex/ai/dv_walk.jpg', true);
+    M.conc.map = pbrT('tex/ai/dv_conc.jpg', true, 1 / 2.5); M.conc.needsUpdate = true;
+    M.bark.map = pbrT('tex/ai/bark_poplar.jpg', true, 1 / 0.5, 1 / 0.6); M.bark.color.setRGB(1, 1, 1); M.bark.needsUpdate = true;
     PBR.brick = { map: pbrT('tex/brick_wall_003_diff.jpg', true), nor: pbrT('tex/brick_wall_003_nor.jpg', false), arm: pbrT('tex/brick_wall_003_arm.jpg', false) };
     for (const [n, k, o] of [['exterior_aircon_unit', 'm_ac'], ['security_light', 'm_slight', { emissive: 0xfff2d8 }], ['metal_trash_can', 'm_can', { col: true }], ['trashbag', 'm_bag'], ['old_tyre', 'm_tyre'],
       ['cardboard_box_01', 'm_box'], ['plastic_crate_01', 'm_crate'], ['utility_box_02', 'm_ubox', { col: true }], ['concrete_road_barrier', 'm_barrier', { col: true }], ['covered_car', 'm_ccar', { col: true }],
@@ -635,7 +639,7 @@ function BIRCH() { if (_birch) return _birch; const r = rng(77);
     for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(20,18,16,${0.5 + r() * 0.5})`; const x = r() * w, y = r() * h, L = 6 + r() * 26; g.fillRect(x, y, L, 1.5 + r() * 2.5); }
     for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(30,26,22,0.85)'; g.beginPath(); const x = r() * w, y = r() * h; g.ellipse(x, y, 4 + r() * 10, 2 + r() * 5, 0, 0, 6.3); g.fill(); }
     for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '160,150,135' : '255,255,250'},0.25)`; g.fillRect(r() * w, r() * h, 2, 1); } }));
-  _birch = std({ map: t, vertexColors: true, roughness: 0.8 }); return _birch; }
+  _birch = std({ map: (PBR_ON && DVOR) ? pbrT('tex/ai/bark_birch.jpg', true, 1 / 0.5, 1 / 0.6) : t, vertexColors: true, roughness: 0.8 }); return _birch; }
 // Прототипы (строятся один раз, порциями, чтобы не подвешивать загрузку)
 const PROTO = {};
 const appleCol = (r) => { const t = r(); return t < 0.6 ? lin([0.62 + r() * 0.15, 0.12 + r() * 0.1, 0.07]) : t < 0.85 ? lin([0.75, 0.55, 0.15]) : lin([0.55, 0.62, 0.2]); };
@@ -932,14 +936,14 @@ scene.add(sun, sun.target);
 const GS = MOBILE ? 180 : 260, GSEG = MOBILE ? 90 : 130;
 const groundMat = std({ map: TX.grass, normalMap: TX.leavesN, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 1 });
 groundMat.onBeforeCompile = (sh) => {
-  Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tNoise: { value: TX.noise }, tRefl: REFL.tex, uRes: REFL.res, uReflOn: REFL.on, uTimeG: SHARED.uTime });
+  Object.assign(sh.uniforms, { tLeaves: { value: TX.leaves }, tSand: { value: TX.sand }, tSandN: { value: TX.sandN }, tAsph: { value: TX.asph }, tYard: { value: TX.yard || TX.sand }, tWalk: { value: TX.walk || TX.asph }, tNoise: { value: TX.noise }, tRefl: REFL.tex, uRes: REFL.res, uReflOn: REFL.on, uTimeG: SHARED.uTime });
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW;\n' + GLSL_WORLD)
     .replace('#include <beginnormal_vertex>', `
        vec3 objectNormal = normalize(vec3(h0-groundH(wp0.xz+vec2(0.5,0.0)), 0.5, h0-groundH(wp0.xz+vec2(0.0,0.5))));`)
     .replace('#include <begin_vertex>', 'vec3 transformed = vec3(position.x, h0, position.z); vW = vec3(wp0.x, h0, wp0.z);')
     .replace('#include <uv_vertex>', '#include <uv_vertex>\n vec3 wp0 = (modelMatrix*vec4(position,1.0)).xyz; float h0 = groundH(wp0.xz); vMapUv = wp0.xz; vNormalMapUv = wp0.xz/2.0;');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-    varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tNoise, tRefl; uniform vec2 uRes; uniform float uReflOn, uTimeG; float gRough = 1.0; float gPath = 0.0; vec3 dvRefl = vec3(0.0); float dvK = 0.0;\n` + GLSL_WORLD)
+    varying vec3 vW; uniform sampler2D tLeaves, tSand, tSandN, tAsph, tYard, tWalk, tNoise, tRefl; uniform vec2 uRes; uniform float uReflOn, uTimeG; float gRough = 1.0; float gPath = 0.0; vec3 dvRefl = vec3(0.0); float dvK = 0.0;\n` + GLSL_WORLD)
     .replace('#include <map_fragment>', `
       vec2 wp = vW.xz;
       vec4 nA = texture2D(tNoise, wp*0.0105), nB = texture2D(tNoise, wp*0.043+0.31), nC = texture2D(tNoise, wp*0.17+0.77);
@@ -989,7 +993,7 @@ groundMat.onBeforeCompile = (sh) => {
         float road = 1.0 - smoothstep(3.95, 4.05, rd);
         float curb = (1.0 - smoothstep(4.0, 4.3, rd)) * (1.0 - road);
         float walk = (1.0 - smoothstep(6.3, 6.6, rd + nB.r*0.4)) * (1.0 - road) * (1.0 - curb);
-        vec3 as = texture2D(tAsph, wp/3.2).rgb * mix(0.5, 0.74, nB.g);                                   // мокрый асфальт
+        vec3 as = texture2D(tAsph, wp/4.0).rgb * mix(0.62, 0.82, nB.g);                                   // мокрый асфальт (фото-текстура)
         float mkx = (1.0 - smoothstep(0.06, 0.09, ax)) * step(fract(wp.y/6.0), 0.5) * step(4.5, az);
         float mkz = (1.0 - smoothstep(0.06, 0.09, az)) * step(fract(wp.x/6.0), 0.5) * step(4.5, ax);
         float mka = step(av, 10.0) * ((1.0 - smoothstep(0.06, 0.09, abs(av - 0.25))) + (1.0 - smoothstep(0.06, 0.09, abs(av - 5.0))) * step(fract(wp.y / 9.0), 0.45));
@@ -1004,17 +1008,17 @@ groundMat.onBeforeCompile = (sh) => {
         float ck1 = abs(texture2D(tNoise, wp*0.09 + 0.17).r - 0.5), ck2 = abs(texture2D(tNoise, wp*0.23 + 0.61).g - 0.5);
         float crk = (1.0 - smoothstep(0.0, 0.012, ck1)) * smoothstep(0.45, 0.7, texture2D(tNoise, wp*0.035).b + smoothstep(2.5, 4.0, rd)*0.3) + (1.0 - smoothstep(0.0, 0.008, ck2)) * smoothstep(0.55, 0.75, texture2D(tNoise, wp*0.05 + 0.3).r) * 0.7;
         as *= 1.0 - clamp(crk, 0.0, 1.0) * (1.0 - pIn) * 0.55;
-        vec3 wk = texture2D(tAsph, wp/2.1 + 0.37).rgb * vec3(0.8,0.79,0.77) * mix(0.7, 0.96, nC.g);       // старый тротуар
+        vec3 wk = texture2D(tWalk, wp/3.0 + 0.37).rgb * mix(0.72, 0.92, nC.g);                           // старый тротуар (фото-текстура)
         float wcrk = 1.0 - smoothstep(0.0, 0.016, abs(texture2D(tNoise, wp*0.13 + 0.4).g - 0.5)); wk = mix(wk * (1.0 - wcrk*0.5), vec3(0.22,0.24,0.12), wcrk * smoothstep(0.5, 0.7, nB.r) * 0.8);   // в трещинах тротуара — мох и трава
         wk = mix(wk, texture2D(tSand, wp/2.4).rgb * vec3(1.35,1.28,1.18), smoothstep(0.55, 0.8, texture2D(tNoise, wp*0.07 + 0.9).r) * 0.6);                                                                                      // грязь натащена на тротуар
         // двор как на фото: светлая сухая грязь, тёмные сырые пятна, вытоптанные полосы, трава клочками
         float gpn = texture2D(tNoise, wp*0.031 + 0.13).g*0.7 + texture2D(tNoise, wp*0.11 + 0.71).b*0.3;
         float bare = 1.0 - smoothstep(0.52, 0.68, gpn);
-        vec3 m1 = texture2D(tSand, wp/2.4).rgb, m2 = texture2D(tSand, wp/6.7 + 0.41).rgb, mt = mix(m1, m2, 0.4);
-        vec3 mud = mix(vec3(dot(mt, vec3(0.3,0.5,0.2))), mt, 0.35) * vec3(1.5,1.43,1.32) * (0.8 + 0.32*nC.r);
+        vec3 m1 = texture2D(tYard, wp/3.0).rgb, m2 = texture2D(tYard, wp/7.7 + 0.41).rgb, mt = mix(m1, m2, 0.3);
+        vec3 mud = mix(vec3(dot(mt, vec3(0.33))), mt, 1.25) * 0.62 * (0.86 + 0.24*nC.r);                                                       // фото-текстура земли двора
         float damp = smoothstep(0.42, 0.74, texture2D(tNoise, wp*0.045 + 0.77).g*0.65 + texture2D(tNoise, wp*0.16).r*0.35);
         float strk = smoothstep(0.58, 0.82, texture2D(tNoise, vec2(wp.x*0.33 + wp.y*0.05, wp.y*0.045) + 0.2).r);
-        mud = mix(mud, mud*vec3(0.5,0.47,0.44), clamp(damp*0.8 + strk*0.35, 0.0, 0.85));
+        mud = mix(mud, mud*vec3(0.55,0.52,0.49), clamp(damp*0.55 + strk*0.25, 0.0, 0.7));
         mud = mix(mud, mud*vec3(1.25,1.24,1.22), smoothstep(0.7, 0.95, nC.g)*0.5);
         vec3 grs = mix(vec3(dot(col, vec3(0.333))), col, 0.5) * vec3(0.62,0.66,0.42);
         vec3 yard = mix(grs, mud, bare);
@@ -1534,13 +1538,15 @@ function frame(now) {
   if (started && !dead && !(jumping || goWorld.busy)) {
     let fx = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, sx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
     const l = Math.hypot(fx, sx); if (l > 1) { fx /= l; sx /= l; }
-    const target = (keys.ShiftLeft || keys.ShiftRight || running ? 5.6 : 2.3) * Math.min(1, l);
+    const GP = window.__gp || {};   // пропуски (Яндекс Игры): ускорение, полёт
+    const target = (keys.ShiftLeft || keys.ShiftRight || running ? 5.6 : 2.3) * Math.min(1, l) * (GP.speed && GP.speedOn !== false ? 1.8 : 1) * (GP.flyOn ? 1.7 : 1);
     P.speed = lerp(P.speed, target, 1 - Math.exp(-dt * 6));
     const fwx = -Math.sin(P.yaw), fwz = -Math.cos(P.yaw);
     if (l > 0.01) { P.dx = (fwx * fx - fwz * sx) / l; P.dz = (fwz * fx + fwx * sx) / l; }
     let nx = P.x + (P.dx || 0) * P.speed * dt, nz = P.z + (P.dz || 0) * P.speed * dt;
     [nx, nz] = collide(nx, nz); P.x = nx; P.z = nz;
-    P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? stroySurface(P.x, P.z) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false;
+    if (GP.flyOn) { const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? 0 : 0; P.vy = 0; P.y += ((keys.Space || GP.up ? 1 : 0) - (keys.KeyC || keys.ControlLeft || GP.down ? 1 : 0)) * 6 * dt; if (!PODEZD && P.y < gy) P.y = gy; P.ground = P.y <= gy + 0.01; }
+    else { P.vy -= 11 * dt; const gy = PODEZD ? podSurface(P.x, P.z, P.y) : TRAIN ? TRAIN_FLOOR : STROY ? stroySurface(P.x, P.z) : 0; P.y += P.vy * dt; if (PODEZD && P.ground && P.vy <= 0 && P.y - gy < 0.45) P.y = gy; if (P.y <= gy) { if (P.vy < -3) footstep(surfaceAt(P.x, P.z), true); P.y = gy; P.vy = 0; P.ground = true; } else P.ground = false; }
     if (P.ground && P.speed > 0.3) { bob += dt * (3.2 + P.speed * 1.3); if (bob - lastStep > Math.PI * 2) { lastStep = bob; footstep(surfaceAt(P.x, P.z), P.speed > 4); } }
     killCheck();
     for (let i = coinsLive.length - 1; i >= 0; i--) { const c = coinsLive[i], t = taken.get(c.id); const vis = t === undefined || clock - t > RESPAWN; if (vis && t !== undefined) taken.delete(c.id); c.obj.visible = vis; if (!vis) continue;
@@ -1902,7 +1908,16 @@ if (PODEZD && PBR.wallN) {
       .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(vec3(1.0), texture2D(tDet, vNormalMapUv).rgb * 1.55, 0.6);'); }; });
   // стены подъезда по фото-текстурам (сгенерированы): бирюзовая масляная краска + побелка, надписи; два варианта чередуются по этажам
   if (PODEZD) { const mk = (f) => { const m = PWALL[0].clone(); m.map = pbrT(f, true, 1 / 2.8, 1 / 2.8); m.onBeforeCompile = () => {}; m.needsUpdate = true; return m; };
-    PWALL.photo = [mk('tex/ai/podezd_wall_1.jpg'), mk('tex/ai/podezd_wall_2.jpg')]; }
+    PWALL.photo = [mk('tex/ai/podezd_wall_1.jpg'), mk('tex/ai/podezd_wall_2.jpg'), mk('tex/ai/podezd_wall_3.jpg'), mk('tex/ai/podezd_wall_4.jpg')];
+    // сгенерированные текстуры: плитка площадки, ступени из мраморной крошки, потолок с копотью, двери, лифт, почтовые ящики
+    const T = (f, rx = 1, ry = rx) => pbrT('tex/ai/' + f, true, rx, ry);
+    Object.assign(MP.tile, { map: T('pod_floor.jpg', 1 / 1.2), normalMap: null, roughnessMap: null, metalnessMap: null, roughness: 0.4, metalness: 0 }); MP.tile.needsUpdate = true;
+    M.conc.map = T('pod_steps.jpg', 1); M.conc.needsUpdate = true;
+    MP.ceil = std({ map: T('pod_ceil.jpg', 1 / 2), roughness: 0.95 });
+    MP.leather.map = T('door_derm.jpg', 1 / 0.9, 1 / 2.04); MP.leather.needsUpdate = true;
+    MP.metalDoor = std({ map: T('door_metal.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.45, metalness: 0.35, vertexColors: true });
+    MP.woodDoor = std({ map: T('door_wood.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.7, vertexColors: true });
+    MP.mail = std({ map: T('mailboxes.jpg'), roughness: 0.6 }); }
 }
 const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
 const floorNumMats = new Map();
@@ -1914,7 +1929,7 @@ function buildFloor(n) {
   b.push(0, y0, 0);
   // площадка этажа (плитка) и плита потолка над ней
   b.box(MP.tile, (LX0 + LX1) / 2, -0.06, -LAND / 2, LX1 - LX0, 0.12, LAND);
-  b.box(MP.conc, (LX0 + LX1) / 2, FH - 0.2, -LAND / 2, LX1 - LX0, 0.16, LAND, shade(0.95));
+  b.box(MP.ceil || MP.conc, (LX0 + LX1) / 2, FH - 0.2, -LAND / 2, LX1 - LX0, 0.16, LAND, shade(0.95));
   // межэтажная площадка
   b.box(MP.conc, PW / 2, FH / 2 - 0.1, PL + MIDD / 2, PW, 0.2, MIDD, shade(0.85));
   // марши: ступени
@@ -1952,13 +1967,14 @@ function buildFloor(n) {
   b.box(wallM, LX0 / 2, FH / 2, 0.06, -LX0, FH, 0.12, wc); b.box(wallM, (PW + LX1) / 2, FH / 2, 0.06, LX1 - PW, FH, 0.12, wc);
   // номер этажа
   const num = new THREE.Mesh(new THREE.PlaneGeometry(String(FD).length > 3 ? 0.22 * String(FD).length : 0.45, 0.45), floorNumMat(FD)); num.position.set(LX0 / 2, y0 + 1.75, 0.0); num.rotation.y = Math.PI; group.add(num);
+  if (FD === 1 && MP.mail) { const mb = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.6), MP.mail); mb.position.set(LX0 / 2, y0 + 1.05, -0.006); mb.rotation.y = Math.PI; group.add(mb); }   // почтовые ящики на первом этаже
   // квартирные двери (дерматин), номера
   const pk = r() < 0.35 ? (r() * 4) | 0 : -1;
   const doors = [[0.25, -LAND, 0], [PW - 0.25 - 0.9, -LAND, 0], [LX0, -LAND / 2 - 0.45, 1], [LX1, -LAND / 2 + 0.45, -1]];
   doors.forEach(([dx, dz, side], k) => {
-    const dc = shade(0.75 + r() * 0.4), metal = r() < 0.3;
-    if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
-    else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(metal ? M.metal : MP.leather, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, metal ? lin([0.35, 0.22, 0.15]) : dc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
+    const dc = shade(0.75 + r() * 0.4), metal = r() < 0.3, wood = !metal && MP.woodDoor && r() < 0.3, DM = metal ? (MP.metalDoor || M.metal) : wood ? MP.woodDoor : MP.leather, DCc = metal ? (MP.metalDoor ? shade(1) : lin([0.35, 0.22, 0.15])) : dc;
+    if (side === 0) { b.box(M.paint, dx + 0.45, 1.06, dz + 0.02, 1.02, 2.14, 0.05, lin([0.3, 0.25, 0.2])); b.box(DM, dx + 0.45, 1.02, dz + 0.05, 0.9, 2.04, 0.04, DCc); b.box(MH.chrome, dx + 0.8, 1.0, dz + 0.09, 0.03, 0.14, 0.03); b.cyl(MH.dark, dx + 0.45, 1.55, dz + 0.075, 0.012, 0.012, 0.01, 8, null, Math.PI / 2); b.box(M.paint, dx + 1.03, 1.45, dz + 0.04, 0.05, 0.08, 0.02, PAINT.white); }
+    else { const xx = dx + side * 0.02; b.box(M.paint, xx, 1.06, dz, 0.05, 2.14, 1.02, lin([0.3, 0.25, 0.2])); b.box(DM, xx + side * 0.03, 1.02, dz, 0.04, 2.04, 0.9, DCc); b.box(MH.chrome, xx + side * 0.07, 1.0, dz - side * 0.35, 0.03, 0.14, 0.03); }
     const ax = side === 0 ? dx + 0.45 : dx + side * 0.3, az = side === 0 ? dz + 0.3 : dz;
     const apt = HOMEPOD ? 36 + (FD - 1) * 4 + k + 1 : FD * 4 + k + 1, mine = HOMEPOD && apt === 47 && F === 3;
     doorsLive.push({ knock: true, party: k === pk && !mine, home: mine, label: mine ? 'E — домой, кв. 47' : undefined, x: ax, z: az, y: y0, apt, target: 0, ang: 0, pivot: { rotation: {} }, col: {}, group });
@@ -2048,10 +2064,15 @@ const MPL = {
   btn: std({ color: 0x300000, emissive: 0xff2010, emissiveIntensity: 1.2 }),
   lamp: std({ color: 0xfff4e0, emissive: 0xfff0d0, emissiveIntensity: 2.5 }),
 };
+if (PODEZD && PBR_ON && PBR.wallN) {   // лифт: сгенерированные текстуры дверей, стен кабины, пола
+  const T = (f, rx = 1, ry = rx) => pbrT('tex/ai/' + f, true, rx, ry);
+  Object.assign(MPL.door, { map: T('lift_door.jpg'), metalness: 0.35, roughness: 0.5 }); MPL.door.color.set(0xffffff); MPL.door.needsUpdate = true;
+  MPL.wood.map = T('lift_wall.jpg', 1 / 1.3, 1 / 2.4); MPL.wood.needsUpdate = true;
+  MPL.floor = std({ map: T('lift_floor.jpg'), roughness: 0.6 }); }
 function liftBuild(b, group, y0, FD, r) {
   // проём, рама, кабина за ним
   for (const [x, y, sx, sy] of [[EX0 + 0.03, 1.07, 0.08, 2.14], [EX1 - 0.03, 1.07, 0.08, 2.14], [EXC, 2.14, EX1 - EX0, 0.08]]) b.box(M.metal, x, y, -LAND + 0.01, sx, sy, 0.04, lin([0.35, 0.33, 0.3]));
-  b.box(M.paint, EXC, -0.05, (EZ1 - LAND) / 2, EX1 - EX0, 0.1, -LAND - EZ1, shade(0.25));
+  b.box(MPL.floor || M.paint, EXC, -0.05, (EZ1 - LAND) / 2, EX1 - EX0, 0.1, -LAND - EZ1, shade(MPL.floor ? 1 : 0.25));
   b.box(MPL.wood, EX0 - 0.02, 1.2, (EZ1 - LAND) / 2 - 0.06, 0.04, 2.4, -LAND - EZ1 - 0.12); b.box(MPL.wood, EX1 + 0.02, 1.2, (EZ1 - LAND) / 2 - 0.06, 0.04, 2.4, -LAND - EZ1 - 0.12); b.box(MPL.wood, EXC, 1.2, EZ1, EX1 - EX0, 2.4, 0.04);
   b.box(M.paint, EXC, 2.38, (EZ1 - LAND) / 2, EX1 - EX0, 0.04, -LAND - EZ1, shade(0.7)); b.box(MPL.lamp, EXC, 2.35, (EZ1 - LAND) / 2, 0.5, 0.02, 0.3);
   b.box(MPL.panel, EX1 - 0.03, 1.35, -LAND - 0.45, 0.04, 0.5, 0.22); b.box(MPL.disp, EX1 - 0.055, 1.52, -LAND - 0.45, 0.01, 0.08, 0.16);
@@ -2173,6 +2194,9 @@ function wakeUp(lines) {
 }
 addEventListener('load', showKeys); showKeys();
 if (GARDEN && allKeys()) setTimeout(() => toast('<b style="color:#ffd35a">Где-то в заборе появились ворота.</b>'), 4000);
+
+// хук для обвязки площадок (Яндекс Игры: полёт/телепорт/ускорение)
+window.__game = { P, WORLD, KEY_POS, get SPAWN() { return SPAWN; }, toast: (h) => toast(h), keysGot: () => keysGot(), home: null };
 
 // ===================== Школа, Поликлиника, Универсам (на сетке «Дома») =====================
 const SHK = WORLD === 'shkola', BOL = WORLD === 'bolnica', MAG = WORLD === 'magazin';
@@ -2677,7 +2701,7 @@ function dvAmbient() { if (!AC) return; const t = Math.random(), pan = Math.rand
   else { for (let k = 0; k < 5; k++) setTimeout(() => blip([1500 + Math.random() * 900], 0.07, 'sine', 0.015), k * (180 + Math.random() * 300)); } }
 
 if (DVOR) {
-  KEY_POS.dvory = [-187.5, 0, 100.5];
+  KEY_POS.dvory = [-187.5, 0, 100.5]; window.__game && (window.__game.home = { x: 36, z: 26, n: 'К дому 13' });
   const FINAL = dvLS('dream_final') === '1';
   SPAWN = { x: 8, z: 2, yaw: 0 };                       // спавн — во дворе дома № 13, лицом на север
   P.x = SPAWN.x; P.z = SPAWN.z; P.yaw = SPAWN.yaw; P.pitch = 0.04;
@@ -2765,6 +2789,10 @@ if (DVOR) {
   const DOM13 = PBR_ON ? (() => { const t = pbrT('tex/ai/dom13_facade_atlas.jpg', true, 1 / 24.8, 1 / 11.2); t.offset.set(0, -(1.6 - 0.15) / 11.2); return std({ map: t, roughness: 0.88 }); })() : null;
   // панельки по фото автора (сгенерированы): 3 цветные секции (белая, бежевая, сиренево-розовая) × 4 этажа = 36 × 11.2 м
   const PANELM = PBR_ON ? (() => { const t = pbrT('tex/ai/panel_atlas.jpg', true, 1 / 36, 1 / 11.2); t.offset.set(0, -1.6 / 11.2); return std({ map: t, roughness: 0.9 }); })() : null;
+  // сгенерированные материалы двора: дверь подъезда, побелка портала, цоколь, контейнер, профнастил
+  const AIM = (f, rx, ry, o = {}) => PBR_ON ? std(Object.assign({ map: pbrT('tex/ai/' + f, true, rx, ry), roughness: 0.9 }, o)) : null;
+  const ENTR = AIM('dv_entr_door.jpg', 1 / 1.1, 1 / 2.14, { roughness: 0.55, metalness: 0.25 }), WHW = AIM('dv_whitewash.jpg', 1 / 1.5, 1 / 1.5), PLINTH = AIM('dv_plinth.jpg', 1 / 1.6, 1 / 1.6),
+    CONT = AIM('dv_container.jpg', 1, 1, { roughness: 0.6, metalness: 0.35 }), PROFM = AIM('dv_prof.jpg', 1 / 2, 1 / 2, { roughness: 0.6, metalness: 0.3 });
   const SAD = facade(59, { wall: '#e4dac2', plinth: '#9a8a74', frame: '#f4f2ec', base: 0.6, fh: 3.3, floors: 2, cw: 3, ww: 1.6, wh: 1.5, sill: 0.9, lit: 0.08, balc: false });
   const mkWin = (key, W2, n) => { const H2 = 1.45, fw = 0.07, d = 0.1, frame = new Bag(), sill = new Bag(), glass = new Bag(), add = (bag, x, y, z, sx, sy, sz) => bag.add(new THREE.BoxGeometry(sx, sy, sz), new THREE.Matrix4().makeTranslation(x, y, z));
     add(frame, -W2 / 2 + fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, W2 / 2 - fw / 2, H2 / 2, d / 2, fw, H2, d); add(frame, 0, H2 - fw / 2, d / 2, W2, fw, d); add(frame, 0, fw / 2, d / 2, W2, fw, d);
@@ -2817,6 +2845,7 @@ if (DVOR) {
     const gr = g.createRadialGradient(64, 64, 30, 64, 64, 64); gr.addColorStop(0, 'rgba(120,70,40,0)'); gr.addColorStop(1, 'rgba(110,60,30,0.6)'); g.fillStyle = gr; g.beginPath(); g.arc(64, 64, 62, 0, 6.3); g.fill(); }));
   const D_TR = decM(mkCanvas(64, 256, (g) => { const r = rng(9); for (const x0 of [12, 52]) for (let y = 0; y < 256; y += 2) { g.fillStyle = `rgba(30,24,18,${0.25 + r() * 0.3})`; const w = 7 + r() * 3; g.fillRect(x0 - w / 2 + Math.sin(y * 0.05) * 1.5, y, w, 2); if (r() < 0.3) { g.fillStyle = 'rgba(20,16,12,0.5)'; g.fillRect(x0 - 3, y, 6, 1); } }
     const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.15, 'rgba(0,0,0,0)'); gr.addColorStop(0.85, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = gr; g.fillRect(0, 0, 64, 256); }));
+  if (PBR_ON) { D_MH.map = pbrT('tex/ai/dv_manhole.png', true); D_MH.needsUpdate = true; }
   const TORG = new THREE.TorusGeometry(0.3, 0.1, 8, 16);
   const DECG = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const DEC = (b, mat, x, z, w, d, ry = 0, y = 0.02) => b.add(mat, DECG, new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(w, 1, d)));
@@ -2886,7 +2915,7 @@ if (DVOR) {
     b.push(x + 1.5, 0, z + 2.5, 0); const RC = bright ? [lin([0.95, 0.12, 0.1]), lin([1.0, 0.8, 0.05]), lin([0.1, 0.4, 0.95]), lin([0.1, 0.75, 0.25])] : [peel(RED, r), peel(YEL, r), peel(BLU, r), peel(GRN, r)];
     for (const sx of [-0.9, 0.9]) for (const sz of [-0.9, 0.9]) b.box(M.plank, sx, 0.85, sz, 0.09, 1.7, 0.09, shade(0.6)); b.box(M.plank, 0, 0.4, -0.9, 1.8, 0.7, 0.04, peel(YEL, r)); b.box(M.plank, -0.9, 0.4, 0, 0.04, 0.7, 1.8, peel(GRN, r)); b.box(M.plank, 0.9, 0.4, 0, 0.04, 0.7, 1.8, peel(RED, r));
     for (let k = 0; k < 4; k++) { b.box(M.paint, -0.75 + k * 0.5, 2.05, -0.5, 0.5, 0.03, 1.25, RC[k % 4], 0.62); b.box(M.paint, -0.75 + k * 0.5, 2.05, 0.5, 0.5, 0.03, 1.25, RC[(k + 2) % 4], -0.62); } b.pop(); }
-  function trashSite(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); for (const s of [-1.6, 0, 1.6]) b.box(M.metal, s, 0.6, 0, 1.4, 1.15, 1.0, peel(GRN, r));
+  function trashSite(K, x, z, ry) { const { b, r } = K; b.push(x, 0, z, ry); for (const s of [-1.6, 0, 1.6]) b.box(CONT || M.metal, s, 0.6, 0, 1.4, 1.15, 1.0, peel(GRN, r));
     b.box(M.prof, 0, 1.0, -0.8, 5.2, 2.0, 0.05, shade(0.75)); b.box(M.prof, -2.6, 1.0, 0, 0.05, 2.0, 1.6, shade(0.75)); b.box(M.prof, 2.6, 1.0, 0, 0.05, 2.0, 1.6, shade(0.75));
     if (PROTO.m_bag) { for (let k = 0; k < 5; k++) { const w = b.world(-2.2 + r() * 4.4, 0, 0.75 + r() * 0.8); PUT(K, r() < 0.6 ? 'm_bag' : 'm_box', w.x, 0, w.z, r() * 6, 0.9 + r() * 0.4); } } else for (let k = 0; k < 3; k++) b.box(M.paint, -2 + r() * 4, 0.12 + k * 0.02, 0.9 + r() * 0.5, 0.6, 0.2 + r() * 0.2, 0.45, lin([0.42, 0.33, 0.22]), 0, r(), 0); b.collide(0, -0.1, 2.7, 0.8); b.pop(); K.take(x, z, 3.2); smell(K, x, z, 'Пахнет мокрым картоном.'); }
   // --- дом из серого кирпича: кондиционеры гроздьями, антенны, водостоки, полосатые козырьки ---
@@ -2896,7 +2925,7 @@ if (DVOR) {
     b.box(M.conc, 0, Hh / 2, 0, len, Hh, dep, wc); b.box(M.conc, 0, Hh + 0.1, 0, len + 0.3, 0.2, dep + 0.3, shade(0.4)); b.box(M.conc, len * 0.2, Hh + 1.2, 0, 4, 2.0, 3.5, shade(0.5));
     for (const s of [1, -1]) { const g = new THREE.PlaneGeometry(len, Hh); const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len + uo + (s < 0 ? 21 : 0), uv.getY(i) * Hh); b.add(PH ? PHM : fac, g, new THREE.Matrix4().makeRotationY(s > 0 ? 0 : Math.PI).setPosition(0, Hh / 2, s * (dep / 2 + 0.02))); }
     b.collide(0, 0, len / 2, dep / 2);
-    if (PH) for (const sd of [1, -1]) b.box(M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(0.52));
+    if (PH) for (const sd of [1, -1]) b.box(PLINTH || M.conc, 0, (base - 0.12) / 2, sd * (dep / 2 + 0.03), len + 0.02, base - 0.12, 0.06, shade(PLINTH ? 1 : 0.52));
     for (const sd of [1, -1]) { DEC(b, D_AO, 0, sd * (dep / 2 + 1.1), len + 2.2, 2.2, sd > 0 ? 0 : Math.PI); DEC(b, D_AO, sd * (len / 2 + 1.1), 0, dep, 2.2, sd > 0 ? Math.PI / 2 : -Math.PI / 2); }
     b.cyl(M.metal, 0, 2.95, dep / 2 + 0.12, 0.045, 0.045, len - 0.6, 8, lin([0.85, 0.72, 0.25]), 0, Math.PI / 2); for (let x = -len / 2 + 1; x < len / 2; x += 2.5) b.box(M.metal, x, 2.95, dep / 2 + 0.06, 0.04, 0.04, 0.12, PAINT.dark);
     { const o = fac.userData.o; if (o && PROTO.m_win && !PH) for (const s of [1, -1]) { const uo2 = uo + (s < 0 ? 21 : 0);
@@ -2923,8 +2952,8 @@ if (DVOR) {
     for (let i = 0; i < n; i++) { const lx = -len / 2 + len / (2 * n) * (2 * i + 1), fz = dep / 2;
       // портал: белёные пилоны, дверь утоплена
       const WH = lin([0.86, 0.85, 0.82]), BL = lin([0.24, 0.34, 0.48]), YG = lin([0.85, 0.72, 0.25]);
-      for (const sx of [-0.85, 0.85]) b.box(M.paint, lx + sx, 1.3, fz + 0.18, 0.5, 2.6, 0.36, WH); b.box(M.paint, lx, 2.45, fz + 0.18, 1.2, 0.3, 0.36, WH);
-      b.box(M.metal, lx, 1.07, fz + 0.04, 1.1, 2.14, 0.06, BL); b.box(M.metal, lx + 0.4, 1.0, fz + 0.08, 0.04, 0.2, 0.04, PAINT.galv); b.box(M.metal, lx + 0.72, 1.35, fz + 0.37, 0.14, 0.24, 0.03, PAINT.galv);
+      for (const sx of [-0.85, 0.85]) b.box(WHW || M.paint, lx + sx, 1.3, fz + 0.18, 0.5, 2.6, 0.36, WH); b.box(WHW || M.paint, lx, 2.45, fz + 0.18, 1.2, 0.3, 0.36, WH);
+      b.box(ENTR || M.metal, lx, 1.07, fz + 0.04, 1.1, 2.14, 0.06, BL); if (!ENTR) b.box(M.metal, lx + 0.4, 1.0, fz + 0.08, 0.04, 0.2, 0.04, PAINT.galv); b.box(M.metal, lx + 0.72, 1.35, fz + 0.37, 0.14, 0.24, 0.03, PAINT.galv);
       if (r() < 0.6) b.add(MPC.notice, new THREE.PlaneGeometry(0.24, 0.32), new THREE.Matrix4().makeRotationZ((r() - 0.5) * 0.1).setPosition(lx - 0.2, 1.45, fz + 0.08));
       // бетонный козырёк, ступени, перила
       b.box(M.conc, lx, 2.68, fz + 0.85, 2.6, 0.12, 1.7, shade(0.75)); b.box(M.paint, lx, 2.75, fz + 1.69, 2.6, 0.14, 0.04, WH);
@@ -2982,7 +3011,7 @@ if (DVOR) {
     b.box(paverMat, 0, 0.03, D / 2 + 5.7, L - 4, 0.06, 10); const lawn = new THREE.CylinderGeometry(1, 1, 0.08, 24); b.add(M.paint, lawn, new THREE.Matrix4().compose(new V3(-6, 0.06, D / 2 + 7.5), new THREE.Quaternion(), new V3(6.5, 1, 2.6)), lin([0.3, 0.42, 0.2]));
     for (const [px, pc] of [[10, lin([0.55, 0.22, 0.2])], [-16, lin([0.42, 0.24, 0.18])], [3, lin([0.6, 0.6, 0.62])]]) { const pz = D / 2 + 6.5 + r() * 1.5; for (const dx of [-2, 2]) for (const dz of [-1.5, 1.5]) b.box(M.metal, px + dx, 1.2, pz + dz, 0.08, 2.4, 0.08, shade(0.3)); b.box(M.prof, px, 2.45, pz, 4.6, 0.06, 3.6, pc, 0.06); b.collide(px, pz, 2.3, 1.8); }
     b.pop(); }
-  function profFence(b, x0, x1, z, gap) { for (let x = x0; x < x1 - 0.1; x += 2.5) { if (gap && Math.abs(x + 1.25 - gap) < 2) continue; b.box(M.prof, x + 1.25, 1.0, z, 2.45, 2.0, 0.04, lin([0.16, 0.36, 0.26])); b.box(M.metal, x, 1.05, z, 0.06, 2.1, 0.06, shade(0.25)); } }
+  function profFence(b, x0, x1, z, gap) { for (let x = x0; x < x1 - 0.1; x += 2.5) { if (gap && Math.abs(x + 1.25 - gap) < 2) continue; b.box(PROFM || M.prof, x + 1.25, 1.0, z, 2.45, 2.0, 0.04, lin([0.16, 0.36, 0.26])); b.box(M.metal, x, 1.05, z, 0.06, 2.1, 0.06, shade(0.25)); } }
   function fenceRun(b, x0, x1, z, c) { for (let x = x0; x < x1 - 0.1; x += 2.5) { b.box(M.metal, x, 0.8, z, 0.05, 1.6, 0.05, c); b.box(M.metal, x + 1.25, 1.5, z, 2.5, 0.04, 0.04, c); b.box(M.metal, x + 1.25, 0.3, z, 2.5, 0.04, 0.04, c); for (let k = 1; k < 8; k++) b.box(M.metal, x + 0.31 * k, 0.9, z, 0.02, 1.2, 0.02, c); } }
   function school(K, cx, cz, ry, num) { const end = schoolBody(K, cx, cz, ry, SCHOOL, `ШКОЛА № ${num}`, 36, 14), { b } = K; fenceRun(b, -21, 21, -12, GRN); fenceRun(b, -21, -3, 15, GRN); fenceRun(b, 3, 21, 15, GRN); b.collide(-12, 15, 9, 0.1); b.collide(12, 15, 9, 0.1); b.collide(0, -12, 21, 0.1); end(); }
   // новая школа № 121: светлые панели с цветными вставками и резиновый стадион
@@ -3033,6 +3062,7 @@ if (DVOR) {
     const nmap = mkCanvas(W, H, (g) => { g.fillStyle = 'rgb(128,128,255)'; g.fillRect(0, 0, W, H);
       for (let y = 16; y < H - 16; y += cs) for (let x = 16; x < W - 16; x += cs) { const c = x + cs / 2, d = y + cs / 2, h = cs / 2 - 3;
         for (const [pts, col] of [[[[c - h, d - h], [c + h, d - h], [c, d]], 'rgb(128,200,220)'], [[[c - h, d - h], [c, d], [c - h, d + h]], 'rgb(56,128,220)'], [[[c + h, d - h], [c + h, d + h], [c, d]], 'rgb(200,128,220)'], [[[c - h, d + h], [c, d], [c + h, d + h]], 'rgb(128,56,220)']]) { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.lineTo(pts[2][0], pts[2][1]); g.fill(); } } });
+    if (PBR_ON) return std({ map: pbrT('tex/ai/dv_po2.jpg', true, 1 / 4, 1 / 2.5), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.95 });
     return std({ color: 0xd2cfc8, map: texFrom(cmap, true), normalMap: texFrom(nmap, false), normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.95 }); })();
   function concFence(b, x0, x1, z) { for (let x = x0; x < x1 - 0.5; x += 4.05) { if (dvRoadD(x + 2, z) < 7.5 || ihash(Math.round(x), z | 0, 31) < 0.04) continue; b.collide(x + 2, z, 2.05, 0.12); b.add(PO2, new THREE.BoxGeometry(4, 2.5, 0.14), new THREE.Matrix4().makeTranslation(x + 2.0, 1.32, z)); b.box(M.conc, x, 1.35, z, 0.22, 2.7, 0.24, shade(0.62)); } }
   function rails(K) { const { b, x0, x1 } = K; for (const zt of [DV_RAIL - 5, DV_RAIL, DV_RAIL + 5]) { b.box(M.conc, (x0 + x1) / 2, 0.1, zt, x1 - x0, 0.2, 3.4, lin([0.3, 0.28, 0.26]));

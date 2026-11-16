@@ -1917,9 +1917,6 @@ if (PODEZD && PBR.wallN) {
     MP.leather.map = T('door_derm.jpg', 1 / 0.9, 1 / 2.04); MP.leather.needsUpdate = true;
     MP.metalDoor = std({ map: T('door_metal.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.45, metalness: 0.35, vertexColors: true });
     MP.woodDoor = std({ map: T('door_wood.jpg', 1 / 0.9, 1 / 2.04), roughness: 0.7, vertexColors: true });
-    Object.assign(MPL.door, { map: T('lift_door.jpg'), metalness: 0.35, roughness: 0.5 }); MPL.door.color.set(0xffffff); MPL.door.needsUpdate = true;
-    MPL.wood.map = T('lift_wall.jpg', 1 / 1.3, 1 / 2.4); MPL.wood.needsUpdate = true;
-    MPL.floor = std({ map: T('lift_floor.jpg'), roughness: 0.6 });
     MP.mail = std({ map: T('mailboxes.jpg'), roughness: 0.6 }); }
 }
 const PODM = (b, key, x, y, z, ry, s = 1) => { const P = PROTO[key]; if (!P) return false; const m = new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromAxisAngle(UP, ry), new V3(s, s, s)); for (const [mat, geo] of P.parts) b.add(mat, geo, m); return true; };
@@ -2067,6 +2064,11 @@ const MPL = {
   btn: std({ color: 0x300000, emissive: 0xff2010, emissiveIntensity: 1.2 }),
   lamp: std({ color: 0xfff4e0, emissive: 0xfff0d0, emissiveIntensity: 2.5 }),
 };
+if (PODEZD && PBR_ON && PBR.wallN) {   // лифт: сгенерированные текстуры дверей, стен кабины, пола
+  const T = (f, rx = 1, ry = rx) => pbrT('tex/ai/' + f, true, rx, ry);
+  Object.assign(MPL.door, { map: T('lift_door.jpg'), metalness: 0.35, roughness: 0.5 }); MPL.door.color.set(0xffffff); MPL.door.needsUpdate = true;
+  MPL.wood.map = T('lift_wall.jpg', 1 / 1.3, 1 / 2.4); MPL.wood.needsUpdate = true;
+  MPL.floor = std({ map: T('lift_floor.jpg'), roughness: 0.6 }); }
 function liftBuild(b, group, y0, FD, r) {
   // проём, рама, кабина за ним
   for (const [x, y, sx, sy] of [[EX0 + 0.03, 1.07, 0.08, 2.14], [EX1 - 0.03, 1.07, 0.08, 2.14], [EXC, 2.14, EX1 - EX0, 0.08]]) b.box(M.metal, x, y, -LAND + 0.01, sx, sy, 0.04, lin([0.35, 0.33, 0.3]));
