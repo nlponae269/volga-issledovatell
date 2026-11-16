@@ -4104,6 +4104,45 @@ if (DVOR && !ALT) {
     if (st === 'rest' && Math.hypot(x - P.x, z - P.z) < 1.2) { st = 'off'; ball.visible = false; cd = 120 + Math.random() * 120; } };
 }
 
+// ===================== Квартира 47: звонок домофона / в дверь, потом три стука — и тишина =====================
+if (KV) {
+  let t = 70 + Math.random() * 60;
+  function ring(n) { for (let k = 0; k < n; k++) { setTimeout(() => { blip([880], 0.22, 'square', 0.02); setTimeout(() => blip([698], 0.3, 'square', 0.02), 230); }, k * 900); } }
+  function knock() { for (let k = 0; k < 3; k++) setTimeout(() => burst(0.09, 'lowpass', 180 + Math.random() * 40, 1.5, 0.22, 0.3), k * 520); }
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started || !AC) return; t -= dt; if (t > 0) return; t = 180 + Math.random() * 180;
+    if (Math.random() < 0.6) ring(1 + ((Math.random() * 2) | 0)); else knock(); };
+}
+
+// ===================== Подъезд, цикл 3: собака лает за дверью, шумит вода в стояке, лифт гудит на других этажах =====================
+if (PODEZD) {
+  let tDog = 30 + Math.random() * 40, tPipe = 20 + Math.random() * 30, tLift = 45 + Math.random() * 40;
+  const pan = () => (Math.random() < 0.5 ? -1 : 1) * (0.4 + Math.random() * 0.5);
+  function dog() { const p = pan(), n = 2 + ((Math.random() * 4) | 0), f0 = 260 + Math.random() * 120;
+    for (let k = 0; k < n; k++) setTimeout(() => { if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.6, t + 0.18); f.type = 'lowpass'; f.frequency.value = 520; sp.pan.value = p; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.22); o.connect(f).connect(g).connect(sp).connect(master); o.start(t); o.stop(t + 0.25); }, k * (300 + Math.random() * 150));
+    setTimeout(() => { const q = pan(); for (let k = 0; k < 5; k++) setTimeout(() => burst(0.08, 'bandpass', 2200, 1.5, 0.02, p), k * 110); }, n * 400 + 400); }
+  function pipe() { const p = pan(); burst(2.5 + Math.random() * 2, 'bandpass', 380 + Math.random() * 200, 1.8, 0.035, p); setTimeout(() => burst(1.5, 'lowpass', 140, 1, 0.07, p), 900); }
+  function lift() { const p = pan(); burst(3.5, 'lowpass', 110, 1.4, 0.08, p); setTimeout(() => blip([330], 0.5, 'triangle', 0.012), 3600); setTimeout(() => burst(0.4, 'lowpass', 90, 1, 0.14, p), 3800); }
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started || !AC) return;
+    tDog -= dt; if (tDog < 0) { tDog = 50 + Math.random() * 80; dog(); }
+    tPipe -= dt; if (tPipe < 0) { tPipe = 40 + Math.random() * 70; pipe(); }
+    tLift -= dt; if (tLift < 0) { tLift = 70 + Math.random() * 90; lift(); } };
+}
+
+// ===================== ALTERNATIVE: где-то раскачиваются пустые качели, скрип обрывается, когда подходишь =====================
+if (ALT) {
+  let t = 25 + Math.random() * 20, sw = null;
+  function creak(side, dist) { if (!AC) return; const tt = AC.currentTime, o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(), n = 5 + ((Math.random() * 4) | 0), per = 1.5 + Math.random() * 0.4, vol = 0.045 * Math.max(0.15, 1 - dist / 90);
+    o.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 9; sp.pan.value = side; g.gain.setValueAtTime(0, tt);
+    for (let k = 0; k < n; k++) { const a = tt + k * per; o.frequency.setValueAtTime(520, a); o.frequency.linearRampToValueAtTime(760 + Math.random() * 120, a + per * 0.45); o.frequency.linearRampToValueAtTime(480, a + per * 0.9); g.gain.linearRampToValueAtTime(vol, a + per * 0.2); g.gain.linearRampToValueAtTime(vol * 0.2, a + per * 0.5); g.gain.linearRampToValueAtTime(vol, a + per * 0.7); g.gain.linearRampToValueAtTime(0, a + per * 0.98); }
+    o.connect(f).connect(g).connect(sp).connect(master); o.start(tt); o.stop(tt + n * per + 0.1); sw = { g, end: tt + n * per }; }
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started || !AC) return;
+    if (sw && AC.currentTime > sw.end) sw = null;
+    t -= dt; if (t < 0) { t = 35 + Math.random() * 50; if (!sw) creak((Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5), 20 + Math.random() * 60); } };
+}
+
 })();
 </script>
 <style>
