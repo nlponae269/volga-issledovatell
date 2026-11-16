@@ -1519,17 +1519,18 @@ function placeCamera() {
 // автоподстройка качества под устройство
 const AQ = { t: 0, n: 0, acc: 0, level: 0 };
 function autoQuality(dt) {
-  if (ULTRA || TEST || !started || AQ.level >= 4) return;
+  if (TEST || !started || AQ.level >= 4) return;   // в ULTRA — мягкая страховка: только если совсем тормозит (< 21 к/с)
   AQ.t += dt; if (AQ.t < 1.5) return; AQ.acc += dt; AQ.n++;
   if (AQ.acc < 2.5) return;
   const fps = AQ.n / AQ.acc; AQ.acc = 0; AQ.n = 0;
-  if (fps > 40) { if (AQ.t > 12) AQ.level = 4; return; }
+  if (fps > (ULTRA ? 21 : 40)) { if (AQ.t > (ULTRA ? 30 : 12)) AQ.level = 4; return; }
   AQ.level++;
+  if (ULTRA && !AQ.told) { AQ.told = true; toast('<span style="font-size:14px">Телефон не тянет ультра — убавляю качество.<br>Вернуть: в меню «Графика».</span>'); }
   if (REFL.on.value > 0) { REFL.on.value = 0; return; }           // первым делом отключаем отражения в лужах
   if (AQ.level === 1 && Q.shadows) { Q.shadows = false; sun.castShadow = false; renderer.shadowMap.enabled = false; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
-  else if (AQ.level <= 2) { post.U.aoOn.value = 0; renderer.setPixelRatio(Math.max(0.7, renderer.getPixelRatio() * 0.75)); resize(); }
+  else if (AQ.level <= 2) { post.U.aoOn.value = 0; renderer.setPixelRatio(Math.max(ULTRA ? 1.0 : 0.7, renderer.getPixelRatio() * 0.75)); resize(); }
   else if (AQ.level === 3) { Q.R = 1; grass.mesh.geometry.instanceCount = Math.floor(Q.grass * 0.5); }
-  else { renderer.setPixelRatio(Math.max(0.6, renderer.getPixelRatio() * 0.8)); resize(); }
+  else { renderer.setPixelRatio(Math.max(ULTRA ? 0.85 : 0.6, renderer.getPixelRatio() * 0.8)); resize(); }
 }
 function frame(now) {
   if (!TEST) requestAnimationFrame(frame);
