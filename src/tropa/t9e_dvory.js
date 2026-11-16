@@ -600,7 +600,7 @@ if (DVOR) {
   // --- дождь: редкие косые штрихи вокруг игрока ---
   const RN = MOBILE ? 500 : 1400, rp = new Float32Array(RN * 6), rb = new Float32Array(RN * 3); for (let i = 0; i < RN; i++) { rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 1] = Math.random() * 14; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; }
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.28, depthWrite: false })); rain.frustumCulled = false; scene.add(rain); REFL.hide.push(rain); rain.visible = false;
+  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.28, depthWrite: false })); rain.frustumCulled = false; rain.visible = false;   // дождя нет (кончился) — в сцену не добавляем
   let rainSnd = null, dripT = 2;
   function rainUpdate(dt) { if (!rain.visible) { dripT -= dt; if (dripT < 0 && started) { dripT = 0.9 + Math.random() * 3; blip([1200 + Math.random() * 1300], 0.05, 'sine', 0.008 + Math.random() * 0.012); } return; } for (let i = 0; i < RN; i++) { let y = rb[i * 3 + 1] - dt * (11 + (i % 5)); if (y < 0) { y += 14; rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; } rb[i * 3 + 1] = y; const j = i * 6, x = rb[i * 3], z = rb[i * 3 + 2]; rp[j] = x; rp[j + 1] = y; rp[j + 2] = z; rp[j + 3] = x + 0.05; rp[j + 4] = y + 0.45; rp[j + 5] = z; }
     if (!rain.visible) { dripT -= dt; if (dripT < 0 && started) { dripT = 0.9 + Math.random() * 3; blip([1200 + Math.random() * 1300], 0.05, 'sine', 0.008 + Math.random() * 0.012); } return; }
@@ -785,6 +785,6 @@ if (DVOR) {
     smT -= dt; if (smT < 0 && started) { smT = 1; for (let k = SMELLS.length - 1; k >= 0; k--) { const m = SMELLS[k]; if (!m.group.parent) { SMELLS.splice(k, 1); continue; } if (m.text !== smLast && Math.hypot(m.x - P.x, m.z - P.z) < 4.5) { smLast = m.text; smT = 25; toast(`<span style="font-size:15px;font-style:italic;color:#d8d2c4">${m.text}</span>`); break; } } }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };
-  if (TEST) window.__dv = { INTER, DC, PG };
+  if (TEST) window.__dv = { INTER, DC, PG, scene, camera };
   if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Ворота открылись.</b><br><span style="font-size:14px">Поднимись домой, в квартиру 47, и ляг спать.</span>'), 2500);
 }

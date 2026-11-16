@@ -3282,7 +3282,7 @@ if (DVOR) {
   // --- дождь: редкие косые штрихи вокруг игрока ---
   const RN = MOBILE ? 500 : 1400, rp = new Float32Array(RN * 6), rb = new Float32Array(RN * 3); for (let i = 0; i < RN; i++) { rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 1] = Math.random() * 14; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; }
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.28, depthWrite: false })); rain.frustumCulled = false; scene.add(rain); REFL.hide.push(rain); rain.visible = false;
+  const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xc8d0d6, transparent: true, opacity: 0.28, depthWrite: false })); rain.frustumCulled = false; rain.visible = false;   // дождя нет (кончился) — в сцену не добавляем
   let rainSnd = null, dripT = 2;
   function rainUpdate(dt) { if (!rain.visible) { dripT -= dt; if (dripT < 0 && started) { dripT = 0.9 + Math.random() * 3; blip([1200 + Math.random() * 1300], 0.05, 'sine', 0.008 + Math.random() * 0.012); } return; } for (let i = 0; i < RN; i++) { let y = rb[i * 3 + 1] - dt * (11 + (i % 5)); if (y < 0) { y += 14; rb[i * 3] = (Math.random() - 0.5) * 30; rb[i * 3 + 2] = (Math.random() - 0.5) * 30; } rb[i * 3 + 1] = y; const j = i * 6, x = rb[i * 3], z = rb[i * 3 + 2]; rp[j] = x; rp[j + 1] = y; rp[j + 2] = z; rp[j + 3] = x + 0.05; rp[j + 4] = y + 0.45; rp[j + 5] = z; }
     if (!rain.visible) { dripT -= dt; if (dripT < 0 && started) { dripT = 0.9 + Math.random() * 3; blip([1200 + Math.random() * 1300], 0.05, 'sine', 0.008 + Math.random() * 0.012); } return; }
@@ -3467,7 +3467,7 @@ if (DVOR) {
     smT -= dt; if (smT < 0 && started) { smT = 1; for (let k = SMELLS.length - 1; k >= 0; k--) { const m = SMELLS[k]; if (!m.group.parent) { SMELLS.splice(k, 1); continue; } if (m.text !== smLast && Math.hypot(m.x - P.x, m.z - P.z) < 4.5) { smLast = m.text; smT = 25; toast(`<span style="font-size:15px;font-style:italic;color:#d8d2c4">${m.text}</span>`); break; } } }
     interT -= dt; if (interT < 0) { interT = 5; for (let k = INTER.length - 1; k >= 0; k--) if (INTER[k].group && !INTER[k].group.parent) INTER.splice(k, 1); }
   };
-  if (TEST) window.__dv = { INTER, DC, PG };
+  if (TEST) window.__dv = { INTER, DC, PG, scene, camera };
   if (FINAL) setTimeout(() => toast('<b style="color:#ffd35a">Ворота открылись.</b><br><span style="font-size:14px">Поднимись домой, в квартиру 47, и ляг спать.</span>'), 2500);
 }
 
@@ -3770,6 +3770,133 @@ if (DVOR) {
     tramT -= dt; if (tramT < 0) { tramT = 50 + Math.random() * 60; if (LIVE) tram(); }
     windT -= dt; if (windT < 0) { windT = 6 + Math.random() * 10; if (gust > 0.45) windGust(); }
   };
+}
+
+// ===================== ДВОРЫ, цикл 2: следы в грязи, дети, облака =====================
+if (DVOR) {
+  const LIVE2 = !ALT;
+  // --- следы ботинок на земле двора (до 160 штук, старые пропадают) ---
+  const fpTex = texFrom(mkCanvas(64, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(25,18,12,0.75)'; g.beginPath(); g.ellipse(32, 38, 17, 30, 0, 0, 6.28); g.fill(); g.beginPath(); g.ellipse(32, 98, 13, 18, 0, 0, 6.28); g.fill(); g.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 6; i++) g.fillRect(18, 12 + i * 11, 28, 3); }));
+  const fpMat = new THREE.MeshStandardMaterial({ map: fpTex, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -4 }), fpGeo = new THREE.PlaneGeometry(0.17, 0.34).rotateX(-Math.PI / 2);
+  const FP = [], FPN = MOBILE ? 80 : 160; let fpI = 0, fpLast = null, fpSide = 1;
+  const muddy = (x, z) => surfaceAt(x, z) === 'mud';
+  // --- дети: носятся по двору зигзагами и кричат ---
+  const KIDS = []; const kc = [0xd83a3a, 0x3a6ad8, 0xe8c040, 0x3aa86a], skin = new THREE.MeshStandardMaterial({ color: 0xd8b498, roughness: 0.7 });
+  function makeKid(c) { const g = new THREE.Group(), m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 }); const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.4, 4, 8), m); body.position.y = 0.62; const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), skin); head.position.y = 1.07;
+    const hat = new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 6, 0, 6.3, 0, 1.4), new THREE.MeshStandardMaterial({ color: c ^ 0x303030, roughness: 0.9 })); hat.position.y = 1.1;
+    const legs = []; for (const s of [-0.06, 0.06]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.4, 6).translate(0, -0.2, 0), new THREE.MeshStandardMaterial({ color: 0x2a3550, roughness: 0.9 })); l.position.set(s, 0.4, 0); g.add(l); legs.push(l); }
+    g.add(body, head, hat); scene.add(g); return { g, legs }; }
+  if (LIVE2) for (let i = 0; i < 3; i++) KIDS.push(Object.assign(makeKid(kc[i]), { on: false, x: 0, z: 0, a: 0, t: 0, ph: 0, ky: 3 + i * 2 }));
+  const freeK = (x, z) => { if (!inWorld(x, z) || dvRoadD(x, z) < 5.5) return false; const c = collide(x, z); return Math.abs(c[0] - x) < 1e-3 && Math.abs(c[1] - z) < 1e-3; };
+  function kidShout(k) { if (!AC) return; const d = Math.hypot(k.x - P.x, k.z - P.z), v = 0.03 * Math.max(0, 1 - d / 35); if (v <= 0) return; const a = Math.atan2(k.x - P.x, k.z - P.z) - (P.yaw + Math.PI), p = Math.max(-1, Math.min(1, -Math.sin(a))), t0 = AC.currentTime, f = 520 + Math.random() * 260;
+    const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(); o.type = 'triangle'; o.frequency.setValueAtTime(f, t0); o.frequency.linearRampToValueAtTime(f * (Math.random() < 0.5 ? 1.4 : 0.8), t0 + 0.35); fl.type = 'bandpass'; fl.frequency.value = 1500; fl.Q.value = 0.8; sp.pan.value = p;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + 0.04); g.gain.exponentialRampToValueAtTime(0.0005, t0 + 0.45); o.connect(fl).connect(g).connect(sp).connect(master); o.start(t0); o.stop(t0 + 0.5); }
+  // --- облака: свет медленно «дышит», иногда проглядывает светлое окно ---
+  const hemiBase = { v: null };
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { prev(dt); if (!started) return;
+    // следы
+    if (muddy(P.x, P.z) && P.ground && P.speed > 0.6) { if (!fpLast || Math.hypot(P.x - fpLast[0], P.z - fpLast[1]) > 0.72) { fpLast = [P.x, P.z]; fpSide = -fpSide; const a = Math.atan2(P.dx || 0, P.dz || 1); let m = FP[fpI % FPN]; if (!m) { m = new THREE.Mesh(fpGeo, fpMat); scene.add(m); REFL.hide.push(m); FP[fpI % FPN] = m; } fpI++;
+      m.position.set(P.x + Math.cos(a) * 0.12 * fpSide, groundH(P.x, P.z) + 0.018, P.z - Math.sin(a) * 0.12 * fpSide); m.rotation.y = a; m.visible = true; } }
+    // дети
+    for (const k of KIDS) { if (!k.on) { k.t -= dt; if (k.t < 0) { k.t = 3; for (let q = 0; q < 8; q++) { const a = Math.random() * 6.28, r = 22 + Math.random() * 25, x = P.x + Math.sin(a) * r, z = P.z + Math.cos(a) * r; if (freeK(x, z)) { k.x = x; k.z = z; k.on = true; k.a = Math.random() * 6.28; k.ky = 2; break; } } } k.g.visible = k.on; continue; }
+      const d = Math.hypot(k.x - P.x, k.z - P.z); k.t -= dt; k.ky -= dt;
+      if (k.t < 0) { k.t = 0.8 + Math.random() * 1.8; k.a += (Math.random() - 0.5) * 3.2; }
+      const sp = d < 6 ? 3.2 : 2.4; const nx = k.x + Math.sin(k.a) * sp * dt, nz = k.z + Math.cos(k.a) * sp * dt; if (freeK(nx, nz)) { k.x = nx; k.z = nz; } else k.a += 2.2;
+      k.ph += dt * 11; k.legs.forEach((l, i) => { l.rotation.x = Math.sin(k.ph + i * Math.PI) * 0.8; }); k.g.position.set(k.x, groundH(k.x, k.z) + Math.abs(Math.sin(k.ph)) * 0.04, k.z); k.g.rotation.y = k.a; k.g.visible = true;
+      if (k.ky < 0) { k.ky = 4 + Math.random() * 7; kidShout(k); }
+      if (d > 90) k.on = false; }
+    // облака
+    if (hemiBase.v === null) hemiBase.v = hemi.intensity; if (!ALT) { const c = 0.5 + 0.5 * Math.sin(clock * 0.045) * Math.sin(clock * 0.11 + 1.3); hemi.intensity = hemiBase.v * (0.9 + 0.22 * c); sun.intensity = 0.32 + 0.5 * Math.max(0, c - 0.78) * 4.5; }
+  };
+}
+
+// ===================== ПОДЪЕЗД, цикл 2: новогодняя ночь — салюты за окном, куранты, телевизоры, шаги этажом выше =====================
+if (PODEZD) {
+  // цветные вспышки салюта в окне межэтажной площадки (один PointLight следует за этажом игрока)
+  const fw = new THREE.PointLight(0xff4040, 0, 9, 2); scene.add(fw); let fwT = 0, fwCol = 0xff4040, fwBase = 0; const FW = [0xff3a3a, 0x3aff7a, 0x3a8aff, 0xffd03a, 0xd03aff];
+  const lastSnd = { fire: 8, tv: 20, step: 35, chime: 60, glass: 50, cough: 90 };
+  const pan = () => Math.random() * 1.6 - 0.8;
+  function salute() { if (!AC) return; const p = pan(); burst(0.12, 'lowpass', 160, 0.8, 0.5, p); setTimeout(() => { burst(1.4, 'bandpass', 3200, 0.7, 0.06, p); burst(0.9, 'highpass', 5200, 0.4, 0.03, p); }, 160 + Math.random() * 120); if (Math.random() < 0.5) setTimeout(() => burst(0.12, 'lowpass', 150, 0.8, 0.35, p), 420); }
+  function chimes() { if (!AC) return; const t0 = AC.currentTime; for (let k = 0; k < 12; k++) { const t = t0 + k * 1.25, o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter(), sp = AC.createStereoPanner(); sp.pan.value = -0.3;
+      o.type = 'sine'; o.frequency.value = 196; o2.type = 'sine'; o2.frequency.value = 196 * 2.76; f.type = 'lowpass'; f.frequency.value = 1500; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.045, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0003, t + 2.6); o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(t); o2.start(t); o.stop(t + 2.7); o2.stop(t + 2.7); } }
+  function tvMurmur() { if (!AC) return; const p = pan(), n = 14 + ((Math.random() * 10) | 0); for (let k = 0; k < n; k++) setTimeout(() => burst(0.05 + Math.random() * 0.12, 'bandpass', 350 + Math.random() * 700, 5, 0.03, p), k * (90 + Math.random() * 140)); if (Math.random() < 0.6) setTimeout(() => { for (let k = 0; k < 6; k++) setTimeout(() => burst(0.2, 'lowpass', 320, 1, 0.02, p), k * 70); }, n * 120); }
+  function stepsAbove() { if (!AC) return; const p = pan(), n = 6 + ((Math.random() * 6) | 0); for (let k = 0; k < n; k++) setTimeout(() => burst(0.07, 'lowpass', 260 + Math.random() * 120, 1.2, 0.09, p), k * (430 + Math.random() * 80)); }
+  function glasses() { if (!AC) return; const p = pan(); [1320, 1760, 1480].forEach((f, i) => setTimeout(() => blip([f * (0.98 + Math.random() * 0.04)], 0.35, 'sine', 0.01), i * 120)); for (let k = 0; k < 5; k++) setTimeout(() => burst(0.15, 'bandpass', 420 + Math.random() * 200, 4, 0.03, p), 600 + k * 130); }
+  function cough() { if (!AC) return; const p = pan(); burst(0.22, 'bandpass', 700, 2, 0.08, p); setTimeout(() => burst(0.18, 'bandpass', 620, 2, 0.06, p), 260); }
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return;
+    fwT -= dt; if (fwT > 0) { fw.intensity = fwBase * Math.max(0, fwT / 0.9) * (0.7 + 0.3 * Math.sin(clock * 40)); } else fw.intensity = 0;
+    const fy = Math.floor((P.y + 0.3) / FH) * FH + FH / 2 + 1.5; fw.position.set(PW / 2, fy, PL + MIDD + 0.4);
+    for (const k in lastSnd) { lastSnd[k] -= dt; if (lastSnd[k] > 0) continue;
+      if (k === 'fire') { lastSnd.fire = 6 + Math.random() * 18; salute(); fwCol = FW[(Math.random() * FW.length) | 0]; fw.color.setHex(fwCol); fwBase = 14; fwT = 0.9; }
+      else if (k === 'tv') { lastSnd.tv = 25 + Math.random() * 30; tvMurmur(); }
+      else if (k === 'step') { lastSnd.step = 40 + Math.random() * 50; stepsAbove(); }
+      else if (k === 'chime') { lastSnd.chime = 150 + Math.random() * 120; chimes(); toast('<span style="font-size:14px;opacity:.75">где-то бьют куранты…</span>'); }
+      else if (k === 'glass') { lastSnd.glass = 60 + Math.random() * 60; glasses(); }
+      else if (k === 'cough') { lastSnd.cough = 80 + Math.random() * 90; cough(); } } };
+}
+
+// ===================== ДВОРЫ, цикл 3: курильщики, выбивание ковра, «скорая» вдалеке =====================
+if (DVOR && !ALT) {
+  const LMt = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.9 }, o));
+  const PUFF = texFrom(mkCanvas(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }));
+  const pos = new Float32Array(60 * 3).fill(-9999), pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const smoke = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.35, map: PUFF, color: 0xdddddd, transparent: true, opacity: 0.3, depthWrite: false })); smoke.frustumCulled = false; scene.add(smoke); REFL.hide.push(smoke);
+  const life = new Float32Array(60), vel = new Float32Array(60 * 3); let si = 0;
+  const SM = []; const coats = [0x2a2a30, 0x3a3228, 0x1f2a38, 0x4a4a44];
+  function man(group, x, z, ry, seed) { const r = rng(seed), g = new THREE.Group(), coat = LMt(coats[(r() * 4) | 0]), pants = LMt(0x1a1b1e), skin = LMt(0xc8a488, { roughness: 0.7 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.21, 0.6, 4, 10), coat); body.position.y = 1.15; body.scale.z = 0.8; const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 9), skin); head.position.y = 1.7;
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.115, 12, 6, 0, 6.3, 0, 1.5), LMt(r() < 0.5 ? 0x1a1a1a : 0x3a3a40)); cap.position.y = 1.72;
+    for (const s of [-0.09, 0.09]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.85, 8).translate(0, -0.42, 0), pants); l.position.set(s, 0.86, 0); g.add(l); }
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.5, 3, 6).translate(0, -0.3, 0), coat); armL.position.set(-0.27, 1.42, 0.0); armL.rotation.z = 0.1;
+    const armR = new THREE.Group(); armR.position.set(0.27, 1.42, 0); const aR = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.5, 3, 6).translate(0, -0.3, 0), coat); armR.add(aR);
+    const ember = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff6a20 })); ember.position.set(0, -0.62, 0.06); armR.add(ember); const cig = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 4), LMt(0xf0f0e8)); cig.rotation.x = Math.PI / 2; cig.position.set(0, -0.62, 0.03); armR.add(cig);
+    g.add(body, head, cap, armL, armR); g.position.set(x, groundH(x, z), z); g.rotation.y = ry; g.traverse((o) => { o.castShadow = Q.shadows; }); group.add(g);
+    SM.push({ g, armR, ember, x, z, t: r() * 8, st: 0, ry }); }
+  // курильщики: у части лавок (в другом углу от бабушек)
+  const prevOB = OUT_BUILD, seen = new Set();
+  OUT_BUILD = (cx, cz) => { const n0 = window.__benches.length, res = prevOB(cx, cz), r = rng((cx * 40503) ^ (cz * 22381) ^ 0xc1a6);
+    for (let i = n0; i < window.__benches.length; i++) { const b = window.__benches[i]; if (b.g !== res.group || r() > 0.3) continue; const a = b.ry + Math.PI / 2, x = b.x + Math.sin(a) * 1.7, z = b.z + Math.cos(a) * 1.7; if (inWorld(x, z) && dvRoadD(x, z) > 7) man(res.group, x, z, b.ry + Math.PI * (r() < 0.5 ? 0.3 : 1.2), i * 17 + 3); }
+    return res; };
+  // ковёр: ритмичный стук «бум…бум…бум»
+  let carpetT = 35, ambT = 140;
+  function beat() { if (!AC) return; const a = Math.random() * 6.28, p = Math.sin(a) * 0.8, n = 6 + ((Math.random() * 6) | 0), v = 0.12; for (let k = 0; k < n; k++) setTimeout(() => { burst(0.16, 'lowpass', 210, 1.1, v * (0.7 + Math.random() * 0.3), p); burst(0.08, 'bandpass', 900, 2, v * 0.25, p); }, k * (520 + Math.random() * 90)); }
+  function ambulance() { if (!AC) return; const t0 = AC.currentTime, dur = 14, from = Math.random() < 0.5 ? -1 : 1, o = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), sp = AC.createStereoPanner(); o.type = 'sawtooth'; o2.type = 'square'; f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 0.7;
+    sp.pan.setValueAtTime(from * 0.9, t0); sp.pan.linearRampToValueAtTime(-from * 0.9, t0 + dur);
+    for (let k = 0; k < 24; k++) { const t = t0 + k * 0.58, hi = k % 2 === 0, dop = 1 + 0.06 * (1 - (k / 12)); o.frequency.setValueAtTime((hi ? 960 : 700) * dop, t); o2.frequency.setValueAtTime((hi ? 962 : 702) * dop, t); }
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.025, t0 + 4); g.gain.linearRampToValueAtTime(0.03, t0 + 7); g.gain.linearRampToValueAtTime(0, t0 + dur); o.connect(f); o2.connect(f); f.connect(g).connect(sp).connect(master); o.start(t0); o2.start(t0); o.stop(t0 + dur); o2.stop(t0 + dur); toast('<span style="font-size:14px;opacity:.7">далеко проехала «скорая»</span>'); }
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return;
+    for (let i = SM.length - 1; i >= 0; i--) { const m = SM[i]; if (!m.g.parent || !m.g.parent.parent) { SM.splice(i, 1); continue; } if (Math.hypot(m.x - P.x, m.z - P.z) > 45) continue; m.t -= dt;
+      if (m.st === 0 && m.t < 0) { m.st = 1; m.t = 1.4; } else if (m.st === 1) { m.armR.rotation.x = Math.min(2.1, m.armR.rotation.x + dt * 3.2); if (m.t < 0) { m.st = 2; m.t = 1.2; for (let k = 0; k < 5; k++) { const j = si++ % 60; life[j] = 2.5 + Math.random() * 1.5; pos[j * 3] = m.x + Math.sin(m.ry) * 0.18; pos[j * 3 + 1] = groundH(m.x, m.z) + 1.62; pos[j * 3 + 2] = m.z + Math.cos(m.ry) * 0.18; vel[j * 3] = (Math.random() - 0.5) * 0.15; vel[j * 3 + 1] = 0.12 + Math.random() * 0.1; vel[j * 3 + 2] = (Math.random() - 0.5) * 0.15; } } }
+      else if (m.st === 2) { m.armR.rotation.x = Math.max(0.05, m.armR.rotation.x - dt * 2.2); if (m.t < 0) { m.st = 0; m.t = 5 + Math.random() * 6; } }
+      m.ember.material.color.setHex(m.st === 1 ? 0xffb050 : 0xff5a18); }
+    for (let i = 0; i < 60; i++) { if (life[i] <= 0) { pos[i * 3 + 1] = -9999; continue; } life[i] -= dt; pos[i * 3] += (vel[i * 3] + 0.4) * dt; pos[i * 3 + 1] += vel[i * 3 + 1] * dt; pos[i * 3 + 2] += vel[i * 3 + 2] * dt; } pg.attributes.position.needsUpdate = true;
+    carpetT -= dt; if (carpetT < 0) { carpetT = 50 + Math.random() * 60; beat(); }
+    ambT -= dt; if (ambT < 0) { ambT = 180 + Math.random() * 180; ambulance(); } };
+}
+
+// ===================== ALTERNATIVE, цикл 2: багровая луна, сердцебиение, шаги за спиной, мигающая темнота, шёпот в тексте =====================
+if (ALT) {
+  // огромная багровая «луна» над горизонтом
+  const mt = texFrom(mkCanvas(256, 256, (g) => { const gr = g.createRadialGradient(128, 128, 10, 128, 128, 128); gr.addColorStop(0, 'rgba(20,0,0,1)'); gr.addColorStop(0.45, 'rgba(120,10,6,0.95)'); gr.addColorStop(0.62, 'rgba(255,40,20,0.55)'); gr.addColorStop(1, 'rgba(255,40,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); g.fillStyle = 'rgba(0,0,0,0.5)'; for (let i = 0; i < 14; i++) { g.beginPath(); g.arc(70 + Math.random() * 120, 70 + Math.random() * 120, 4 + Math.random() * 14, 0, 6.3); g.fill(); } }));
+  const moon = new THREE.Mesh(new THREE.PlaneGeometry(260, 260), new THREE.MeshBasicMaterial({ map: mt, transparent: true, depthWrite: false, fog: false })); scene.add(moon); REFL.hide.push(moon);
+  // трещины в небе: тонкие чёрные линии, подвешены высоко
+  const crack = new THREE.Group(); { const r = rng(5); for (let i = 0; i < 5; i++) { const pts = []; let x = (r() - 0.5) * 300, y = 60 + r() * 90, z = -380; for (let k = 0; k < 14; k++) { pts.push(new V3(x, y, z)); x += (r() - 0.5) * 40; y += (r() - 0.5) * 30; } crack.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x000000, fog: false }))); } } scene.add(crack);
+  const camDir = new V3(); let beatT = 0, stepT = 25, darkT = 40, dark = 0, whisT = 30, lastD = 99;
+  const NAMES = ['они смотрят', 'не оборачивайся', 'ты уже здесь был', 'выход закрыт', 'он за спиной', 'тише', 'не беги', 'считай окна'];
+  function heart(v) { if (!AC) return; const t = AC.currentTime; for (const [d, a] of [[0, 1], [0.2, 0.7]]) { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = 52; g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(v * a, t + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0005, t + d + 0.22); o.connect(g).connect(master); o.start(t + d); o.stop(t + d + 0.25); } }
+  function stepsBehind() { if (!AC) return; const n = 5 + ((Math.random() * 5) | 0), v = 0.12; for (let k = 0; k < n; k++) setTimeout(() => { burst(0.07, 'lowpass', 300, 1.2, v * (0.6 + k / n * 0.6), -0.1 + Math.random() * 0.2); }, k * 420); }
+  const prev = WORLD_UPDATE;
+  WORLD_UPDATE = (dt) => { if (prev) prev(dt); if (!started) return; camera.getWorldDirection(camDir);
+    moon.position.set(P.x - 120, 95, P.z - 340); moon.lookAt(camera.position); crack.position.set(P.x, 0, P.z + 380 - 380);
+    // ближайший безликий: по группам-видимым чёрным капсулам нет доступа, поэтому используем расстояние до ближайшей «аномалии» из общего шума: пульс усиливается ночью и при беге
+    beatT -= dt; const tension = 0.35 + 0.35 * Math.sin(clock * 0.2) + Math.min(0.5, P.speed * 0.07); if (beatT < 0) { beatT = 1.1 - Math.min(0.55, tension * 0.5); heart(0.05 + tension * 0.1); }
+    stepT -= dt; if (stepT < 0) { stepT = 30 + Math.random() * 40; stepsBehind(); }
+    darkT -= dt; if (darkT < 0) { darkT = 35 + Math.random() * 50; dark = 1; if (AC) burst(0.5, 'lowpass', 120, 0.8, 0.45); }
+    if (dark > 0) { dark = Math.max(0, dark - dt * 0.9); post.U.expo.value = 0.15 + (1 - dark) * 0.6 * (Math.random() < 0.15 ? 0.3 : 1); } else post.U.expo.value += (0.9 - post.U.expo.value) * Math.min(1, dt * 2);
+    whisT -= dt; if (whisT < 0) { whisT = 40 + Math.random() * 40; toast('<i style="color:#ff6050">' + NAMES[(Math.random() * NAMES.length) | 0] + '</i>'); } };
 }
 
 })();
