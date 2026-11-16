@@ -649,7 +649,7 @@ if (DVOR) {
       e.set(peck * 1.1, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.235 - peck * 0.11, 0.135 + bob + peck * 0.05), q, one); Mp.premultiply(Mb); I.head.setMatrixAt(i, Mp); I.beak.setMatrixAt(i, Mp);
       e.set(0.35 + peck * 0.6, 0, 0); q.setFromEuler(e); Mp.compose(v.set(0, 0.19 - peck * 0.05, 0.1 + bob * 0.5 + peck * 0.03), q, one); Mp.premultiply(Mb); I.neck.setMatrixAt(i, Mp);
       const wa = b.st === 2 ? Math.sin(flap) * 1.0 + 0.2 : 0, fold = b.st === 2 ? 1 : 0.35;
-      for (const [k, sd] of [['wl', -1], ['wr', 1]]) { e.set(0, sd < 0 ? Math.PI : 0, wa); q.setFromEuler(e); Mp.compose(v.set(sd * 0.05, 0.17, 0.0), q, sc.set(fold, 1, 1)); if (b.st !== 2) { e.set(0, sd < 0 ? Math.PI - 1.35 : 1.35, 0); q.setFromEuler(e); Mp.compose(v.set(sd * 0.06, 0.16, 0.06), q, sc.set(0.85, 1, 0.55)); } Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); }
+      for (const [k, sd] of [['wl', -1], ['wr', 1]]) { e.set(0, sd < 0 ? Math.PI : 0, wa); q.setFromEuler(e); Mp.compose(v.set(sd * 0.05, 0.17, 0.0), q, sc.set(fold, 1, 1)); if (b.st !== 2) { e.set(0, Math.PI / 2, sd * 0.55); q.setFromEuler(e); Mp.compose(v.set(sd * 0.065, 0.165, 0.09), q, sc.set(0.7, 1.6, 0.6)); } Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); }
       const lg = b.st === 2 ? hide : null; for (const [k, sd] of [['l1', -1], ['l2', 1]]) { if (lg) { I[k].setMatrixAt(i, hide); continue; } Mp.makeTranslation(sd * 0.025, 0.0, 0.0); Mp.premultiply(Mb); I[k].setMatrixAt(i, Mp); } }
     function flutter(x, z) { if (!AC) return; const d = Math.hypot(x - P.x, z - P.z), vol = Math.min(0.5, 2.5 / (d + 1)); for (let k = 0; k < 7; k++) setTimeout(() => burst(0.09, 'bandpass', 700 + Math.random() * 500, 0.8, vol * (0.6 + Math.random() * 0.4)), k * 55 + Math.random() * 40); }
     let coo = 6;
