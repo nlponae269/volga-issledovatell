@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тишина — один сон про двор</title>
+<meta name="description" content="«Тишина» — атмосферная игра-сон от первого лица про детство в Волгограде. Дворы, подъезд, квартира 47 и ещё 16 миров. Открытый исходный код.">
+<meta name="theme-color" content="#0b0d12">
+<style>
+:root{
+  --bg:#0b0d12; --bg2:#11141b; --card:#151922; --line:rgba(255,255,255,.09);
+  --text:#e8e6e1; --dim:#9aa0ab; --mute:#6b7280;
+  --accent:#e07a4f; --accent2:#7b8cff; --warm:#f1c27d;
+  --radius:18px; --max:1120px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:400 17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+.wrap{width:min(var(--max),100% - 40px);margin-inline:auto}
+
+/* ---------- шапка ---------- */
+header{position:fixed;inset:0 0 auto 0;z-index:20;backdrop-filter:blur(12px);background:linear-gradient(#0b0d12e6,#0b0d1200)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{font:700 15px/1 system-ui;letter-spacing:.42em;color:#fff}
+.logo small{display:block;margin-top:5px;font-weight:500;font-size:9px;letter-spacing:.38em;color:var(--mute)}
+nav{display:flex;gap:26px;align-items:center;font-size:14px;color:var(--dim)}
+nav a:hover{color:#fff}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 24px;border-radius:999px;font-weight:600;font-size:15px;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:active{transform:scale(.96)}
+.btn.main{background:linear-gradient(100deg,var(--accent),#e0527a);color:#fff;box-shadow:0 10px 36px -10px #e0527a99}
+.btn.main:hover{box-shadow:0 14px 44px -8px #e0527acc;transform:translateY(-2px)}
+.btn.ghost{border:1px solid var(--line);background:#ffffff08;color:var(--text)}
+.btn.ghost:hover{background:#ffffff12}
+.btn svg{width:18px;height:18px;fill:currentColor}
+nav .btn{padding:9px 18px;font-size:13px}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;min-height:100svh;display:flex;align-items:flex-end;padding:120px 0 72px;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:0;z-index:-2;background:url(img/dvory_1.jpg) center/cover;filter:blur(3px) saturate(.8) brightness(.55);transform:scale(1.06)}
+.hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,var(--bg) 4%,#0b0d12aa 45%,#0b0d1255 100%),radial-gradient(ellipse at 20% 100%,#e07a4f22,transparent 60%)}
+.mist{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.mist i{position:absolute;left:-30%;width:160%;height:240px;border-radius:50%;background:radial-gradient(ellipse,#ffffff14,transparent 70%);animation:drift 38s linear infinite;opacity:.8}
+.mist i:nth-child(1){top:18%}
+.mist i:nth-child(2){top:46%;animation-duration:52s;animation-delay:-20s;opacity:.55}
+.mist i:nth-child(3){top:70%;animation-duration:44s;animation-delay:-8s;opacity:.7}
+@keyframes drift{from{transform:translateX(-12%)}to{transform:translateX(12%)}}
+.tag{display:inline-flex;gap:10px;align-items:center;font:600 12px/1 system-ui;letter-spacing:.24em;color:var(--warm);text-transform:uppercase;padding:9px 16px;border:1px solid #f1c27d33;border-radius:999px;background:#f1c27d0d}
+.tag b{width:7px;height:7px;border-radius:50%;background:var(--warm);box-shadow:0 0 12px var(--warm);animation:pulse 2.4s infinite}
+@keyframes pulse{50%{opacity:.25}}
+h1{margin:22px 0 14px;font:800 clamp(54px,11vw,138px)/.95 Georgia,"Times New Roman",serif;letter-spacing:.04em;background:linear-gradient(180deg,#fff 20%,#b9bdc9 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{max-width:620px;font-size:clamp(18px,2.1vw,22px);color:#cfd2da}
+.lead em{color:var(--warm);font-style:normal}
+.cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.clock{margin-top:44px;display:flex;gap:28px;flex-wrap:wrap;color:var(--dim);font-size:14px}
+.clock span{display:flex;gap:9px;align-items:center}
+.clock span::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.clock b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---------- секции ---------- */
+section{padding:110px 0;position:relative}
+.eyebrow{font:600 12px/1 system-ui;letter-spacing:.3em;color:var(--accent);text-transform:uppercase}
+h2{margin:16px 0 18px;font:700 clamp(30px,4.6vw,52px)/1.1 Georgia,serif;letter-spacing:.01em}
+.sub{max-width:660px;color:var(--dim);font-size:18px}
+
+.about{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center}
+.about .photo{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);aspect-ratio:4/5}
+.about .photo img{width:100%;height:100%;object-fit:cover;filter:saturate(.85)}
+.about .photo::after{content:"вид из окна автора";position:absolute;left:16px;bottom:14px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#ffffffb5;text-shadow:0 1px 8px #000}
+.about p{margin-bottom:16px;color:#c3c7d0}
+.quote{margin-top:26px;padding:18px 22px;border-left:3px solid var(--accent);background:#ffffff06;border-radius:0 12px 12px 0;color:var(--warm);font:italic 19px/1.5 Georgia,serif}
+
+/* ---------- главные миры ---------- */
+.big{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:48px}
+.world{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);background:var(--card);isolation:isolate;min-height:420px;display:flex;align-items:flex-end;transition:transform .35s,border-color .35s}
+.world:hover{transform:translateY(-6px);border-color:#ffffff30}
+.world img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform .8s,filter .5s;filter:saturate(.9) brightness(.8)}
+.world:hover img{transform:scale(1.06);filter:saturate(1) brightness(.9)}
+.world::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,#0b0d12f2 8%,#0b0d1255 60%,transparent)}
+.world .in{padding:30px}
+.world small{font:600 11px/1 system-ui;letter-spacing:.26em;color:var(--warm);text-transform:uppercase}
+.world h3{margin:10px 0 8px;font:700 32px/1.1 Georgia,serif}
+.world p{color:#c3c7d0;font-size:16px;max-width:460px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chips span{font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--dim);background:#ffffff08}
+.world.wide{grid-column:1/-1;min-height:360px}
+.world.wide img{object-position:center}
+
+/* ---------- ещё миры ---------- */
+.more{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:40px}
+.mini{position:relative;aspect-ratio:16/10;border-radius:14px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
+.mini img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:brightness(.7) saturate(.85);transition:transform .6s,filter .4s}
+.mini:hover img{transform:scale(1.08);filter:brightness(.95)}
+.mini::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(to top,#000b,transparent 65%)}
+.mini span{position:absolute;left:14px;bottom:11px;font-weight:600;font-size:15px}
+.mini em{position:absolute;right:12px;top:10px;font:600 10px/1 system-ui;letter-spacing:.2em;color:#ffffffc0;font-style:normal}
+.plus{display:grid;place-items:center;text-align:center;background:linear-gradient(135deg,#7b8cff22,#e07a4f22);color:var(--text);font-size:15px;padding:16px}
+.plus b{display:block;font:700 34px/1 Georgia,serif;color:var(--warm)}
+
+/* ---------- фичи ---------- */
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:46px}
+.f{padding:28px;border-radius:var(--radius);background:var(--card);border:1px solid var(--line);transition:transform .3s,border-color .3s}
+.f:hover{transform:translateY(-4px);border-color:#ffffff26}
+.f i{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;margin-bottom:18px;font-style:normal;font-size:22px;background:linear-gradient(135deg,#e07a4f33,#7b8cff33);border:1px solid var(--line)}
+.f h4{font:600 19px/1.3 system-ui;margin-bottom:8px}
+.f p{color:var(--dim);font-size:15.5px}
+
+/* ---------- ключи / цель ---------- */
+.goal{background:var(--bg2);border-block:1px solid var(--line)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:46px;counter-reset:s}
+.step{position:relative;padding:0 24px 0 0}
+.step::before{counter-increment:s;content:counter(s,decimal-leading-zero);display:block;font:700 44px/1 Georgia,serif;color:#ffffff1c;margin-bottom:14px}
+.step h4{font:600 17px/1.3 system-ui;margin-bottom:6px}
+.step p{font-size:15px;color:var(--dim)}
+
+/* ---------- скачать / репозиторий ---------- */
+.repo{text-align:center;padding:120px 0}
+.repo .box{padding:64px 28px;border-radius:28px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 0%,#e07a4f26,transparent 60%),var(--card)}
+.repo h2{margin-top:0}
+.repo .sub{margin-inline:auto}
+.repo .cta{justify-content:center}
+.link{margin-top:26px;font:500 14px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--dim);word-break:break-all}
+.link a{color:var(--warm);border-bottom:1px dashed #f1c27d66}
+.note{margin:30px auto 0;max-width:560px;font-size:13.5px;color:var(--mute)}
+
+footer{padding:34px 0 50px;border-top:1px solid var(--line);color:var(--mute);font-size:13.5px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* ---------- появление ---------- */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s,transform .8s}
+.rv.on{opacity:1;transform:none}
+
+/* ---------- адаптив ---------- */
+@media (max-width:900px){
+  nav a:not(.btn){display:none}
+  section{padding:78px 0}
+  .about{grid-template-columns:1fr;gap:34px}
+  .about .photo{aspect-ratio:16/11}
+  .big{grid-template-columns:1fr}
+  .world{min-height:340px}
+  .feat{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr 1fr;gap:34px 0}
+}
+@media (max-width:520px){
+  .steps{grid-template-columns:1fr}
+  .btn{width:100%;justify-content:center}
+  .cta{flex-direction:column}
+  .hero{padding-bottom:48px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="logo">ТИШИНА<small>ОДИН СОН</small></div>
+    <nav>
+      <a href="#about">О игре</a>
+      <a href="#worlds">Миры</a>
+      <a href="#features">Особенности</a>
+      <a href="#goal">Цель</a>
+      <a class="btn ghost" href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<div class="hero">
+  <div class="mist"><i></i><i></i><i></i></div>
+  <div class="wrap">
+    <span class="tag"><b></b> ноябрь · 14:50 · дождь только что кончился</span>
+    <h1>ТИШИНА</h1>
+    <p class="lead">Атмосферная игра-сон от первого лица про двор, который ты помнишь. Волгоград, 415-й микрорайон, посёлок ГЭС. Ни монстров, ни скримеров — жутко от <em>пустоты</em>, а не от страшилок.</p>
+    <div class="cta">
+      <a class="btn main" href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        Репозиторий на GitHub
+      </a>
+      <a class="btn ghost" href="#worlds">Посмотреть миры ↓</a>
+    </div>
+    <div class="clock">
+      <span>Первое лицо · <b>18 миров</b></span>
+      <span>Работает в браузере и на <b>Android</b></span>
+      <span>Мир <b>бесконечный</b></span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= О ИГРЕ ================= -->
+<section id="about">
+  <div class="wrap about">
+    <div class="rv">
+      <div class="eyebrow">О игре</div>
+      <h2>Сон о детстве, в котором всё узнаёшь</h2>
+      <p>Ты вернулся из школы. Ключа нет, домофон молчит, во дворе мокрая грязь, голуби и пятиэтажки с кондиционерами на фасаде. Всё как на фото из окна — только время остановилось: часы всегда показывают 14:50, а минута никак не сменится.</p>
+      <p>Ходи по мирам-воспоминаниям: двор, подъезд, школа, метро, пляж, электричка. Собирай записки и <b>ключи от ворот</b>. Когда соберёшь все — откроются бабушкины ворота, и можно будет вернуться домой, в квартиру 47, и лечь спать.</p>
+      <div class="quote">«Это твой двор. Только не тот.»</div>
+    </div>
+    <div class="photo rv"><img src="img/okno.jpg" alt="Вид из окна во двор" loading="lazy"></div>
+  </div>
+</section>
+
+<!-- ================= МИРЫ ================= -->
+<section id="worlds" style="background:var(--bg2);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <div class="eyebrow">Миры</div>
+    <h2>Два главных мира — и ещё шестнадцать</h2>
+    <p class="sub">Весь упор на реализм — в Дворах и Подъезде. Остальные миры спрятаны в меню под карточкой «Ещё миры».</p>
+
+    <div class="big">
+      <a class="world rv" href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">
+        <img src="img/dvory_panelki.jpg" alt="Дворы" loading="lazy">
+        <div class="in">
+          <small>Мир 01 · основной</small>
+          <h3>Дворы</h3>
+          <p>Двор дома на улице Героев Тулы, 13. Светлая грязь, лужи-зеркала, тополя и берёзы, стаи голубей, ржавые машины и бесконечные кварталы вокруг.</p>
+          <div class="chips"><span>12 записок</span><span>каштаны</span><span>голуби</span><span>звуки района</span></div>
+        </div>
+      </a>
+      <a class="world rv" href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">
+        <img src="img/podezd.jpg" alt="Подъезд" loading="lazy">
+        <div class="in">
+          <small>Мир 02 · основной</small>
+          <h3>Подъезд</h3>
+          <p>Новогодняя ночь. Лестничная площадка, которая уходит вверх и вниз без конца. Лифт без кнопок: этаж вводишь сам — хоть до переполнения int32.</p>
+          <div class="chips"><span>бесконечный дом</span><span>лифт</span><span>пасхалки</span><span>кв. 47</span></div>
+        </div>
+      </a>
+      <a class="world wide rv" href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">
+        <img src="img/alt.jpg" alt="Alternative" loading="lazy">
+        <div class="in">
+          <small>Секретный мир</small>
+          <h3>ALTERNATIVE</h3>
+          <p>Тот же двор, но красный. Безликие силуэты, застывшие голуби, часы идут назад. Вход — через чёрный шар, который почему-то лежит в обычных Дворах.</p>
+          <div class="chips"><span>багровая луна</span><span>шаги за спиной</span><span>лестница в небо</span></div>
+        </div>
+      </a>
+    </div>
+
+    <div class="more">
+      <div class="mini rv"><img src="img/shkola.jpg" alt="" loading="lazy"><em>03</em><span>Школа</span></div>
+      <div class="mini rv"><img src="img/metro.jpg" alt="" loading="lazy"><em>04</em><span>Метро</span></div>
+      <div class="mini rv"><img src="img/elektrichka.jpg" alt="" loading="lazy"><em>05</em><span>Электричка</span></div>
+      <div class="mini rv"><img src="img/plyazh.jpg" alt="" loading="lazy"><em>06</em><span>Пляж</span></div>
+      <div class="mini rv"><img src="img/pole.jpg" alt="" loading="lazy"><em>07</em><span>Поле</span></div>
+      <div class="mini rv"><img src="img/zima.jpg" alt="" loading="lazy"><em>08</em><span>Зима</span></div>
+      <div class="mini plus rv"><div><b>+10</b>больница, лагерь, стройка, ворота и другие</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ОСОБЕННОСТИ ================= -->
+<section id="features">
+  <div class="wrap">
+    <div class="eyebrow">Особенности</div>
+    <h2>Реализм там, где он важен</h2>
+    <p class="sub">Игра собрана на Three.js и написана для телефона: открывается в браузере или упаковывается в Android-приложение.</p>
+    <div class="feat">
+      <div class="f rv"><i>🌫</i><h4>Атмосфера как с камеры телефона</h4><p>Пасмурный свет, туман, мягкая виньетка и «ручная» камера. Небо — настоящее HDRI, поверхности — PBR-текстуры.</p></div>
+      <div class="f rv"><i>🏢</i><h4>Район со спутника</h4><p>Дома вокруг спавна стоят по настоящим координатам. Остальной мир генерируется бесконечно, но всегда одинаково для одного сида.</p></div>
+      <div class="f rv"><i>🕊</i><h4>Двор живёт</h4><p>Голуби взлетают, когда подходишь. Бабушки на лавочках, коты, воронье на проводах, лай собак и далёкий поезд.</p></div>
+      <div class="f rv"><i>🔊</i><h4>Звук, который строит мир</h4><p>Гул города, капли с крыш, чавканье грязи под ногами, хлопки подъездных дверей — всё синтезируется на лету.</p></div>
+      <div class="f rv"><i>🛗</i><h4>Рабочий лифт</h4><p>Вместо кнопок — поле ввода. Попробуй 13, 404, 666 или число побольше. Или самое большое из возможных.</p></div>
+      <div class="f rv"><i>📱</i><h4>Подогнано под телефон и планшет</h4><p>Автоматический режим для больших экранов, управление пальцем и режим «Авто» для слабых устройств.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ЦЕЛЬ ================= -->
+<section id="goal" class="goal">
+  <div class="wrap">
+    <div class="eyebrow">Как играть</div>
+    <h2>Цель: вернуться домой</h2>
+    <div class="steps">
+      <div class="step rv"><h4>Выйди во двор</h4><p>Осмотрись, пройди к подъездам. Двадцать процентов дверей открыты и ведут в другие миры.</p></div>
+      <div class="step rv"><h4>Собери записки</h4><p>Двенадцать записок во Дворах складываются в историю. Каштаны — просто для души.</p></div>
+      <div class="step rv"><h4>Найди 16 ключей</h4><p>В каждом мире спрятан золотой ключ от ворот. Он светится и крутится.</p></div>
+      <div class="step rv"><h4>Ложись спать</h4><p>Открой ворота, вернись во двор, поднимись в кв. 47. Минута пойдёт дальше.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= РЕПОЗИТОРИЙ ================= -->
+<section class="repo">
+  <div class="wrap">
+    <div class="box rv">
+      <div class="eyebrow">Открытый исходный код</div>
+      <h2>Исходники и сборки — на GitHub</h2>
+      <p class="sub">Весь код игры, документация по каждому миру и план порта на Roblox лежат в репозитории.</p>
+      <div class="cta" style="margin-top:32px">
+        <a class="btn main" href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">Открыть репозиторий →</a>
+      </div>
+      <p class="link"><a href="https://github.com/nlponae269/volga-issledovatell" target="_blank" rel="noopener">https://github.com/nlponae269/volga-issledovatell</a></p>
+      <p class="note">Музыка в репозиторий не входит — она чужая и используется только в личных сборках. Ассеты из папки <code>res/</code> — CC0 (Poly Haven).</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>ТИШИНА · один сон</span>
+    <span>Волгоград · 415-й микрорайон · ноябрь, 14:50</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var els=document.querySelectorAll('.rv');
+  if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('on')});return}
+  var io=new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){x.target.classList.add('on');io.unobserve(x.target)}})},{threshold:.12});
+  els.forEach(function(e,i){e.style.transitionDelay=(i%3)*90+'ms';io.observe(e)});
+})();
+</script>
+</body>
+</html>
