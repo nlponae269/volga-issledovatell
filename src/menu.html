@@ -169,7 +169,7 @@ const vis = () => TILES.map((t, i) => i).filter((i) => document.body.classList.c
 function step(d) { const V = vis(), k = V.indexOf(sel); select(V[(k + d + V.length) % V.length], true); }
 // прогресс ключей, Far Lands
 function keysN() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} return KEYW.filter((w) => k.includes(w)).length; }
-function refreshTop() { const n = keysN(), done = ls('dream_done'); $('ptxt').textContent = done ? 'СОН ПРОЙДЕН' : `КЛЮЧИ ${n} / ${KEYW.length}`; requestAnimationFrame(() => ($('pbar').style.transform = `scaleX(${done ? 1 : n / KEYW.length})`)); }
+function refreshTop() { const n = keysN(), done = ls('dream_done'); let ac = ''; try { const s = JSON.parse(ls('ach_state') || '{}'); const c = Object.keys(s.ach || {}).length; if (c) ac = ` · ДНЕВНИК ${c} / ${s.total || 31}`; } catch (e) {} $('ptxt').textContent = (done ? 'СОН ПРОЙДЕН' : `КЛЮЧИ ${n} / ${KEYW.length}`) + ac; requestAnimationFrame(() => ($('pbar').style.transform = `scaleX(${done ? 1 : n / KEYW.length})`)); }
 const far = $('far'); function farTxt() { const on = ls('farlands') === '1'; far.textContent = on ? 'FAR LANDS · ВКЛ' : 'FAR LANDS'; far.classList.toggle('on', on); }
 const gfx = $('gfx'); function gfxTxt() { const u = (ls('gfx') || 'ultra') === 'ultra'; gfx.textContent = u ? 'ГРАФИКА · УЛЬТРА' : 'ГРАФИКА · АВТО'; gfx.classList.toggle('auto', !u); }
 gfx.onclick = () => { try { localStorage.setItem('gfx', (ls('gfx') || 'ultra') === 'ultra' ? 'auto' : 'ultra'); } catch (e) {} gfxTxt(); }; gfxTxt();
