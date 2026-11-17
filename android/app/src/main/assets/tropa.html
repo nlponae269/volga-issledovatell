@@ -101,6 +101,13 @@ if (window.WORLD === 'kvartira') { Q.R = 0; Q.grass = 16; Q.fogSteps = 4; }
 if (window.WORLD === 'dvory' || window.WORLD === 'alt') { Q.grass = MOBILE ? 4000 : 12000; }
 if (window.WORLD === 'dom') { Q.R = 1; Q.grass = MOBILE ? 3000 : 8000; Q.fogSteps = MOBILE ? 4 : 6; }
 if (TEST) { const m = location.hash.match(/R=(\d)/); Q.R = m ? +m[1] : 1; Q.grass = 12000; Q.msaa = 0; Q.pr = 1; }
+// «Режим планшета»: большой сенсорный экран (>=600 css-px по короткой стороне) - облегчаем рендер: разрешение не выше ~1.1 Мп, без MSAA/теней/SSAO.
+const TABLET = (() => { try { if (location.hash.includes('tablet')) return true; if (localStorage.getItem('tablet') === '0') return false; } catch (e) {} return TOUCH && Math.min(screen.width, screen.height) >= 600; })();
+if (TABLET) {
+  const px = Math.max(1, innerWidth * innerHeight);
+  Q.pr = Math.max(0.55, Math.min(Q.pr, 1, Math.sqrt(1.1e6 / px)));
+  Q.msaa = 0; Q.shadows = false; Q.ssao = false; Q.fogSteps = Math.min(Q.fogSteps, 5); Q.grass = Math.min(Q.grass, 5000); Q.R = Math.min(Q.R, 1);
+}
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: TEST });
 renderer.setPixelRatio(Q.pr);
 renderer.toneMapping = THREE.NoToneMapping;
