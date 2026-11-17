@@ -1,0 +1,99 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Тишина — трейлер</title>
+<style>
+html,body{margin:0;background:#000}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:#000;font-family:Inter,"Segoe UI",system-ui,Roboto,Arial,sans-serif;color:#ece9e2}
+.layer{position:absolute;inset:0}
+.shot{position:absolute;inset:-6%;background-size:cover;background-position:center bottom;will-change:transform,opacity;opacity:0}
+#grain{position:absolute;inset:-10%;opacity:.12;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+#vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,transparent 42%,#000c 100%)}
+#shade{position:absolute;inset:0;background:linear-gradient(to top,#000e 0%,#0006 40%,#0006 100%)}
+.t{position:absolute;left:90px;right:90px;font-weight:800;letter-spacing:-.02em;line-height:1.05;text-wrap:balance}
+.big{font-size:100px}.mid{font-size:76px}
+.small{position:absolute;left:90px;right:90px;font-size:38px;line-height:1.35;color:#d4d1ca;font-weight:500}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.28em;text-transform:uppercase;font-size:28px;color:#ff6a3d;font-weight:600}
+.clock{position:absolute;left:0;right:0;text-align:center;font:600 190px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.02em}
+.title{position:absolute;left:0;right:0;text-align:center;font:900 210px/1 Impact,"Arial Narrow Bold","Haettenschweiler",Oswald,sans-serif;letter-spacing:.04em}
+.word{display:inline-block}
+.btn{position:absolute;left:50%;width:700px;margin-left:-350px;text-align:center;padding:34px 0;border-radius:999px;background:#ff6a3d;color:#160800;font:800 44px/1 system-ui;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+</style></head><body>
+<div id="stage">
+ <div class="layer" id="shots">
+  <div class="shot" id="s_d2" style="background-image:url(d2.jpg)"></div>
+  <div class="shot" id="s_d3" style="background-image:url(d3.jpg)"></div>
+  <div class="shot" id="s_p1" style="background-image:url(p1.jpg)"></div>
+  <div class="shot" id="s_a1" style="background-image:url(a1.jpg)"></div>
+  <div class="shot" id="s_a2" style="background-image:url(a2.jpg);mix-blend-mode:screen"></div>
+ </div>
+ <div class="layer" id="shade"></div>
+ <div class="layer" id="vig"></div>
+ <div class="layer" id="redflash" style="background:#ff1a2a;mix-blend-mode:multiply;opacity:0"></div>
+
+ <div class="clock" id="clk" style="top:620px">14:50:00</div>
+ <div class="t big" id="hook" style="top:880px;text-align:center">Минута никогда не меняется</div>
+
+ <div class="mono t" id="m1" style="top:1190px">Волгоград · 415-й микрорайон</div>
+ <div class="t big" id="t1" style="top:1260px">Ноябрь.<br>Дождь только кончился.</div>
+ <div class="small" id="p1t" style="top:1610px">Ты дошёл из школы. Ключа нет. Домофон молчит.</div>
+
+ <div class="mono t" id="m2" style="top:1210px">Героев Тулы, 13</div>
+ <div class="t big" id="t2" style="top:1280px">Двор, который<br>ты знаешь</div>
+ <div class="small" id="p2t" style="top:1620px">Лужи, голуби, жёлтая газовая труба</div>
+
+ <div class="mono t" id="m3" style="top:1210px">Новогодняя ночь</div>
+ <div class="t big" id="t3" style="top:1280px">Подъезд, лифт и 2 147 483 647 этажей</div>
+ <div class="small" id="p3t" style="top:1650px">Набери любое число, пока мир не сломается</div>
+
+ <div class="mono t" id="m4" style="top:1210px;color:#ff4a58">Секретный мир</div>
+ <div class="t big" id="t4" style="top:1280px;color:#ffd9dc">Но однажды небо станет красным</div>
+ <div class="small" id="p4t" style="top:1640px;color:#f0b4b9">Часы пойдут назад. За спиной — шаги.</div>
+
+ <div id="outbg" class="layer" style="background:#07080b;opacity:0"></div>
+ <div class="title" id="ttl" style="top:600px;opacity:0">ТИШИНА</div>
+ <div class="t mid" id="o1" style="top:900px;text-align:center">Игра-сон о детстве во дворе</div>
+ <div class="small" id="o2" style="top:1090px;text-align:center;font-size:42px">Бесплатно · Android и браузер<br>Открытый исходный код</div>
+ <div class="btn" id="o3" style="top:1380px">Играть на GitHub</div>
+ <div class="small" id="o4" style="top:1560px;text-align:center;font-size:32px;letter-spacing:.04em;color:#98a0ab">github.com/nlponae269/volga-issledovatell</div>
+
+ <div class="layer" id="grain"></div>
+</div>
+<script src="hv.js"></script>
+<script>
+const S=HV.scenes([['hook',3.6],['dvory',5],['pan',4.6],['pod',4.4],['alt',4.4],['out',4.4]]);
+const pad=n=>String(n).padStart(2,'0');
+const rnd=HV.rng(11);
+const G=Array.from({length:800},()=>rnd());
+const shots={d2:'dvory',d3:'pan',p1:'pod',a1:'alt'};
+HV.video({width:1080,height:1920,fps:30,duration:S.total,background:'#000',
+async setup(){await Promise.all(['d2','d3','p1','a1','a2'].map(n=>HV.loadImage(n+'.jpg')))},
+render(t){
+ for(const [id,sc] of Object.entries(shots)){
+  const a=S.at(sc),pre=0.5,k=(t-a.start)/a.dur;
+  const op=HV.clamp(Math.min((t-(a.start-pre))/pre,(a.end+pre-t)/pre),0,1);
+  const z=1.1+0.1*HV.clamp(k,-0.2,1.2)+(sc==='alt'?0.03*Math.sin(t*8):0);
+  HV.set('#s_'+id,{opacity:op,scale:z,x:HV.noise(t*.5,id.charCodeAt(1))*22,y:HV.clamp(k,0,1)*-30,
+   style:{filter:sc==='alt'?'saturate(1.3) contrast(1.1)':'saturate(.9) contrast(1.05)'}});
+ }
+ const aa=S.at('alt'),ak=t-aa.start;
+ const gl=(ak>0.2&&ak<aa.dur)&&(Math.floor(t*14)%7===0||(ak>2.2&&ak<2.5));
+ HV.set('#s_a2',{opacity:gl?0.45:0,x:gl?(G[Math.floor(t*30)%800]-.5)*90:0,scale:1.16});
+ HV.set('#redflash',{opacity:HV.env(t,aa.start-.15,aa.start+.1,aa.start+.2,aa.start+.5)*.9});
+ const hk=S.at('hook');
+ HV.set('#clk',{text:'14:50:'+pad(Math.floor(t*6)%60),opacity:HV.env(t,0.05,0.4,hk.end-.5,hk.end-.1),scale:1+0.02*Math.sin(t*6)});
+ HV.stagger(HV.split('#hook','word'),t,0.9,{each:.16,dur:.7,dy:40});
+ HV.set('#hook',{opacity:HV.env(t,.85,.9,hk.end-.5,hk.end-.1)});
+ const sc=(id,name,delay)=>{const a=S.at(name);HV.reveal('#'+id,t,a.start+delay,.8,{dy:50,outAt:a.end-.25,outDur:.3})};
+ sc('m1','dvory',.2);sc('t1','dvory',.5);sc('p1t','dvory',1.6);
+ sc('m2','pan',.1);sc('t2','pan',.3);sc('p2t','pan',1.2);
+ sc('m3','pod',.1);sc('t3','pod',.3);sc('p3t','pod',1.3);
+ sc('m4','alt',.1);sc('t4','alt',.35);sc('p4t','alt',1.4);
+ const o=S.at('out');
+ HV.set('#outbg',{opacity:HV.p(t,o.start-.4,o.start+.3,'inOutQuad')});
+ const tw=HV.p(t,o.start+.1,o.start+1.2,'outExpo');
+ HV.set('#ttl',{opacity:tw,scale:1.25-.25*tw,y:(1-tw)*30,style:{filter:`blur(${(1-tw)*18}px)`,letterSpacing:(.18-.14*tw)+'em'}});
+ HV.reveal('#o1',t,o.start+.9,.8,{dy:40});HV.reveal('#o2',t,o.start+1.4,.8,{dy:40});
+ const b=HV.p(t,o.start+1.9,o.start+2.5,'outBack');
+ HV.set('#o3',{opacity:b,x:0,y:(1-b)*40,scale:.8+.2*b+0.03*Math.sin(t*5)*b});
+ HV.reveal('#o4',t,o.start+2.4,.8,{dy:20});
+ HV.set('#grain',{x:(G[Math.floor(t*24)%800]-.5)*80,y:(G[(Math.floor(t*24)+99)%800]-.5)*80});
+}});
+</script></body></html>
