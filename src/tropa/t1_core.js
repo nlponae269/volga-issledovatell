@@ -1,6 +1,7 @@
 // ===================== ТРОПА: ядро, текстуры, материалы =====================
 const $ = (id) => document.getElementById(id);
-const TOUCH = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+const PCAPP = /Electron/i.test(navigator.userAgent);   // ПК-версия (Tishina.exe): всегда клавиатура и мышь
+const TOUCH = !PCAPP && (matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent));
 // «Ультра» (по умолчанию): на телефоне — полная графика как на компьютере. «Авто» — облегчённая для слабых устройств.
 const ULTRA = (() => { try { return (localStorage.getItem('gfx') || 'ultra') === 'ultra'; } catch (e) { return true; } })();
 const MOBILE = TOUCH && !ULTRA;
@@ -9,6 +10,8 @@ const Q = {
   pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, ULTRA && TOUCH ? 1.75 : 1.5), msaa: MOBILE ? 0 : TOUCH ? 2 : 4, fogSteps: MOBILE ? 5 : 9,
 };
 const TEST = location.hash.includes('test');
+// ПК: не рендерить больше ~2.2 Мп (1080p) — на 1440p/4K с pr 1.5 и MSAA×4 мир лагал даже на мощном компе
+if (!TOUCH) { const px = Math.max(1, innerWidth * innerHeight); Q.pr = Math.max(0.6, Math.min(Q.pr, Math.sqrt(2.2e6 / px))); if (px * Q.pr * Q.pr > 1.5e6) Q.msaa = Math.min(Q.msaa, 2); }
 if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }

@@ -143,6 +143,13 @@ const post = (() => {
 // ---------------- игрок ----------------
 const P = { x: 0, y: 0, z: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, ground: true, speed: 0 };
 const keys = {}; let running = false, dead = 0, started = false;
+// Esc: закрыть записку/лифт, иначе — выйти в меню
+window.__esc = () => { const n = $('note'); if (n && n.style.display === 'flex') { n.style.display = 'none'; return 'note'; }
+  try { if (typeof liftUI !== 'undefined' && /flex|block/.test(liftUI.style.display)) { liftUI.style.display = 'none'; return 'lift'; } } catch (e) {}
+  if (window.__escGo) return 'busy'; window.__escGo = 1; if (document.pointerLockElement) document.exitPointerLock();
+  const f = $('fade'); if (f) { f.style.transition = 'opacity 0.4s'; f.style.background = '#000'; f.style.opacity = 1; f.innerHTML = ''; }
+  setTimeout(() => { location.href = 'index.html'; }, 350); return 'menu'; };
+addEventListener('keydown', (e) => { if (e.code === 'Escape' && !e.repeat) { window.__esc(); } });
 addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); if (P.ground && started) P.vy = 4.2; } });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 renderer.domElement.addEventListener('click', () => { if (!TOUCH && started) renderer.domElement.requestPointerLock(); });

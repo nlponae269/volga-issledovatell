@@ -28,7 +28,7 @@ canvas{display:block}
 <div id="fade"></div>
 <div id="start"><h1>МЕТРО</h1>
 <p>Пустая станция. Колонны, люстры, мрамор. Поезда приходят и открывают двери.</p><p>Схема линий на стене каждый раз немного другая. Сядешь в поезд — увезёт в другой мир.</p>
-<p style="font-size:13px;opacity:.6">WASD — ходьба, мышь — обзор, E — действие, Shift — бег, F — фонарик</p>
+<p style="font-size:13px;opacity:.6">WASD — ходьба, мышь — обзор, E — действие, Shift — бег, Пробел — прыжок, Esc — в меню, F — фонарик</p>
 <div><button class="b" id="play" disabled>Загрузка…</button><button class="b b2" id="back">← Меню</button></div></div>
 <script>window.WORLD="metro";</script>
 <script>// Фоновая музыка для всех миров: оригинал / slowed + reverb / выкл. Файлы лежат в music/ (только в APK).
@@ -84,7 +84,8 @@ const TEXDATA = {
 
 // ===================== ТРОПА: ядро, текстуры, материалы =====================
 const $ = (id) => document.getElementById(id);
-const TOUCH = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
+const PCAPP = /Electron/i.test(navigator.userAgent);   // ПК-версия (Tishina.exe): всегда клавиатура и мышь
+const TOUCH = !PCAPP && (matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent));
 // «Ультра» (по умолчанию): на телефоне — полная графика как на компьютере. «Авто» — облегчённая для слабых устройств.
 const ULTRA = (() => { try { return (localStorage.getItem('gfx') || 'ultra') === 'ultra'; } catch (e) { return true; } })();
 const MOBILE = TOUCH && !ULTRA;
@@ -93,6 +94,8 @@ const Q = {
   pr: MOBILE ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, ULTRA && TOUCH ? 1.75 : 1.5), msaa: MOBILE ? 0 : TOUCH ? 2 : 4, fogSteps: MOBILE ? 5 : 9,
 };
 const TEST = location.hash.includes('test');
+// ПК: не рендерить больше ~2.2 Мп (1080p) — на 1440p/4K с pr 1.5 и MSAA×4 мир лагал даже на мощном компе
+if (!TOUCH) { const px = Math.max(1, innerWidth * innerHeight); Q.pr = Math.max(0.6, Math.min(Q.pr, Math.sqrt(2.2e6 / px))); if (px * Q.pr * Q.pr > 1.5e6) Q.msaa = Math.min(Q.msaa, 2); }
 if (['shkola', 'bolnica', 'magazin'].includes(window.WORLD)) { Q.R = 1; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (['metro'].includes(window.WORLD)) { Q.R = 0; Q.grass = 16; Q.fogSteps = MOBILE ? 4 : 6; }
 if (window.WORLD === 'pole') { Q.grass = MOBILE ? 14000 : 46000; }
@@ -1420,6 +1423,13 @@ const post = (() => {
 // ---------------- игрок ----------------
 const P = { x: 0, y: 0, z: 0, vy: 0, yaw: -Math.PI / 2 + 0.2, pitch: -0.03, ground: true, speed: 0 };
 const keys = {}; let running = false, dead = 0, started = false;
+// Esc: закрыть записку/лифт, иначе — выйти в меню
+window.__esc = () => { const n = $('note'); if (n && n.style.display === 'flex') { n.style.display = 'none'; return 'note'; }
+  try { if (typeof liftUI !== 'undefined' && /flex|block/.test(liftUI.style.display)) { liftUI.style.display = 'none'; return 'lift'; } } catch (e) {}
+  if (window.__escGo) return 'busy'; window.__escGo = 1; if (document.pointerLockElement) document.exitPointerLock();
+  const f = $('fade'); if (f) { f.style.transition = 'opacity 0.4s'; f.style.background = '#000'; f.style.opacity = 1; f.innerHTML = ''; }
+  setTimeout(() => { location.href = 'index.html'; }, 350); return 'menu'; };
+addEventListener('keydown', (e) => { if (e.code === 'Escape' && !e.repeat) { window.__esc(); } });
 addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); if (P.ground && started) P.vy = 4.2; } });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
 renderer.domElement.addEventListener('click', () => { if (!TOUCH && started) renderer.domElement.requestPointerLock(); });
