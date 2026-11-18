@@ -1,6 +1,8 @@
 package ru.volga.tishina;
 
 import android.app.Activity;
+import android.content.pm.ActivityInfo;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
@@ -40,6 +42,9 @@ public class MainActivity extends Activity {
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         // игры отдаются по https-адресу из assets: так работают ES-модули и загрузка моделей (игра «Гаражи»)
         web.setWebViewClient(new WebViewClient() {
+            // мир «Настройки» — это телефон, поэтому он портретный; все остальные — альбомные
+            @Override public void onPageStarted(WebView v, String url, Bitmap fav) { orient(url); }
+            @Override public void doUpdateVisitedHistory(WebView v, String url, boolean reload) { orient(url); }
             @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
                 Uri u = req.getUrl();
                 if (!HOST.equals(u.getHost())) return null;
@@ -56,6 +61,10 @@ public class MainActivity extends Activity {
         immersive();
     }
 
+    private void orient(String url) {
+        int o = url != null && url.contains("nastroyki.html") ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        if (getRequestedOrientation() != o) setRequestedOrientation(o);
+    }
     private void immersive() {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -64,5 +73,8 @@ public class MainActivity extends Activity {
     @Override public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) immersive(); }
     @Override protected void onPause() { super.onPause(); web.evaluateJavascript("window.__musicPause&&__musicPause()", null); web.onPause(); }
     @Override protected void onResume() { super.onResume(); web.onResume(); web.evaluateJavascript("window.__musicResume&&__musicResume()", null); }
-    @Override public void onBackPressed() { if (web.canGoBack()) web.goBack(); else super.onBackPressed(); }
+    @Override public void onBackPressed() {
+        String u = web.getUrl();
+        if (u != null && u.contains("nastroyki.html")) { web.evaluateJavascript("window.__esc&&__esc()", null); return; }   // «назад» по настройкам
+        if (web.canGoBack()) web.goBack(); else super.onBackPressed(); }
 }
