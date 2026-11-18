@@ -38,3 +38,5 @@ menu = (root / 'src/menu.html').read_text(encoding='utf-8').replace('/*THUMBS*/{
 print('index.html (меню)', len(menu) // 1024, 'KB')
 (root / 'nastroyki.html').write_text((root / 'src/nastroyki.html').read_text(encoding='utf-8'), encoding='utf-8')
 print('nastroyki.html (мир «Настройки»)')
+(root / 'voditel.html').write_text((root / 'src/voditel.html').read_text(encoding='utf-8').replace('<!--THREE-->', '<script>' + three + '</script>'), encoding='utf-8')
+print('voditel.html (мир «Водитель»)')
