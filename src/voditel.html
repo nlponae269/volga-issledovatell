@@ -98,19 +98,35 @@ function streak(par, mat, x, z, len) { const m = plane(par, mat, x, 0.015, z + l
 const SEG = 40, RW = 7, WALK = 5;      // полуширина дороги 7 м (по 2 полосы), тротуар 5 м
 const segs = new Map(); const SHOPLIST = []; const LIGHTS = [];
 function crossAt(k) { return k % 7 === 3; }   // перекрёсток каждые 280 м
+// дорога — кривая: у каждого сегмента своя кривизна (прямо / плавный / крутой поворот)
+function curv(k) { if (k < 2 || crossAt(k) || crossAt(k - 1) || crossAt(k + 1) || k % 23 === 11) return 0; const r = rng(k * 7919 + 13); const a = r(); if (a < 0.4) return 0; const sg = r() < 0.5 ? -1 : 1; return sg * (a < 0.75 ? 1 / 160 : a < 0.93 ? 1 / 90 : 1 / 55); }
+const STARTS = [{ x: 0, z: 0, h: 0 }];
+function segEnd(st, c) { if (!c) return { x: st.x - Math.sin(st.h) * SEG, z: st.z - Math.cos(st.h) * SEG, h: st.h }; const h1 = st.h + c * SEG; return { x: st.x + (Math.cos(h1) - Math.cos(st.h)) / c, z: st.z - (Math.sin(h1) - Math.sin(st.h)) / c, h: h1 }; }
+function segStart(k) { if (k < 0) return { x: 0, z: -k * SEG, h: 0 }; while (STARTS.length <= k) { const i = STARTS.length - 1; STARTS.push(segEnd(STARTS[i], curv(i))); } return STARTS[k]; }
+function pose(s) { const k = Math.floor(s / SEG), u = s - k * SEG, st = segStart(k), c = k < 0 ? 0 : curv(k);
+  if (!c) return { x: st.x - Math.sin(st.h) * u, z: st.z - Math.cos(st.h) * u, h: st.h, c: 0 };
+  const h = st.h + c * u; return { x: st.x + (Math.cos(h) - Math.cos(st.h)) / c, z: st.z - (Math.sin(h) - Math.sin(st.h)) / c, h, c }; }
+function W2(s, l) { const p = pose(s); return { x: p.x + Math.cos(p.h) * l, z: p.z - Math.sin(p.h) * l, h: p.h, c: p.c }; }
+// «изгиб» сегмента: всё строится в прямой системе (x — поперёк, −z — вдоль), потом переносится на кривую
+function bend(g, k) { for (const c of g.children) { const s = k * SEG - c.position.z, w = W2(s, c.position.x); c.position.x = w.x; c.position.z = w.z; c.rotation.order = 'YXZ'; c.rotation.y += w.h; } }
+// проекция точки мира на дорогу: (s, l)
+function toSL(x, z, s0) { let s = s0; for (let i = 0; i < 4; i++) { const p = pose(s); s += (x - p.x) * -Math.sin(p.h) + (z - p.z) * -Math.cos(p.h); } const p = pose(s); return { s, l: (x - p.x) * Math.cos(p.h) - (z - p.z) * Math.sin(p.h) }; }
 function buildSeg(k) {
-  const r = rng(k * 2654435761 + 99); const g = new THREE.Group(); const z0 = -k * SEG; g.position.z = z0; scene.add(g);
+  const r = rng(k * 2654435761 + 99); const g = new THREE.Group(); const z0 = 0; scene.add(g);
   const info = { g, k, shops: [], tl: null };
   const cross = crossAt(k);
   // дорога и тротуары
-  plane(g, M.road, 0, 0, -SEG / 2, RW * 2, SEG, 0, -Math.PI / 2);
-  for (const s of [-1, 1]) {
-    if (!cross) { plane(g, M.walk, s * (RW + WALK / 2), 0.15, -SEG / 2, WALK, SEG, 0, -Math.PI / 2); box(g, M.curb, s * (RW + 0.1), 0.08, -SEG / 2, 0.22, 0.17, SEG); }
-    else { for (const zz of [-6, -34]) { plane(g, M.walk, s * (RW + WALK / 2), 0.15, zz, WALK, 12, 0, -Math.PI / 2); } plane(g, M.road, s * (RW + 30), 0.001, -SEG / 2, 60, 16, 0, -Math.PI / 2); }
-    plane(g, M.ground, s * (RW + WALK + 60), 0.0, -SEG / 2, 120, SEG, 0, -Math.PI / 2);
+  for (let zz = -2.5; zz > -SEG; zz -= 5) {
+    plane(g, M.road, 0, 0, zz, RW * 2 + 0.4, 5.25, 0, -Math.PI / 2);
+    for (const s of [-1, 1]) {
+      if (!cross || zz > -12 || zz < -28) { plane(g, M.walk, s * (RW + WALK / 2), 0.15, zz, WALK + 0.3, 5.25, 0, -Math.PI / 2); box(g, M.curb, s * (RW + 0.1), 0.08, zz, 0.22, 0.17, 5.05); }
+      plane(g, M.ground, s * (RW + WALK + 40), 0.0, zz, 80, 5.6, 0, -Math.PI / 2);
+    }
+    if (!cross) { box(g, M.line, -0.12, 0.006, zz, 0.1, 0.01, 5.02); box(g, M.line, 0.12, 0.006, zz, 0.1, 0.01, 5.02); }
   }
+  if (cross) for (const s of [-1, 1]) plane(g, M.road, s * (RW + 30), 0.002, -20, 60, 16, 0, -Math.PI / 2);
   // разметка: двойная сплошная и прерывистые
-  if (!cross) { box(g, M.line, -0.12, 0.006, -SEG / 2, 0.1, 0.01, SEG); box(g, M.line, 0.12, 0.006, -SEG / 2, 0.1, 0.01, SEG);
+  if (!cross) {
     for (let z = -2; z > -SEG; z -= 9) { box(g, M.line, 3.5, 0.006, z - 1.5, 0.12, 0.01, 3); box(g, M.line, -3.5, 0.006, z - 1.5, 0.12, 0.01, 3); } }
   else { for (let x = -6.5; x <= 6.5; x += 1.3) { box(g, M.line, x, 0.006, -3, 0.6, 0.01, 3.4); box(g, M.line, x, 0.006, -37, 0.6, 0.01, 3.4); } box(g, M.line, 3.5, 0.006, -5.2, 7, 0.01, 0.3); }
   // фонари: по обе стороны каждые 20 м
@@ -134,7 +150,7 @@ function buildSeg(k) {
         box(g, M.wall, face + s * 6, fh / 2, zc, 12, fh, len);
         const H = 18 + r() * 10; const pm = plane(g, panelMat, face + s * 0.02, fh + H / 2, zc, len, H, -s * Math.PI / 2); pm.material = panelMat; box(g, M.wall, face + s * 6.05, fh + H / 2, zc, 12, H, len);
         pool(g, POOLM.shop, face - s * 2.5, zc, 9);
-        info.shops.push({ x: face - s * 0.8, z: z0 + zc, s, name: SHOPNAME[sh], tex: sh, door: z0 + zc });
+        info.shops.push({ l: face - s * 0.8, s: k * SEG - zc, side: s, name: SHOPNAME[sh], tex: sh });
       } else if (t < 0.72) { // просто панелька
         const H = 20 + r() * 14; plane(g, panelMat, face, H / 2, zc, len, H, -s * Math.PI / 2); box(g, M.wall, face + s * 6.05, H / 2, zc, 12, H, len);
       } else if (t < 0.84) { // билборд на ногах
@@ -150,7 +166,7 @@ function buildSeg(k) {
     }
   }
   // светофор на перекрёстке (наш — справа перед переходом)
-  if (cross) { const tl = { z: z0 - 1.6, spr: [], phase: (k * 7.3) % 20 };
+  if (cross) { const tl = { s: k * SEG + 1.6, spr: [], phase: (k * 7.3) % 20 };
     for (const [x, y] of [[RW + 0.5, 0], [-RW - 0.5, 0], [RW + 0.5, -40]]) { const zz = y === 0 ? -1.6 : -38.4; box(g, M.pole, x, 2.4, zz, 0.15, 4.8, 0.15); box(g, M.dark, x, 5.2, zz, 0.45, 1.4, 0.3);
       const a = spr(g, LAMP.red, x, 5.65, zz + 0.2, 1.6), b = spr(g, LAMP.yel, x, 5.2, zz + 0.2, 1.6), c = spr(g, LAMP.grn, x, 4.75, zz + 0.2, 1.6); tl.spr.push([a, b, c]); }
     // знаки «пешеходный переход»
@@ -161,41 +177,51 @@ function buildSeg(k) {
   if (!cross && r() < 0.3) { const sg = cvTex(64, 64, (c) => { c.translate(32, 32); c.rotate(Math.PI / 4); c.fillStyle = '#fff'; c.fillRect(-20, -20, 40, 40); c.fillStyle = '#f2c21a'; c.fillRect(-13, -13, 26, 26); }); box(g, M.pole, RW + 0.4, 1.4, -20, 0.08, 2.8, 0.08); plane(g, emis(sg, 0.9), RW + 0.4, 2.9, -19.95, 0.9, 0.9, 0); }
   // эстакада иногда
   if (!cross && k % 23 === 11) { box(g, M.wall, 0, 7.5, -20, 60, 1.6, 12); for (const x of [-11, 11]) box(g, M.wall, x, 3.4, -20, 1.4, 6.8, 6); for (let x = -9; x <= 9; x += 6) { spr(g, LAMP.o, x, 6.4, -14.5, 2.2); } }
-  segs.set(k, info); SHOPLIST.push(...info.shops);
+  bend(g, k); segs.set(k, info); SHOPLIST.push(...info.shops);
 }
 const TLS = [];
 function dropSeg(k) { const s = segs.get(k); if (!s) return; scene.remove(s.g); s.g.traverse((o) => { if (o.geometry && o.geometry !== G.box && o.geometry !== G.plane && o.geometry !== G.cyl) o.geometry.dispose(); });
   for (const sh of s.shops) { const i = SHOPLIST.indexOf(sh); if (i >= 0) SHOPLIST.splice(i, 1); } if (s.tl) { const i = TLS.indexOf(s.tl); if (i >= 0) TLS.splice(i, 1); } segs.delete(k); }
-function stream(z) { const k0 = Math.floor(-z / SEG); for (let k = k0 - 2; k <= k0 + 9; k++) if (!segs.has(k)) buildSeg(k); for (const k of [...segs.keys()]) if (k < k0 - 3 || k > k0 + 11) dropSeg(k); }
+function stream(z) { const k0 = Math.floor(z / SEG); for (let k = k0 - 2; k <= k0 + 9; k++) if (!segs.has(k)) buildSeg(k); for (const k of [...segs.keys()]) if (k < k0 - 3 || k > k0 + 11) dropSeg(k); }
 // светофоры: 0..9 зелёный, 9..11 жёлтый, 11..20 красный (для нашего направления)
 let clock = 0;
 function tlState(tl) { const t = (clock + tl.phase) % 20; return t < 9 ? 'g' : t < 11 ? 'y' : 'r'; }
 function updTL() { for (const tl of TLS) { const st = tlState(tl); for (const [a, b, c] of tl.spr) { a.material = st === 'r' ? LAMP.red : DIM; b.material = st === 'y' ? LAMP.yel : DIM; c.material = st === 'g' ? LAMP.grn : DIM; } } }
 const DIM = sprMat(0x221111, 0.3);
 // ---------- машины ----------
-const carCols = [0xd8d8d8, 0x9aa0a8, 0x2a2c30, 0x7a1a14, 0xe8e4da, 0x3a4a60, 0x111111];
-function makeCar(van) {
-  const g = new THREE.Group(); const col = van ? 0xe8e2c8 : carCols[(Math.random() * carCols.length) | 0];
-  const body = new THREE.MeshStandardMaterial({ color: col, roughness: 0.25, metalness: 0.5 });
-  const L = van ? 5.6 : 4.3, W = van ? 2.0 : 1.8, H = van ? 2.4 : 1.45;
-  box(g, body, 0, 0.35 + (van ? 0.9 : 0.35), 0, W, van ? 1.8 : 0.7, L); if (!van) { box(g, body, 0, 1.05, 0.25, W * 0.92, 0.6, L * 0.55); box(g, M.glass, 0, 1.05, 0.25, W * 0.94, 0.5, L * 0.5); } else box(g, M.glass, 0, 1.9, 0, W * 1.01, 0.6, L * 0.8);
-  for (const x of [-0.75, 0.75]) for (const z of [-L * 0.33, L * 0.33]) { const w = new THREE.Mesh(G.cyl, M.dark); w.rotation.z = Math.PI / 2; w.position.set(x * W / 1.8, 0.33, z); w.scale.set(0.66, 0.24, 0.66); g.add(w); }
+// машины: объёмный корпус + фото сзади/сбоку/спереди (Higgsfield), фон вырезан
+const CT = {}; const ctex = (n) => { if (CT[n]) return CT[n]; pending++; const t = TL.load('res/tex/drv/car_' + n + '.png', () => { loaded++; prog(); }, undefined, () => { loaded++; prog(); }); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return (CT[n] = t); };
+const CARS = [
+  { n: 'sedan', L: 4.4, W: 1.76, H: 1.86, f: 'sedan_f', w: 30 }, { n: 'hatch', L: 4.1, W: 1.74, H: 1.78, f: 'sedan_f', w: 18 },
+  { n: 'suv', L: 4.5, W: 1.86, H: 1.95, f: 'suv_f', w: 16 }, { n: 'taxi', L: 4.5, W: 1.78, H: 1.9, f: 'sedan_f', ftint: 0xffd040, w: 12 }, { n: 'van', L: 5.6, W: 2.05, H: 2.55, f: 'van_f', w: 18 }];
+for (const c of CARS) { c.tr = ctex(c.n + '_r'); c.ts = ctex(c.n + '_s'); c.tf = ctex(c.f); }
+const cMat = {}; const cm = (t, k, tint) => { const key = t.uuid + k + (tint || 0); return cMat[key] || (cMat[key] = new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(tint || 0xffffff).multiplyScalar(k), transparent: true, alphaTest: 0.45, side: THREE.DoubleSide, fog: true })); };
+function pickCar() { let t = Math.random() * 94; for (const c of CARS) { if ((t -= c.w) < 0) return c; } return CARS[0]; }
+function makeCar(def) {
+  const d = def || pickCar(); const g = new THREE.Group(); const { L, W, H } = d; const k = 0.62;
+  box(g, M.dark, 0, H * 0.38, 0, W * 0.94, H * 0.5, L * 0.96);                       // «начинка», чтобы не просвечивало
+  const sL = plane(g, cm(d.ts, k), -W / 2, H / 2, 0, L, H, -Math.PI / 2);             // левый борт (перед слева на фото)
+  const sR = plane(g, cm(d.ts, k), W / 2, H / 2, 0, L, H, Math.PI / 2); sR.scale.x = -L; // правый — зеркально
+  plane(g, cm(d.tr, k), 0, H * 0.43, L / 2 - 0.15, W * 1.05, H * 0.86, 0);             // зад
+  plane(g, cm(d.tf, k, d.ftint), 0, H * 0.43, -L / 2 + 0.15, W * 1.05, H * 0.86, Math.PI); // перед
   const tail = [], head = [];
-  for (const x of [-W * 0.38, W * 0.38]) { tail.push(spr(g, LAMP.tail, x, 0.85, L / 2 + 0.05, 1.3)); head.push(spr(g, LAMP.head, x, 0.75, -L / 2 - 0.05, 1.6)); }
-  if (van) { box(g, new THREE.MeshBasicMaterial({ color: 0xffd030 }), 0, 2.3, -L / 2 + 0.3, 1.2, 0.25, 0.05); }
-  g.userData = { L, tail, head, van };
+  for (const x of [-W * 0.36, W * 0.36]) { tail.push(spr(g, LAMP.tail, x, H * 0.36, L / 2 - 0.05, 0.9)); head.push(spr(g, LAMP.head, x, H * 0.3, -L / 2 + 0.05, 1.5)); }
+  const sh = plane(g, new THREE.MeshBasicMaterial({ map: POOL, color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }), 0, 0.02, 0, W * 1.6, L * 1.3, 0, -Math.PI / 2); // тень
+  g.userData = { L, tail, head, van: d.n === 'van' };
   return g;
 }
-const traffic = [];   // {g, x, z, v, dir}
-function spawnCar(dir, zNear) {
-  const van = Math.random() < 0.15; const g = makeCar(van); scene.add(g);
+const traffic = [];   // {g, s, l, v, dir}
+function spawnCar(dir, sNear) {
+  const g = makeCar(); scene.add(g);
   const lane = dir > 0 ? (Math.random() < 0.5 ? 1.75 : 5.25) : (Math.random() < 0.5 ? -1.75 : -5.25);
-  const c = { g, x: lane, z: zNear, v: dir > 0 ? 9 + Math.random() * 6 : 13 + Math.random() * 6, dir, L: g.userData.L };
-  if (dir < 0) g.rotation.y = Math.PI; else g.rotation.y = 0;
+  const c = { g, l: lane, s: sNear, v: dir > 0 ? 9 + Math.random() * 6 : 13 + Math.random() * 6, dir, L: g.userData.L, want: 0 };
   traffic.push(c); return c;
 }
+function placeCar(g, s, l, dir, extra = 0) { const w = W2(s, l); g.position.set(w.x, 0, w.z); g.rotation.y = w.h + (dir < 0 ? Math.PI : 0) + extra; }
 // ---------- игрок ----------
-const car = { x: 1.75, z: 0, v: 0, steer: 0, yaw: 0 };
+// машина игрока: свободная физика (кинематическая «велосипедная» модель), координаты мира
+const car = { x: 1.75, z: 0, h: 0, v: 0, steer: 0, s: 0, l: 1.75, yr: 0, bump: 0 };
+const LW = 2.55, MAXSTEER = 0.6;
 let mode = 'drive'; // drive | walk | shop
 const P = { x: 0, z: 0, yaw: 0, pitch: 0 };
 let look = { yaw: 0, pitch: 0 };
@@ -261,107 +287,147 @@ addEventListener('touchend', (e) => { for (const t of e.changedTouches) if (lt &
 const K = (a, b) => keys[a] || keys[b];
 // ---------- взаимодействия ----------
 let near = null, inShop = null, shopRoom = null;
+const myCar = makeCar(CARS[0]); myCar.visible = false; scene.add(myCar);   // своя машина, видна, когда вышел
 function toast(t) { const e = $('toast'); e.innerHTML = t; e.style.opacity = 1; clearTimeout(toast.t); toast.t = setTimeout(() => (e.style.opacity = 0), 2400); }
+const fwdOf = (h) => ({ x: -Math.sin(h), z: -Math.cos(h) }), rightOf = (h) => ({ x: Math.cos(h), z: -Math.sin(h) });
 function act() {
   if (!started || !near) return; beep(520, 0.08, 0.04);
-  if (near.a === 'out') { mode = 'walk'; P.x = car.x + 3.6 > RW + 0.4 ? RW + 1.2 : car.x + 2.6; P.z = car.z; look.yaw = 0; look.pitch = 0; beep(140, 0.25, 0.06, 'triangle'); toast('Дверь хлопнула. Тихо.'); }
+  if (near.a === 'out') { mode = 'walk'; const r = rightOf(car.h); const side = car.l > 0 ? 1 : -1; P.x = car.x + r.x * 2.2 * side; P.z = car.z + r.z * 2.2 * side; look.yaw = car.h; look.pitch = 0; beep(140, 0.25, 0.06, 'triangle'); toast('Дверь хлопнула. Тихо.'); }
   else if (near.a === 'in') { mode = 'drive'; look.yaw = 0; look.pitch = 0; beep(140, 0.25, 0.06, 'triangle'); }
   else if (near.a === 'shop') enterShop(near.sh);
   else if (near.a === 'leave') leaveShop();
   else if (near.a === 'till') { toast(pick(Math.random, ['Касса пустая. На ленте — чек на 0 ₽, время 00:24.', 'Продавца нет. На стойке звонок. Звонишь — тишина.', 'Записка: «Отошла на 5 минут». Написано в 00:19.'])); }
 }
+// магазин: комната строится в системе «дороги» у витрины (x — поперёк, −z — вдоль), игрок ходит в локальных координатах
+const SP = { x: 0, z: 0 };
 function enterShop(sh) {
   inShop = sh; mode = 'shop';
   if (shopRoom) scene.remove(shopRoom);
-  const g = new THREE.Group(); const ox = sh.x + sh.s * 1.0; g.position.set(sh.s > 0 ? ox : ox, 0, sh.z); scene.add(g); shopRoom = g;
-  // комната 10×8 за фасадом
-  const s = sh.s, W = 9, D = 8, H = 3.4; const cx = s * D / 2;
-  const fl = new THREE.MeshStandardMaterial({ color: 0xbfc2c4, roughness: 0.5 }); plane(g, fl, cx, 0.01, 0, D, W, 0, -Math.PI / 2);
-  plane(g, new THREE.MeshBasicMaterial({ color: 0xe8ecef }), cx, H, 0, D, W, 0, Math.PI / 2);
-  plane(g, emis(T.in_shelves, 1), cx, H / 2, -W / 2 + 0.01, D, H, 0); plane(g, emis(T.in_shelves, 1), cx, H / 2, W / 2 - 0.01, D, H, Math.PI);
-  plane(g, emis(T.in_fridge, 1.1), s * D - s * 0.01, H / 2, 0, W, H, -s * Math.PI / 2);
-  for (let i = -1; i <= 1; i++) { const l = box(g, new THREE.MeshBasicMaterial({ color: 0xffffff }), cx, H - 0.05, i * 2.6, 3, 0.04, 0.2); }
+  const g = new THREE.Group(); const w = W2(sh.s, sh.l + sh.side * 1.0); g.position.set(w.x, 0, w.z); g.rotation.y = w.h; scene.add(g); shopRoom = g;
+  const s = sh.side, Wd = 9, D = 8, H = 3.4; const cx = s * D / 2;
+  const fl = new THREE.MeshStandardMaterial({ color: 0xbfc2c4, roughness: 0.5 }); plane(g, fl, cx, 0.01, 0, D, Wd, 0, -Math.PI / 2);
+  plane(g, new THREE.MeshBasicMaterial({ color: 0xe8ecef }), cx, H, 0, D, Wd, 0, Math.PI / 2);
+  plane(g, emis(T.in_shelves, 1), cx, H / 2, -Wd / 2 + 0.01, D, H, 0); plane(g, emis(T.in_shelves, 1), cx, H / 2, Wd / 2 - 0.01, D, H, Math.PI);
+  plane(g, emis(T.in_fridge, 1.1), s * D - s * 0.01, H / 2, 0, Wd, H, -s * Math.PI / 2);
+  plane(g, new THREE.MeshBasicMaterial({ color: 0x9aa4ad, transparent: true, opacity: 0.25 }), s * 0.02, H / 2, 0, Wd, H, -s * Math.PI / 2); // витринное стекло изнутри
+  for (let i = -1; i <= 1; i++) box(g, new THREE.MeshBasicMaterial({ color: 0xffffff }), cx, H - 0.05, i * 2.6, 3, 0.04, 0.2);
   box(g, new THREE.MeshBasicMaterial({ color: 0x8a6448 }), s * 2.2, 0.55, -3.4, 1.0, 1.1, 1.8); box(g, new THREE.MeshBasicMaterial({ color: 0x3a3c40 }), s * 2.2, 1.25, -3.6, 0.4, 0.3, 0.3); // касса
-  const shm = emis(T.in_shelves, 0.95); for (const z of [-1.2, 1.6]) { box(g, new THREE.MeshBasicMaterial({ color: 0x6a6e74 }), s * 4.6, 0.8, z, 0.5, 1.6, 3.6); for (const side of [-1, 1]) plane(g, shm, s * 4.6 + side * 0.26, 0.8, z, 3.6, 1.6, side * Math.PI / 2); } // стеллажи
+  const shm = emis(T.in_shelves, 0.95); for (const z of [-1.2, 1.6]) { box(g, new THREE.MeshBasicMaterial({ color: 0x6a6e74 }), s * 4.6, 0.8, z, 0.5, 1.6, 3.6); for (const side of [-1, 1]) plane(g, shm, s * 4.6 + side * 0.26, 0.8, z, 3.6, 1.6, side * Math.PI / 2); }
   const lamp = new THREE.PointLight(0xffffff, 60, 16); lamp.position.set(cx, H - 0.3, 0); g.add(lamp);
-  P.x = sh.x + s * 2.6; P.z = sh.z + 1.5; look.yaw = s > 0 ? -Math.PI / 2 : Math.PI / 2; look.pitch = 0;
+  SP.x = s * 1.8; SP.z = 1.5; look.yaw = w.h + (s > 0 ? -Math.PI / 2 : Math.PI / 2); look.pitch = 0;
   toast(sh.name + '<br><span style="font-size:14px;opacity:.7">Никого. Гудят лампы.</span>'); beep(880, 0.1, 0.03); setTimeout(() => beep(660, 0.15, 0.03), 120);
 }
-function leaveShop() { mode = 'walk'; if (shopRoom) { scene.remove(shopRoom); shopRoom = null; } P.x = inShop.x - inShop.s * 0.8; P.z = inShop.z; look.yaw = inShop.s > 0 ? Math.PI / 2 : -Math.PI / 2; inShop = null; }
+function leaveShop() { mode = 'walk'; if (shopRoom) { scene.remove(shopRoom); shopRoom = null; } const w = W2(inShop.s, inShop.l - inShop.side * 0.6); P.x = w.x; P.z = w.z; look.yaw = w.h + (inShop.side > 0 ? Math.PI / 2 : -Math.PI / 2); inShop = null; }
 // ---------- цикл ----------
-let started = false, last = performance.now(), crashT = 0, redWarn = 0, dist = 0;
-const fwd = new THREE.Vector3();
+let started = false, last = performance.now(), crashT = 0, redWarn = 0, dist = 0, prevS = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
   if (started) update(dt);
   updTL(); drawRain(dt);
   renderer.render(scene, camera); requestAnimationFrame(frame);
 }
+function hit(msg, k) { if (crashT <= 0) { toast(msg); beep(60 + Math.random() * 20, 0.5, 0.06 + k * 0.08, 'square'); } crashT = 0.5 + k * 0.4; }
 function update(dt) {
   const gas = K('KeyW', 'ArrowUp') || tk.G, brk = K('KeyS', 'ArrowDown') || tk.B, left = K('KeyA', 'ArrowLeft') || tk.L, right = K('KeyD', 'ArrowRight') || tk.R;
+  myCar.visible = mode !== 'drive'; placeCarWorld(myCar, car.x, car.z, car.h);
   if (mode === 'drive') {
-    if (gas) car.v += 6 * dt; else car.v -= 0.6 * dt; if (brk) car.v -= 14 * dt; car.v = Math.max(0, Math.min(25, car.v));
-    const st = (right ? 1 : 0) - (left ? 1 : 0); car.steer += (st - car.steer) * Math.min(1, dt * 5);
-    car.x += car.steer * dt * Math.min(5, 1.2 + car.v * 0.25) * (car.v > 0.3 ? 1 : 0); car.x = Math.max(-6.3, Math.min(6.3, car.x));
-    car.z -= car.v * dt; dist += car.v * dt;
-    // столкновение с машиной впереди
-    for (const c of traffic) { if (Math.abs(c.x - car.x) < 1.9 && Math.abs(c.z - car.z) < (c.L / 2 + 2.3)) { if (car.v > 2 || c.dir < 0) { crashT = 0.6; toast(c.dir < 0 ? 'Встречка! Еле разошлись.' : 'Аккуратнее.'); beep(70, 0.5, 0.12, 'square'); } car.v = 0; if (c.dir < 0) { car.x = 1.75; } else car.z = c.z + c.L / 2 + 2.4; } }
-    // красный свет
-    for (const tl of TLS) { if (car.z < tl.z + 0.5 && car.z > tl.z - car.v * dt - 1 && tlState(tl) === 'r' && car.v > 3 && redWarn <= 0) { redWarn = 5; toast('Проехал на красный.<br><span style="font-size:14px;opacity:.7">Вспышка камеры. Штраф придёт по адресу Героев Тулы, 13.</span>'); flash = 1; beep(1200, 0.08, 0.05); } }
-    redWarn -= dt;
-    const shake = crashT > 0 ? (crashT -= dt, crashT * 0.05) : 0;
-    camera.position.set(car.x - 0.36 + (Math.random() - 0.5) * shake, 1.18 + Math.sin(clock * 9) * 0.003 * Math.min(1, car.v / 10) + (Math.random() - 0.5) * shake, car.z + 0.2);
-    camera.rotation.set(look.pitch * 0.6 - 0.04, look.yaw * 0.7 - car.steer * 0.05, -car.steer * 0.012, 'YXZ'); look.yaw *= Math.pow(0.4, dt) ; look.pitch *= Math.pow(0.4, dt);
-    cab.visible = true; wheel.rotation.z = -car.steer * 1.2; fresh.rotation.z = Math.sin(clock * 2.3) * 0.15 - car.steer * 0.3; fresh.rotation.x = Math.sin(clock * 1.7) * 0.1;
-    drawSpeed(car.v * 3.6); headPool.position.set(car.x, 0.02, car.z - 15); headPool.visible = true;
-    near = car.v < 0.6 ? { a: 'out', l: 'E — выйти из машины' } : null;
-    if (eng) { eng.o.frequency.value = 38 + car.v * 4.2; eng.o2.frequency.value = 19 + car.v * 2.1; eng.g.gain.value = 0.018 + car.v * 0.0012; eng.f.frequency.value = 160 + car.v * 30; rainN.gain.value = 0.02; }
+    // --- двигатель и тормоза ---
+    const v = car.v;
+    if (gas) car.v += (v < 0 ? 9 : 4.2 * (1 - Math.min(1, Math.max(0, v) / 27))) * dt;          // разгон слабеет к ~95 км/ч
+    if (brk) car.v -= (v > 0.3 ? 9 : 2.5) * dt;                                             // тормоз, потом задний ход
+    car.v -= Math.sign(car.v) * (0.25 + 0.0035 * car.v * car.v + (gas || brk ? 0 : 0.6)) * dt;   // сопротивление + торможение двигателем
+    if (Math.abs(car.v) < 0.05 && !gas && !brk) car.v = 0; car.v = Math.max(-5, Math.min(27, car.v));
+    // --- руль: плавно, с самовозвратом; на скорости угол меньше ---
+    // предел угла колёс по сцеплению: боковое ускорение не больше ~5 м/с² (как у обычной машины на мокром)
+    const v2 = car.v * car.v, lim = Math.min(MAXSTEER, Math.atan(5.2 * LW / Math.max(v2, 1)));
+    const target = ((left ? 1 : 0) - (right ? 1 : 0)) * lim;
+    const rate = (target === 0 ? 2.2 : 1.3) * Math.max(lim, 0.08); car.steer += Math.max(-rate * dt, Math.min(rate * dt, target - car.steer));
+    car.steer = Math.max(-lim * 1.05, Math.min(lim * 1.05, car.steer));
+    // --- поворот по базе: угловая скорость = v / L * tan(угол колёс) ---
+    car.yr = car.v / LW * Math.tan(car.steer); car.h += car.yr * dt;
+    const f = fwdOf(car.h); car.x += f.x * car.v * dt; car.z += f.z * car.v * dt;
+    // --- положение относительно дороги ---
+    const sl = toSL(car.x, car.z, car.s); car.s = sl.s; car.l = sl.l;
+    const al = Math.abs(car.l);
+    if (al > RW - 0.6 && al < RW + 0.4 && Math.abs(car.v) > 1) car.bump = 0.05;                      // бордюр
+    if (al > RW + WALK - 1.4) {                                                                   // стена/витрина
+      const back = W2(car.s, Math.sign(car.l) * (RW + WALK - 1.45)); car.x = back.x; car.z = back.z;
+      const sp = Math.abs(car.v); if (sp > 3) hit(sp > 10 ? 'Бах! В стену.' : 'Задел стену.', Math.min(1, sp / 15)); car.v *= -0.15;
+    }
+    if (car.s < -30) { car.v = Math.max(car.v, 0); }
+    // --- машины: столкновение по габаритам в системе нашей машины ---
+    for (const c of traffic) { const dx = c.g.position.x - car.x, dz = c.g.position.z - car.z; if (dx * dx + dz * dz > 64) continue;
+      const r = rightOf(car.h), fw = fwdOf(car.h); const lx = dx * r.x + dz * r.z, lz = dx * fw.x + dz * fw.z;
+      if (Math.abs(lx) < 1.85 && Math.abs(lz) < c.L / 2 + 2.25) { const rel = Math.abs(car.v - (c.dir > 0 ? c.v : -c.v));
+        hit(c.dir < 0 ? 'Лобовое! Еле живой.' : rel > 6 ? 'Удар! Въехал в зад.' : 'Притёрся.', Math.min(1, rel / 15));
+        car.x -= (lz > 0 ? fw.x : -fw.x) * 0.6; car.z -= (lz > 0 ? fw.z : -fw.z) * 0.6; car.v = c.dir > 0 ? Math.min(car.v, c.v * 0.5) : -2; if (c.dir > 0) c.v += 2; } }
+    // --- светофор ---
+    for (const tl of TLS) { if (prevS < tl.s && car.s >= tl.s && Math.abs(car.l) < RW && tlState(tl) === 'r' && car.v > 3 && redWarn <= 0) { redWarn = 5; toast('Проехал на красный.<br><span style="font-size:14px;opacity:.7">Вспышка камеры. Штраф придёт по адресу Героев Тулы, 13.</span>'); flash = 1; beep(1200, 0.08, 0.05); } }
+    redWarn -= dt; prevS = car.s; dist += Math.abs(car.v) * dt;
+    // --- камера водителя: наклон в повороте, кивок при торможении ---
+    const shake = crashT > 0 ? (crashT -= dt, crashT * 0.06) : 0; car.bump *= Math.pow(0.02, dt);
+    const lat = car.v * car.yr, lon = (gas ? 1 : 0) - (brk && car.v > 0.3 ? 1.6 : 0);
+    const r = rightOf(car.h), seat = 0.36;
+    camera.position.set(car.x - r.x * seat + (Math.random() - 0.5) * shake, 1.18 + Math.sin(clock * 9) * 0.003 * Math.min(1, Math.abs(car.v) / 10) + (Math.random() - 0.5) * (shake + car.bump), car.z - r.z * seat);
+    look.yaw *= Math.pow(0.35, dt); look.pitch *= Math.pow(0.35, dt);
+    camera.rotation.set(look.pitch * 0.6 - 0.04 - lon * 0.006, car.h + look.yaw * 0.8 + car.steer * 0.06, -lat * 0.006, 'YXZ');
+    cab.visible = true; wheel.rotation.z = car.steer * 6.5; fresh.rotation.z = Math.sin(clock * 2.3) * 0.12 + lat * 0.03; fresh.rotation.x = Math.sin(clock * 1.7) * 0.08 + lon * 0.05;
+    drawSpeed(Math.abs(car.v) * 3.6); const hp = fwdOf(car.h); headPool.position.set(car.x + hp.x * 15, 0.02, car.z + hp.z * 15); headPool.rotation.set(-Math.PI / 2, 0, car.h); headPool.visible = true;
+    near = Math.abs(car.v) < 0.6 ? { a: 'out', l: 'E — выйти из машины' } : null;
+    if (eng) { const rpm = Math.abs(car.v) % 7 + Math.abs(car.v) * 0.4; eng.o.frequency.value = 36 + rpm * 9 + (gas ? 8 : 0); eng.o2.frequency.value = 18 + rpm * 4.5; eng.g.gain.value = 0.016 + (gas ? 0.012 : 0) + Math.abs(car.v) * 0.0008; eng.f.frequency.value = 150 + rpm * 60; rainN.gain.value = 0.012 + Math.abs(car.v) * 0.0012; }
     $('mode').textContent = 'ночь · за рулём · ' + (dist / 1000).toFixed(1) + ' км';
-  } else {
-    // пешком
-    cab.visible = false; headPool.position.set(car.x, 0.02, car.z - 15); const sp = (K('ShiftLeft', 'ShiftRight') ? 4.5 : 2.2) * dt;
+  } else if (mode === 'walk') {
+    cab.visible = false; const sp = (K('ShiftLeft', 'ShiftRight') ? 4.5 : 2.2) * dt;
     const yaw = look.yaw; const mz = (gas ? 1 : 0) - (brk ? 1 : 0), mx = (right ? 1 : 0) - (left ? 1 : 0);
-    let nx = P.x + (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) * sp, nz = P.z + (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) * sp;
-    if (mode === 'walk') { nx = Math.max(-RW - WALK + 0.3, Math.min(RW + WALK - 0.2, nx)); }
-    else { const s = inShop.s, a = inShop.x + s * 1.3, b = inShop.x + s * 8.6; nx = Math.max(Math.min(a, b), Math.min(Math.max(a, b), nx)); nz = Math.max(inShop.z - 4.2, Math.min(inShop.z + 4.2, nz)); }
-    P.x = nx; P.z = nz;
+    P.x += (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) * sp; P.z += (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) * sp;
+    const sl = toSL(P.x, P.z, car.s); const lim = RW + WALK - 0.25; if (Math.abs(sl.l) > lim) { const w = W2(sl.s, Math.sign(sl.l) * lim); P.x = w.x; P.z = w.z; }
+    if (Math.abs(sl.s - car.s) > 120) { const w = W2(car.s + Math.sign(sl.s - car.s) * 120, sl.l); P.x = w.x; P.z = w.z; }
     camera.position.set(P.x, 1.66 + Math.sin(clock * 7) * 0.02 * ((gas || brk) ? 1 : 0), P.z); camera.rotation.set(look.pitch, look.yaw, 0, 'YXZ');
-    near = null;
-    if (mode === 'walk') { if (Math.hypot(P.x - car.x, P.z - car.z) < 3) near = { a: 'in', l: 'E — сесть в машину' };
-      for (const sh of SHOPLIST) if (Math.abs(P.z - sh.z) < 2.6 && Math.abs(P.x - sh.x) < 2.2) near = { a: 'shop', sh, l: 'E — зайти: ' + sh.name }; }
-    else { if (Math.abs(P.x - (inShop.x + inShop.s * 1.3)) < 1.2 && Math.abs(P.z - inShop.z) < 2) near = { a: 'leave', l: 'E — выйти на улицу' }; else if (Math.abs(P.x - (inShop.x + inShop.s * 3.2)) < 1.6 && Math.abs(P.z - (inShop.z - 3.4)) < 1.8) near = { a: 'till', l: 'E — касса' }; }
-    if (eng) { eng.g.gain.value = 0.006; rainN.gain.value = mode === 'shop' ? 0.004 : 0.012; }
-    $('mode').textContent = mode === 'shop' ? 'ночь · ' + inShop.name : 'ночь · пешком';
+    near = null; if (Math.hypot(P.x - car.x, P.z - car.z) < 3.2) near = { a: 'in', l: 'E — сесть в машину' };
+    for (const sh of SHOPLIST) if (Math.abs(sl.s - sh.s) < 2.6 && Math.abs(sl.l - sh.l) < 2.2) near = { a: 'shop', sh, l: 'E — зайти: ' + sh.name };
+    if (eng) { eng.g.gain.value = 0.006; rainN.gain.value = 0.012; }
+    $('mode').textContent = 'ночь · пешком';
+  } else {
+    cab.visible = false; const sp = (K('ShiftLeft', 'ShiftRight') ? 3.5 : 1.8) * dt; const s = inShop.side;
+    const yaw = look.yaw - shopRoom.rotation.y; const mz = (gas ? 1 : 0) - (brk ? 1 : 0), mx = (right ? 1 : 0) - (left ? 1 : 0);
+    SP.x += (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) * sp; SP.z += (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) * sp;
+    const a = s * 0.4, b = s * 7.6; SP.x = Math.max(Math.min(a, b), Math.min(Math.max(a, b), SP.x)); SP.z = Math.max(-4.2, Math.min(4.2, SP.z));
+    const wp = shopRoom.localToWorld(new THREE.Vector3(SP.x, 1.66, SP.z)); camera.position.copy(wp); camera.rotation.set(look.pitch, look.yaw, 0, 'YXZ');
+    near = null; if (Math.abs(SP.x - s * 0.4) < 1.2 && Math.abs(SP.z) < 2) near = { a: 'leave', l: 'E — выйти на улицу' }; else if (Math.abs(SP.x - s * 2.2) < 1.6 && Math.abs(SP.z + 3.4) < 1.8) near = { a: 'till', l: 'E — касса' };
+    if (eng) { eng.g.gain.value = 0.004; rainN.gain.value = 0.003; }
+    $('mode').textContent = 'ночь · ' + inShop.name;
   }
   $('prompt').textContent = near ? near.l : ''; $('prompt').style.opacity = near ? 1 : 0;
-  // поток машин
-  const pz = mode === 'drive' ? car.z : P.z;
-  stream(pz);
-  if (traffic.filter((c) => c.dir > 0).length < 7) spawnCar(1, pz - 60 - Math.random() * 160);
-  if (traffic.filter((c) => c.dir < 0).length < 6) spawnCar(-1, pz - 120 - Math.random() * 160);
+  // --- город и поток машин вокруг игрока ---
+  const ps = mode === 'drive' ? car.s : toSL(P.x, P.z, car.s).s;
+  stream(ps);
+  if (traffic.filter((c) => c.dir > 0).length < 7) spawnCar(1, ps + 60 + Math.random() * 160);
+  if (traffic.filter((c) => c.dir < 0).length < 6) spawnCar(-1, ps + 120 + Math.random() * 160);
   for (let i = traffic.length - 1; i >= 0; i--) { const c = traffic[i];
-    if (c.dir > 0) { // попутные тормозят на красный и перед игроком
-      let want = 11 + ((i * 37) % 6); for (const tl of TLS) { const d = c.z - tl.z; if (d > 0 && d < 30 && tlState(tl) !== 'g') want = Math.min(want, Math.max(0, (d - 3) * 0.6)); }
-      for (const o of traffic) if (o !== c && o.dir > 0 && Math.abs(o.x - c.x) < 1 && o.z < c.z && c.z - o.z < 12) want = Math.min(want, o.v * 0.9);
-      c.v += (want - c.v) * Math.min(1, dt * 1.5); c.z -= c.v * dt;
-      const brake = want < c.v - 0.5; for (const t of c.g.userData.tail) t.scale.setScalar(brake ? 2.2 : 1.2);
-    } else c.z += c.v * dt;
-    c.g.position.set(c.x, 0, c.z);
-    if (c.z > pz + 60 || c.z < pz - 400) { scene.remove(c.g); traffic.splice(i, 1); }
+    if (c.dir > 0) { // попутные: держат дистанцию, тормозят на красный и перед игроком
+      let want = 11 + ((i * 37) % 6); for (const tl of TLS) { const d = tl.s - c.s; if (d > 0 && d < 30 && tlState(tl) !== 'g') want = Math.min(want, Math.max(0, (d - 3) * 0.6)); }
+      for (const o of traffic) if (o !== c && o.dir > 0 && Math.abs(o.l - c.l) < 1 && o.s > c.s && o.s - c.s < 12) want = Math.min(want, o.v * 0.9);
+      if (mode === 'drive' && Math.abs(car.l - c.l) < 1.6 && car.s > c.s && car.s - c.s < 14) want = Math.min(want, Math.max(0, car.v) * 0.9, (car.s - c.s - 6) * 0.8);
+      c.v += (Math.max(0, want) - c.v) * Math.min(1, dt * 1.5); c.s += c.v * dt;
+      const brake = want < c.v - 0.5; for (const t of c.g.userData.tail) t.scale.setScalar(brake ? 1.8 : 0.9);
+    } else c.s -= c.v * dt;
+    placeCar(c.g, c.s, c.l, c.dir);
+    if (c.s < ps - 60 || c.s > ps + 400) { scene.remove(c.g); traffic.splice(i, 1); }
   }
-  if (flash > 0) { flash -= dt * 3; document.body.style.background = ''; }
+  if (flash > 0) flash -= dt * 3;
 }
+function placeCarWorld(g, x, z, h) { g.position.set(x, 0, z); g.rotation.y = h; }
 let flash = 0;
 // ---------- выход в меню ----------
 window.__esc = () => { if (mode === 'shop') { leaveShop(); return 'shop'; } const f = $('fade'); f.style.opacity = 1; setTimeout(() => { location.href = 'index.html'; }, 600); return 'menu'; };
 $('back').onclick = () => window.__esc();
 // ---------- старт ----------
 function prog() { const b = $('play'); if (loaded >= pending) { b.textContent = 'Поехали'; b.disabled = false; } else b.textContent = 'Загрузка… ' + Math.round(loaded / pending * 100) + '%'; }
-$('play').onclick = () => { if (loaded < pending) return; audio(); started = true; $('start').style.display = 'none'; if (TOUCH) $('touch').style.display = 'block'; else renderer.domElement.requestPointerLock && renderer.domElement.requestPointerLock(); toast('Ночь. 00:24.<br><span style="font-size:14px;opacity:.7">Газ — W, руль — A/D. Остановись у витрины — можно выйти.</span>'); };
-stream(0); for (let i = 0; i < 6; i++) spawnCar(1, -30 - i * 35); for (let i = 0; i < 5; i++) spawnCar(-1, -60 - i * 50);
+$('play').onclick = () => { if (loaded < pending) return; audio(); started = true; $('start').style.display = 'none'; if (TOUCH) $('touch').style.display = 'block'; else renderer.domElement.requestPointerLock && renderer.domElement.requestPointerLock(); toast('Ночь. 00:24.<br><span style="font-size:14px;opacity:.7">W — газ, S — тормоз/назад, A/D — руль. Остановись у витрины — можно выйти.</span>'); };
+stream(0); for (let i = 0; i < 6; i++) spawnCar(1, 30 + i * 35); for (let i = 0; i < 5; i++) spawnCar(-1, 60 + i * 50);
 camera.position.set(car.x - 0.36, 1.18, 0.2);
 setTimeout(() => ($('fade').style.opacity = 0), 100);
-window.__drv = { car, P, get mode() { return mode; }, set mode(v) { mode = v; }, act, SHOPLIST, start: () => $('play').onclick(), keys, enterShop };
+window.__drv = { step: (n, dt) => { for (let i = 0; i < n; i++) { clock += dt; update(dt); updTL(); } renderer.render(scene, camera); }, pose, car, P, get mode() { return mode; }, set mode(v) { mode = v; }, act, SHOPLIST, start: () => $('play').onclick(), keys, enterShop };
 requestAnimationFrame(frame);
 })();
 </script>
