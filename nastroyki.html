@@ -1,0 +1,328 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Настройки</title>
+<style>
+/* Мир «Настройки»: телефон, в котором меню настроек никогда не кончается. Анимации — только transform/opacity. */
+:root{--bg:#0e1013;--card:#1a1d22;--card2:#22262c;--line:#ffffff12;--tx:#e9e7e2;--dim:#9aa0a8;--acc:#7ab0ff;--acc2:#5b8def;--on:#7ab0ff;--red:#ff4a4a}
+.light{--bg:#f2f1ee;--card:#ffffff;--card2:#ecebe7;--line:#00000012;--tx:#1a1c1f;--dim:#6b7078;--acc:#2d6be0;--acc2:#2d6be0;--on:#2d6be0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#050607;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--tx);user-select:none;-webkit-user-select:none}
+#room{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#1c2230 0%,#08090c 70%);transition:opacity 2s}
+#red{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#4a0a10 0%,#0a0203 70%);opacity:0;transition:opacity 3s}
+#glow{position:fixed;left:50%;top:50%;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:50%;background:radial-gradient(circle,#7ab0ff22,transparent 60%);pointer-events:none;animation:breath 6s ease-in-out infinite}
+@keyframes breath{50%{opacity:.5;transform:scale(1.06)}}
+#grain{position:fixed;inset:-20%;opacity:.07;pointer-events:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:gr 1s steps(5) infinite}
+@keyframes gr{20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-4%)}60%{transform:translate(-4%,3%)}80%{transform:translate(3%,1%)}}
+#menuBtn{position:fixed;left:16px;top:14px;z-index:5;background:#ffffff10;border:1px solid #ffffff22;color:#ddd;padding:9px 16px;border-radius:20px;font-size:14px;cursor:pointer}
+#hint{position:fixed;left:0;right:0;bottom:12px;text-align:center;font-size:12px;color:#ffffff55;letter-spacing:.06em;pointer-events:none}
+#phone{position:fixed;left:50%;top:50%;width:400px;height:min(840px,calc(100vh - 40px));transform:translate(-50%,-50%);border-radius:46px;background:#000;padding:11px;box-shadow:0 0 0 2px #2a2d33,0 0 0 9px #0b0c0e,0 30px 120px #000c,0 0 80px #7ab0ff18}
+#scr{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:var(--bg)}
+#dim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30}
+@media (max-width:520px){#phone{width:100%;height:100%;border-radius:0;padding:0;box-shadow:none}#scr{border-radius:0}#menuBtn,#hint{display:none}}
+#sb{position:absolute;left:0;right:0;top:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;z-index:20;padding-top:env(safe-area-inset-top,0px)}
+#sb .ic{display:flex;gap:6px;align-items:center;font-size:12px}
+#notch{position:absolute;left:50%;top:9px;width:96px;height:26px;margin-left:-48px;border-radius:14px;background:#000;z-index:21}
+@media (max-width:520px){#notch{display:none}}
+.pg{position:absolute;inset:40px 0 0 0;display:flex;flex-direction:column;background:var(--bg);transition:transform .38s cubic-bezier(.2,.8,.2,1),opacity .38s;will-change:transform}
+.pg.in{transform:translateX(100%)}.pg.out{transform:translateX(-28%);opacity:.0}.pg.back{transform:translateX(100%)}
+.hd{flex:none;padding:10px 14px 8px}
+.hd .row{display:flex;align-items:center;gap:6px;height:44px}
+.hd button{width:42px;height:42px;border-radius:50%;border:0;background:transparent;color:var(--tx);font-size:22px;cursor:pointer}
+.hd button:active{background:var(--card2)}
+.hd h1{font-size:30px;font-weight:600;margin:8px 8px 4px;line-height:1.1;letter-spacing:-.01em;word-break:break-word}
+.hd .crumb{margin:0 8px;font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srch{margin:8px 8px 0;display:flex;align-items:center;gap:10px;background:var(--card);border-radius:24px;padding:0 16px;height:44px}
+.srch input{flex:1;background:none;border:0;outline:0;color:var(--tx);font-size:15px}
+.ls{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 12px 40px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.ls::-webkit-scrollbar{display:none}
+.gh{font-size:12.5px;color:var(--acc);font-weight:600;margin:18px 10px 6px;letter-spacing:.02em}
+.grp{background:var(--card);border-radius:22px;overflow:hidden}
+.it{display:flex;align-items:center;gap:14px;min-height:64px;padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer;position:relative}
+.it:last-child{border-bottom:0}
+.it:active,.it.foc{background:var(--card2)}
+.it .ico{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:17px}
+.it .tx{flex:1;min-width:0}
+.it .t{font-size:16px;line-height:1.25;word-break:break-word}
+.it .s{font-size:12.5px;color:var(--dim);margin-top:2px;line-height:1.3;word-break:break-word}
+.it .ch{color:var(--dim);font-size:18px}
+.it .v{color:var(--dim);font-size:13px;white-space:nowrap}
+.sw{flex:none;width:52px;height:32px;border-radius:16px;background:#4a4f57;position:relative;transition:background .2s}
+.sw::after{content:"";position:absolute;left:4px;top:4px;width:24px;height:24px;border-radius:50%;background:#e9e7e2;transition:transform .22s cubic-bezier(.3,1.4,.5,1)}
+.sw.on{background:var(--on)}.sw.on::after{transform:translateX(20px);background:#fff}
+.sl{width:100%;margin-top:10px;accent-color:var(--acc)}
+.rd{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--dim);position:relative}
+.rd.on{border-color:var(--acc)}.rd.on::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--acc)}
+.more{text-align:center;color:var(--dim);font-size:12px;padding:18px}
+#toast{position:absolute;left:50%;bottom:34px;transform:translate(-50%,20px);opacity:0;background:#2b2f36ee;color:#eee;padding:11px 18px;border-radius:20px;font-size:13.5px;max-width:86%;text-align:center;z-index:40;transition:transform .3s,opacity .3s;pointer-events:none}
+#toast.on{transform:translate(-50%,0);opacity:1}
+#notif{position:absolute;left:10px;right:10px;top:46px;z-index:41;background:#2a2e35f2;color:#eee;border-radius:22px;padding:12px 16px;display:flex;gap:12px;align-items:center;transform:translateY(-140%);transition:transform .5s cubic-bezier(.2,.9,.2,1);box-shadow:0 10px 30px #0008;cursor:pointer}
+#notif.on{transform:none}
+#notif .ni{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:19px;flex:none}
+#notif b{display:block;font-size:13px}#notif span{font-size:13.5px;opacity:.85}
+#dlg{position:absolute;inset:0;z-index:50;background:#000a;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+#dlg.on{opacity:1;pointer-events:auto}
+#dlg .bx{width:84%;background:var(--card);border-radius:28px;padding:24px 22px 14px;transform:scale(.92);transition:transform .3s cubic-bezier(.2,1.3,.4,1)}
+#dlg.on .bx{transform:none}
+#dlg h3{font-size:20px;font-weight:600;margin-bottom:12px}
+#dlg p{font-size:14.5px;line-height:1.55;color:var(--dim);white-space:pre-line}
+#dlg .bt{display:flex;justify-content:flex-end;gap:6px;margin-top:18px}
+#dlg button{background:none;border:0;color:var(--acc);font-size:15px;font-weight:600;padding:10px 14px;border-radius:18px;cursor:pointer}
+#dlg button:active{background:var(--card2)}
+.gl .t{animation:gl 2.6s steps(1) infinite}
+@keyframes gl{0%,92%{transform:none;opacity:1}93%{transform:translateX(3px);opacity:.6}95%{transform:translateX(-4px)}97%{opacity:.3}}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:99;transition:opacity .9s;display:grid;place-items:center;color:#bbb;font-size:18px}
+</style></head><body>
+<div id="room"></div><div id="red"></div><div id="glow"></div><div id="grain"></div>
+<button id="menuBtn">← Меню</button>
+<div id="hint">↑ ↓ — выбрать · Enter — открыть · Esc / Backspace — назад · у самого начала Esc — в меню</div>
+<div id="phone"><div id="scr">
+  <div id="notch"></div>
+  <div id="sb"><span id="clk">14:50</span><span class="ic"><span>▂▄▆</span><span>📶</span><span id="bat">47%</span></span></div>
+  <div id="notif"><div class="ni"></div><div><b></b><span></span></div></div>
+  <div id="toast"></div>
+  <div id="dlg"><div class="bx"><h3></h3><p></p><div class="bt"></div></div></div>
+  <div id="dim"></div>
+</div></div>
+<div id="fade"></div>
+<script>
+(() => {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; };
+const scr = $('#scr');
+// ---------- случайность от пути (одинаковый путь → одинаковая страница) ----------
+function hash(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; }
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const pick = (r, a) => a[(r() * a.length) | 0];
+// ---------- словари ----------
+const ROOT = [
+  ['📶', '#3a6df0', 'Wi‑Fi', 'ДВОР_13 · подключено'], ['🔵', '#3a6df0', 'Bluetooth', 'Выкл.'], ['📡', '#2aa36b', 'Мобильная сеть', 'Нет сигнала с 14:50'],
+  ['🔔', '#e0a12a', 'Уведомления', '3 непрочитанных от «Мама»'], ['🔊', '#a05ae0', 'Звук и вибрация', 'Тишина'], ['☀', '#e0702a', 'Экран', 'Яркость, тема, шрифт'],
+  ['🔋', '#2aa36b', 'Батарея', '47% · не заряжается'], ['💾', '#6b7a8a', 'Память', 'Занято воспоминаниями: 99%'], ['🧩', '#3a6df0', 'Приложения', '415 приложений'],
+  ['🔒', '#2a9aa3', 'Безопасность', 'Ключа нет'], ['📍', '#e05a5a', 'Местоположение', 'ул. Героев Тулы, 13'], ['👤', '#8a6be0', 'Аккаунты', 'Мама, Тётя Валя (кв. 45)'],
+  ['♿', '#3a6df0', 'Специальные возможности', ''], ['🕑', '#6b7a8a', 'Дата и время', 'ноябрь · 14:50'], ['🌙', '#4a4fa0', 'Сон', 'Активен'],
+  ['⚙', '#6b7a8a', 'Система', 'Обновления, сброс'], ['ℹ', '#6b7a8a', 'О телефоне', ''],
+];
+const ICONS = [['⚙', '#6b7a8a'], ['🔔', '#e0a12a'], ['🔊', '#a05ae0'], ['☀', '#e0702a'], ['🔒', '#2a9aa3'], ['📶', '#3a6df0'], ['🧩', '#3a6df0'], ['🗂', '#8a7a5a'], ['🕑', '#6b7a8a'], ['🌙', '#4a4fa0'], ['🔋', '#2aa36b'], ['🎚', '#a05ae0'], ['📁', '#8a7a5a'], ['🛠', '#6b7a8a'], ['👁', '#2a9aa3'], ['🔑', '#c9a43a'], ['🏠', '#e05a5a'], ['☁', '#6b8aa0'], ['🧪', '#2aa36b'], ['📜', '#a08a5a']];
+const ADJ = ['Расширенные', 'Дополнительные', 'Системные', 'Скрытые', 'Старые', 'Резервные', 'Автоматические', 'Ночные', 'Детские', 'Общие', 'Локальные', 'Временные', 'Устаревшие', 'Экспериментальные', 'Пользовательские', 'Глубокие', 'Внутренние', 'Другие', 'Прочие', 'Последние'];
+const NOUN = ['параметры', 'настройки', 'уведомления', 'разрешения', 'службы', 'профили', 'журналы', 'сертификаты', 'режимы', 'звуки', 'темы', 'жесты', 'фильтры', 'интервалы', 'исключения', 'компоненты', 'расписания', 'ограничения', 'источники', 'кэш'];
+const OF = ['экрана', 'сети', 'батареи', 'памяти', 'приложений', 'клавиатуры', 'вибрации', 'синхронизации', 'резервной копии', 'геолокации', 'камеры', 'микрофона', 'датчиков', 'обновлений', 'шрифта', 'будильника', 'контактов', 'звонков'];
+const WEIRD = ['двора', 'подъезда', 'домофона', 'тишины', 'минуты 14:50', 'мамы', 'этажа 47', 'луж', 'голубей', 'снега', 'сна', 'ключей', 'окна', 'лифта', 'тумана', 'звонка', 'школы', 'памяти о дворе', 'тёти Вали', 'супа на плите', 'кота у подъезда', 'ворот', 'того, кто сзади'];
+const SUBS = ['Вкл.', 'Выкл.', 'По умолчанию', 'Автоматически', 'Не настроено', 'Требуется перезагрузка', 'Последнее изменение: ноябрь, 14:50', 'Управляется системой', 'Недоступно в вашем регионе', 'Не используется с 2007 г.', 'Обновлено только что', 'Синхронизировано', '1 элемент', '0 элементов', 'Рекомендуется'];
+const WSUBS = ['Не трогай', 'Кто-то уже изменил это', 'Не смотри назад', 'Работает, пока ты здесь', 'Включено с 14:50', 'Никто не ответил', 'Значение потеряно', 'Ты уже был здесь', 'Ждёт тебя', 'Не помнит тебя', 'Мама просила не менять', 'Дверь открыта', 'Слышно с 3-го этажа', 'Пусто', '???'];
+const LORE = [
+  'Обед на плите, разогрей. Ключ у тёти Вали из 45-й. Буду в шесть.\n— Мама',
+  'Этот пункт никто не открывал с ноября. Минута с тех пор не менялась.',
+  'Если ты читаешь это, ты зашёл слишком глубоко в настройки. Отсюда тоже есть выход — но он не «назад».',
+  'Настройка применена. Изменения вступят в силу, когда ты проснёшься.',
+  'Домофон: вызов кв. 47… Никто не отвечает.',
+  'Резервная копия сна: 14:50:00 — 14:50:59. Повторять бесконечно? Да.',
+  'В памяти телефона 1 фотография: двор из окна, ноябрь, мокрый асфальт.',
+  'Голуби на детской площадке: 20. Голуби в настройках: 0. Пока.',
+  'Ты нажимаешь «назад», но лестница всё равно ведёт вверх.',
+  'Это меню генерируется, пока ты смотришь. Отвернёшься — его не станет.',
+];
+const NOTIFS = [['💬', '#2aa36b', 'Мама', 'Ты где? Суп на плите'], ['🔔', '#e0a12a', 'Домофон', 'Никто не ответил'], ['⚙', '#6b7a8a', 'Система', 'Обновление сна 14:50 готово к установке'],
+  ['💬', '#2aa36b', 'Мама', 'Ключ у тёти Вали'], ['🔋', '#2aa36b', 'Батарея', 'Заряд 47%. Он не изменится'], ['📍', '#e05a5a', 'Местоположение', 'Вы всё ещё во дворе'],
+  ['💬', '#8a6be0', 'Неизвестный', 'Не открывай пункт ниже'], ['🕑', '#6b7a8a', 'Будильник', '07:00 — отложен навсегда'], ['☁', '#6b8aa0', 'Погода', 'Дождь только что кончился']];
+// ---------- состояние ----------
+let stack = [];   // [{title, path, el}]
+let devMode = LS('ui_dev') === '1', buildTaps = 0;
+let maxDepth = +LS('ui_maxdepth') || 0, opened = +LS('ui_opened') || 0;
+const tog = (k, d) => { const v = LS('ui_t_' + k); return v === null ? d : v === '1'; };
+let light = tog('theme', false), clicks = tog('clicks', true), bright = +(LS('ui_bright') || 100);
+document.body.classList.toggle('light', light); scr.classList.toggle('light', light);
+// ---------- звук ----------
+let AC = null; const ac = () => { if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} return AC; };
+function blip(f, d = 0.05, v = 0.04, type = 'sine') { if (!clicks) return; const a = ac(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, a.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + d); o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + d + 0.02); }
+const vib = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
+// ---------- UI-помощники ----------
+let tT = 0; function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => e.classList.remove('on'), 2200); }
+function dialog(title, text, buttons) { const d = $('#dlg'); d.querySelector('h3').textContent = title; d.querySelector('p').textContent = text; const bt = d.querySelector('.bt'); bt.innerHTML = '';
+  (buttons || [['ОК', null]]).forEach(([l, fn]) => { const b = document.createElement('button'); b.textContent = l; b.onclick = () => { d.classList.remove('on'); blip(660); fn && fn(); }; bt.appendChild(b); }); d.classList.add('on'); blip(520, 0.08); }
+const dlgOpen = () => $('#dlg').classList.contains('on');
+function applyBright() { $('#dim').style.opacity = String((100 - bright) / 100 * 0.85); }
+applyBright();
+function glitchText(s, r, k) { if (r() > k) return s; const c = 'ⓩʞ▓░єжѪ#'; const a = [...s]; const n = 1 + ((r() * 3) | 0); for (let i = 0; i < n; i++) a[(r() * a.length) | 0] = c[(r() * c.length) | 0]; return a.join(''); }
+// ---------- генерация пунктов ----------
+function genTitle(r, depth) {
+  const w = Math.min(0.85, 0.05 + depth * 0.06);
+  const t = r();
+  if (t < 0.34) return pick(r, ADJ) + ' ' + pick(r, NOUN) + (r() < 0.6 ? ' ' + (r() < w ? pick(r, WEIRD) : pick(r, OF)) : '');
+  if (t < 0.62) { const n = pick(r, NOUN); return n[0].toUpperCase() + n.slice(1) + ' ' + (r() < w ? pick(r, WEIRD) : pick(r, OF)); }
+  if (t < 0.8) return (r() < w ? 'Настройки ' + pick(r, WEIRD) : 'Управление ' + pick(r, OF));
+  return pick(r, ['Сбросить', 'Очистить', 'Проверить', 'Синхронизировать', 'Восстановить', 'Отключить', 'Разрешить']) + ' ' + pick(r, ['настройки', 'данные', 'журнал', 'кэш', 'доступ', 'профиль']) + ' ' + (r() < w ? pick(r, WEIRD) : pick(r, OF));
+}
+function genItem(path, i, depth) {
+  const r = rng(hash(path + '#' + i));
+  const kind = r(); const [ic, col] = pick(r, ICONS);
+  const title = genTitle(r, depth);
+  const w = Math.min(0.8, depth * 0.05);
+  const sub = r() < 0.75 ? (r() < w ? pick(r, WSUBS) : pick(r, SUBS)) : '';
+  let type = 'nav';
+  if (kind < 0.18) type = 'toggle'; else if (kind < 0.25) type = 'slider'; else if (kind < 0.3) type = 'info'; else if (kind < 0.36) type = 'action';
+  return { ic, col, title: depth > 12 ? glitchText(title, r, Math.min(0.5, (depth - 12) * 0.03)) : title, sub, type, key: path + '#' + i, glitch: depth > 15 && r() < 0.15, val: (r() * 100) | 0, r };
+}
+function rootItems() {
+  const a = ROOT.map(([ic, col, title, sub]) => ({ ic, col, title, sub, type: 'nav', key: 'root#' + title }));
+  if (devMode) a.splice(a.length - 1, 0, { ic: '🛠', col: '#e05a5a', title: 'Для разработчиков сна', sub: 'Не включай то, чего не понимаешь', type: 'nav', key: 'root#dev' });
+  return a;
+}
+// особые страницы
+function special(title, depth) {
+  if (title === 'О телефоне') return [
+    { ic: 'ℹ', col: '#6b7a8a', title: 'Модель', sub: 'Сон-Телефон 415', type: 'info' }, { ic: '📱', col: '#6b7a8a', title: 'Номер телефона', sub: '+7 (8442) 14-50-00', type: 'info' },
+    { ic: '🧩', col: '#6b7a8a', title: 'Версия ПО', sub: 'Тишина 14.50 (ноябрь)', type: 'info' }, { ic: '🔢', col: '#6b7a8a', title: 'Номер сборки', sub: devMode ? 'Вы разработчик сна' : 'TSH.415.13.1450', type: 'build' },
+    { ic: '📊', col: '#6b7a8a', title: 'Статистика настроек', sub: `Самая большая глубина: ${maxDepth} · открыто пунктов: ${opened}`, type: 'info' },
+    { ic: '⚖', col: '#6b7a8a', title: 'Правовая информация', sub: '', type: 'nav' }];
+  if (title === 'Экран') return [
+    { ic: '🌗', col: '#e0702a', title: 'Светлая тема', sub: 'Тёмная — по умолчанию', type: 'toggle', key: 'theme', real: 'theme' },
+    { ic: '☀', col: '#e0702a', title: 'Яркость', sub: '', type: 'slider', key: 'bright', real: 'bright' },
+    { ic: '🔤', col: '#e0702a', title: 'Размер шрифта', sub: 'Средний', type: 'nav' }, { ic: '⏱', col: '#e0702a', title: 'Отключение экрана', sub: 'Никогда', type: 'nav' }];
+  if (title === 'Звук и вибрация') return [
+    { ic: '🔈', col: '#a05ae0', title: 'Звук нажатий', sub: '', type: 'toggle', key: 'clicks', real: 'clicks', def: true },
+    { ic: '🔊', col: '#a05ae0', title: 'Громкость двора', sub: '', type: 'slider', key: 'vol_dvor' }, { ic: '🔔', col: '#a05ae0', title: 'Мелодия домофона', sub: 'Тишина', type: 'nav' }];
+  if (title === 'Дата и время') return [
+    { ic: '🕑', col: '#6b7a8a', title: 'Автоматически', sub: 'Время сети', type: 'toggle', key: 'autotime', real: 'time', def: true },
+    { ic: '📅', col: '#6b7a8a', title: 'Дата', sub: 'ноябрь', type: 'info' }, { ic: '⌚', col: '#6b7a8a', title: 'Время', sub: '14:50', type: 'time' }];
+  if (title === 'Система') return [
+    { ic: '⬇', col: '#6b7a8a', title: 'Обновление системы', sub: 'Доступно: «Проснуться»', type: 'update' },
+    { ic: '↺', col: '#e05a5a', title: 'Сброс до заводских настроек', sub: 'Стереть сон', type: 'reset' }, { ic: '🗂', col: '#6b7a8a', title: 'Резервное копирование', sub: '14:50:00 — 14:50:59', type: 'nav' }];
+  if (/кв\. ?47|этажа 47/.test(title) || depth === 47) return [
+    { ic: '🏠', col: '#e05a5a', title: 'Квартира 47', sub: 'Дверь открыта. Дома никого.', type: 'go', to: 'kvartira', text: 'Подняться домой?' },
+    { ic: '📜', col: '#a08a5a', title: 'Записка на кухне', sub: 'Прочитать', type: 'lore', text: LORE[0] }];
+  return null;
+}
+// ---------- построение страницы ----------
+function makeItem(it, depth, path) {
+  const d = document.createElement('div'); d.className = 'it' + (it.glitch ? ' gl' : ''); d.tabIndex = -1;
+  const ico = `<div class="ico" style="background:${it.col}33;color:${it.col}">${it.ic}</div>`;
+  const tx = `<div class="tx"><div class="t">${esc(it.title)}</div>${it.sub ? `<div class="s">${esc(it.sub)}</div>` : ''}`;
+  if (it.type === 'toggle') {
+    const k = it.key; let on = tog(k, it.def !== undefined ? it.def : (it.r ? it.r() < 0.5 : false));
+    d.innerHTML = ico + tx + '</div><div class="sw' + (on ? ' on' : '') + '"></div>';
+    d.onclick = () => { on = !on; const sw = d.querySelector('.sw'); sw.classList.toggle('on', on); LS('ui_t_' + k, on ? '1' : '0'); blip(on ? 880 : 540, 0.04); vib(8);
+      if (it.real === 'theme') { light = on; document.body.classList.toggle('light', on); scr.classList.toggle('light', on); }
+      if (it.real === 'clicks') clicks = on;
+      if (it.real === 'time' && !on) setTimeout(() => { on = true; sw.classList.add('on'); LS('ui_t_' + k, '1'); toast('Минута не меняется. Время сети восстановлено.'); }, 700);
+      if (!it.real && depth > 8 && it.r && it.r() < 0.12) setTimeout(() => { on = !on; sw.classList.toggle('on', on); toast('Кто-то переключил обратно'); blip(220, 0.2, 0.05, 'triangle'); }, 900 + it.r() * 1500); };
+  } else if (it.type === 'slider') {
+    const k = 'ui_s_' + it.key; const v = it.real === 'bright' ? bright : +(LS(k) || it.val || 50);
+    d.innerHTML = ico + tx + `<input class="sl" type="range" min="5" max="100" value="${v}"></div>`; d.style.cursor = 'default';
+    const s = d.querySelector('input'); s.oninput = () => { LS(k, s.value); if (it.real === 'bright') { bright = +s.value; LS('ui_bright', bright); applyBright(); } if ((+s.value) % 10 === 0) blip(300 + +s.value * 6, 0.03, 0.02); };
+    s.onclick = (e) => e.stopPropagation();
+  } else if (it.type === 'info' || it.type === 'time') {
+    d.innerHTML = ico + tx + '</div>'; d.onclick = () => { blip(500); if (it.type === 'time') toast('Изменить время нельзя. Сейчас всегда 14:50.'); else if (it.r && it.r() < 0.3) toast(pick(it.r, WSUBS.concat(SUBS))); };
+  } else if (it.type === 'build') {
+    d.innerHTML = ico + tx + '</div>';
+    d.onclick = () => { if (devMode) { toast('Вы уже разработчик сна'); return; } buildTaps++; blip(600 + buildTaps * 60); vib(10);
+      if (buildTaps >= 7) { devMode = true; LS('ui_dev', '1'); toast('Вы стали разработчиком сна'); blip(880, 0.3, 0.05); } else if (buildTaps >= 3) toast(`Осталось нажатий: ${7 - buildTaps}`); };
+  } else if (it.type === 'reset') {
+    d.innerHTML = ico + tx + '</div>'; d.onclick = () => dialog('Стереть сон?', 'Все настройки, записки и минута 14:50 будут сброшены. Ты проснёшься где-то ещё.', [['Отмена'], ['Стереть', () => wake('Сброс…')]]);
+  } else if (it.type === 'update') {
+    d.innerHTML = ico + tx + '</div>'; d.onclick = () => dialog('Обновление «Проснуться»', 'Размер: 0 Б\nУстановка займёт 14 минут 50 секунд.\nПосле установки устройство перезагрузится в другом месте.', [['Позже'], ['Установить', () => wake('Установка обновления…')]]);
+  } else if (it.type === 'go') {
+    d.innerHTML = ico + tx + '</div><div class="ch">›</div>'; d.onclick = () => dialog(it.title, it.text, [['Нет'], ['Да', () => leave(it.to, it.title)]]);
+  } else if (it.type === 'lore') {
+    d.innerHTML = ico + tx + '</div>'; d.onclick = () => dialog(it.title, it.text);
+  } else if (it.type === 'action') {
+    d.innerHTML = ico + tx + '</div>'; d.onclick = () => { const r = rng(hash(it.key + 'a')); if (r() < 0.45) dialog(it.title + '?', 'Это действие нельзя отменить.', [['Отмена'], ['ОК', () => toast(pick(r, ['Готово', 'Готово. Ничего не изменилось.', 'Выполнено в 14:50', 'Ошибка: минута занята', 'Ожидание ответа от домофона…']))]]);
+      else { blip(420); dialog(it.title, pick(r, LORE)); } };
+  } else {
+    d.innerHTML = ico + tx + '</div><div class="ch">›</div>';
+    d.onclick = () => { blip(700, 0.03); vib(6); push(it.title, hash(path + '/' + (it.key || it.title)).toString(36)); };
+  }
+  return d;
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function buildPage(title, path, depth, minCount) {
+  const pg = document.createElement('div'); pg.className = 'pg in';
+  const crumb = stack.slice(0, depth).map((s) => s.title).concat(depth ? [title] : []).join(' › ');
+  pg.innerHTML = `<div class="hd"><div class="row">${depth ? '<button class="bk" aria-label="Назад">←</button>' : '<span style="width:6px"></span>'}<span style="flex:1"></span><button class="sr" aria-label="Поиск">🔍</button></div>
+    <h1>${esc(title)}</h1><div class="crumb">${depth ? esc(crumb) + ' · глубина ' + depth : 'Нажми любой пункт. Они не кончаются.'}</div>${depth ? '' : '<div class="srch"><span>🔍</span><input placeholder="Поиск настроек"></div>'}</div><div class="ls"></div>`;
+  const ls = pg.querySelector('.ls');
+  const bk = pg.querySelector('.bk'); if (bk) bk.onclick = back;
+  pg.querySelector('.sr').onclick = () => push('Поиск', 'search', true);
+  const inp = pg.querySelector('.srch input'); if (inp) { inp.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter' && inp.value.trim()) push(inp.value.trim(), 'q:' + inp.value.trim().toLowerCase()); if (e.key === 'Escape') inp.blur(); }; }
+  let sp = special(title, depth), n = 0, grp = null, gi = 0;
+  const r0 = rng(hash(path + '!groups'));
+  function addGroup(name) { if (name) { const h = document.createElement('div'); h.className = 'gh'; h.textContent = name; ls.appendChild(h); } grp = document.createElement('div'); grp.className = 'grp'; ls.appendChild(grp); }
+  function more(count) {
+    for (let k = 0; k < count; k++) {
+      if (!grp || (n > 0 && r0() < 0.16)) { gi++; addGroup(gi === 1 ? '' : (depth > 10 && r0() < 0.4 ? pick(r0, ['Не трогать', 'Отсюда не возвращаются', 'Глубже', 'Ещё ниже', 'Этаж ' + ((r0() * 2147483647) | 0)]) : pick(r0, ['Основные', 'Дополнительно', 'Прочее', 'Система', 'Общие', 'Ещё', 'Устаревшее', 'Связанные настройки']))); }
+      let it;
+      if (!depth) { const a = rootItems(); if (n >= a.length) { it = genItem(path, n, 1); } else it = a[n]; }
+      else if (sp && n < sp.length) it = sp[n];
+      else it = genItem(path, n, depth);
+      // редкие особые пункты
+      if (depth && n === 13 && depth % 3 === 1) it = { ic: '📜', col: '#a08a5a', title: 'Записка', sub: 'Кто-то оставил текст в настройках', type: 'lore', text: LORE[hash(path) % LORE.length] };
+      if (depth >= 6 && n === 21 && (hash(path) % 5) === 0) it = { ic: '🚪', col: '#e05a5a', title: 'Выйти из настроек', sub: 'Неизвестно куда', type: 'go', to: 'random', text: 'Выйти? Назад дороги не будет.' };
+      grp.appendChild(makeItem(it, depth, path)); n++;
+    }
+  }
+  if (path === 'search') { addGroup(''); ['Wi‑Fi двора', 'Громкость домофона', 'Минута', 'Ключ', 'Мама', 'Квартира 47', 'Как проснуться'].forEach((q) => grp.appendChild(makeItem({ ic: '🔍', col: '#6b7a8a', title: q, sub: 'Популярный запрос', type: 'nav', key: q }, 1, 'q:'))); const m = document.createElement('div'); m.className = 'more'; m.textContent = 'Введи свой запрос на главной странице настроек'; ls.appendChild(m); }
+  else { more(Math.max(depth ? 26 : 30, minCount || 0)); ls.addEventListener('scroll', () => { if (ls.scrollTop + ls.clientHeight > ls.scrollHeight - 600) more(16); }, { passive: true }); }
+  return pg;
+}
+function show(pg) { scr.appendChild(pg); requestAnimationFrame(() => requestAnimationFrame(() => pg.classList.remove('in', 'out'))); }
+let curEl = null;
+function saveStack() { LS('ui_stack', JSON.stringify(stack.slice(1).map((s) => [s.title, s.path]))); }
+function push(title, path, nosave, instant) {
+  const depth = stack.length;
+  if (curEl) { const st = stack[stack.length - 1]; const ls0 = curEl.querySelector('.ls'); if (ls0) { st.scroll = ls0.scrollTop; st.count = ls0.querySelectorAll('.it').length; }
+    const el = curEl; el.classList.add('out'); setTimeout(() => el.remove(), 420); }
+  stack.push({ title, path });
+  if (instant) { curEl = null; return; }
+  const pg = buildPage(title, path, depth); curEl = pg; show(pg);
+  opened++; LS('ui_opened', opened); if (depth > maxDepth) { maxDepth = depth; LS('ui_maxdepth', maxDepth); }
+  if (!nosave) saveStack();
+  atmos(); focusI = -1;
+}
+function back() {
+  if (dlgOpen()) { $('#dlg').classList.remove('on'); return; }
+  if (stack.length <= 1) { leave('menu'); return; }
+  stack.pop(); const old = curEl; if (old) { old.classList.add('back'); setTimeout(() => old.remove(), 420); }
+  const st = stack[stack.length - 1]; const depth = stack.length - 1;
+  const pg = buildPage(st.title, st.path, depth, st.count); pg.classList.remove('in'); pg.classList.add('out'); curEl = pg; show(pg);
+  const ls = pg.querySelector('.ls'); if (ls && st.scroll) requestAnimationFrame(() => { ls.scrollTop = st.scroll; });
+  blip(480, 0.03); saveStack(); atmos(); focusI = -1;
+}
+// атмосфера: чем глубже, тем краснее и страннее
+function atmos() { const d = stack.length - 1; $('#red').style.opacity = String(Math.min(0.9, Math.max(0, (d - 20) / 30))); $('#room').style.opacity = String(1 - Math.min(0.6, d / 60)); }
+// ---------- выход ----------
+const WORLDS = ['dvory', 'podezd', 'kvartira', 'tropa', 'dom', 'shkola', 'metro', 'elektrichka', 'ostanovka', 'plyazh', 'pole', 'zima', 'lager', 'magazin', 'bolnica', 'stroyka', 'vorota', 'tishina'];
+function leave(to, text) { const f = $('#fade'); f.textContent = to === 'menu' ? '' : (text || ''); f.style.opacity = 1; f.style.pointerEvents = 'auto';
+  if (to === 'random') to = WORLDS[(Math.random() * WORLDS.length) | 0];
+  try { LS('menu_last', to === 'menu' ? 'nastroyki' : to); } catch (e) {}
+  setTimeout(() => { location.href = to === 'menu' ? 'index.html' : to + '.html'; }, 900); }
+function wake(t) { leave('random', t); }
+$('#menuBtn').onclick = () => leave('menu');
+// ---------- клавиатура ----------
+let focusI = -1;
+function items() { return curEl ? [...curEl.querySelectorAll('.it')] : []; }
+addEventListener('keydown', (e) => {
+  if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+  if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); back(); return; }
+  const a = items(); if (!a.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); a.forEach((x) => x.classList.remove('foc')); focusI = Math.max(0, Math.min(a.length - 1, focusI + (e.key === 'ArrowDown' ? 1 : -1))); a[focusI].classList.add('foc'); a[focusI].scrollIntoView({ block: 'nearest' }); blip(380, 0.02, 0.015); }
+  else if ((e.key === 'Enter' || e.key === ' ') && focusI >= 0 && a[focusI]) { e.preventDefault(); if (dlgOpen()) return; a[focusI].click(); }
+});
+window.__esc = () => { back(); return 'handled'; };
+// ---------- уведомления ----------
+function notif() { const n = $('#notif'); const r = Math.random(); const [ic, col, from, text] = NOTIFS[(r * NOTIFS.length) | 0];
+  n.querySelector('.ni').textContent = ic; n.querySelector('.ni').style.background = col + '44'; n.querySelector('b').textContent = from; n.querySelector('span').textContent = text;
+  n.classList.add('on'); blip(988, 0.12, 0.03); setTimeout(() => blip(1318, 0.15, 0.025), 120); vib(20);
+  n.onclick = () => { n.classList.remove('on'); dialog(from, text); };
+  setTimeout(() => n.classList.remove('on'), 4200); setTimeout(notif, 25000 + Math.random() * 35000); }
+setTimeout(notif, 12000);
+// часы: минута не меняется, двоеточие мигает
+let blink = 0; setInterval(() => { blink ^= 1; $('#clk').textContent = blink ? '14:50' : '14 50'; }, 1000);
+// ---------- старт ----------
+let saved = []; try { saved = JSON.parse(LS('ui_stack') || '[]'); } catch (e) {}
+if (Array.isArray(saved) && saved.length && saved.length < 5000) {
+  push('Настройки', 'root', true, true); saved.slice(0, -1).forEach(([t, p]) => push(t, p, true, true));
+  const [t, p] = saved[saved.length - 1]; push(t, p, true); toast('Ты вернулся туда же. Глубина ' + saved.length);
+} else push('Настройки', 'root', true);
+})();
+</script>
+</body></html>

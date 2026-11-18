@@ -36,3 +36,5 @@ blur = {p.stem: 'data:image/jpeg;base64,' + base64.b64encode(p.read_bytes()).dec
 menu = (root / 'src/menu.html').read_text(encoding='utf-8').replace('/*THUMBS*/{}', json.dumps(thumbs)).replace('/*BLUR*/{}', json.dumps(blur)).replace('<!--MUSIC-->', MUSIC)
 (root / 'index.html').write_text(motion(menu, 'menu'), encoding='utf-8')
 print('index.html (меню)', len(menu) // 1024, 'KB')
+(root / 'nastroyki.html').write_text((root / 'src/nastroyki.html').read_text(encoding='utf-8'), encoding='utf-8')
+print('nastroyki.html (мир «Настройки»)')
