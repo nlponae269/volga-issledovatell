@@ -43,7 +43,8 @@ public class MainActivity extends Activity {
         // игры отдаются по https-адресу из assets: так работают ES-модули и загрузка моделей (игра «Гаражи»)
         web.setWebViewClient(new WebViewClient() {
             // мир «Настройки» — это телефон, поэтому он портретный; все остальные — альбомные
-            @Override public void onPageStarted(WebView v, String url, Bitmap fav) { orient(url); }
+            @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) { return nativeWorld(req.getUrl().toString()); }
+            @Override public void onPageStarted(WebView v, String url, Bitmap fav) { if (nativeWorld(url)) { v.stopLoading(); return; } orient(url); }
             @Override public void doUpdateVisitedHistory(WebView v, String url, boolean reload) { orient(url); }
             @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
                 Uri u = req.getUrl();
@@ -57,10 +58,19 @@ public class MainActivity extends Activity {
             }
         });
         setContentView(web);
-        web.loadUrl("https://" + HOST + "/index.html");
+        String pg = getIntent().getStringExtra("page"); web.loadUrl("https://" + HOST + "/" + (pg != null ? pg : "index.html"));
         immersive();
     }
 
+    /** миры, перенесённые на свой движок, открываются нативно */
+    static final String[] NATIVE = {"tramvay"};
+    private boolean nativeWorld(String url) {
+        if (url == null) return false;
+        for (String w : NATIVE) if (url.contains("/" + w + ".html")) {
+            android.content.Intent it = new android.content.Intent(this, ru.volga.tishina.n.Game.class); it.putExtra("world", w); startActivity(it); overridePendingTransition(0, 0); web.postDelayed(() -> web.loadUrl("https://" + HOST + "/index.html"), 600); return true; }
+        return false;
+    }
+    @Override protected void onNewIntent(android.content.Intent it) { super.onNewIntent(it); String pg = it.getStringExtra("page"); if (pg != null && web != null) web.loadUrl("https://" + HOST + "/" + pg); }
     private void orient(String url) {
         int o = url != null && url.contains("nastroyki.html") ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
         if (getRequestedOrientation() != o) setRequestedOrientation(o);
