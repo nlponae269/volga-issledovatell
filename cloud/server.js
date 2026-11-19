@@ -5,7 +5,7 @@ const { WebSocketServer } = require('ws');
 const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..');
 const PORT = +process.env.PORT || 8080;
-const W = +process.env.W || 960, H = +process.env.H || 540, Q = +process.env.Q || 55;
+const W = +process.env.W || 640, H = +process.env.H || 360, Q = +process.env.Q || 50;
 const KEY = process.env.KEY || '';           // если задан — вход только по ссылке ?k=KEY
 const GPU = process.env.GPU === '1';
 const START = process.env.START || 'index.html';
@@ -44,6 +44,7 @@ async function startGame() {
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: true, deviceScaleFactor: 1,
     userAgent: 'Mozilla/5.0 (Linux; Android 14; TishinaCloud) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36' });
   await ctx.addInitScript(AUDIO_HOOK);
+  if (!GPU) await ctx.addInitScript(() => { try { localStorage.setItem('gfx', 'normal'); } catch (e) {} });   // без видеокарты — обычная графика
   await ctx.exposeBinding('__pushAudio', (_, id, b64) => { const pcm = Buffer.from(b64, 'base64'); const pk = Buffer.concat([Buffer.from([1, id]), pcm]);
     for (const c of wss.clients) if (c.readyState === 1 && c.bufferedAmount < 3e6) c.send(pk); });
   page = await ctx.newPage();
