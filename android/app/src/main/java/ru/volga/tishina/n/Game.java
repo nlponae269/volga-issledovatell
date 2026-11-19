@@ -34,6 +34,7 @@ public class Game extends Activity {
         switch (id) {
             case "tramvay": return new TramWorld();
             case "podezd": return new PodezdWorld();
+            case "tropa": return new TropaWorld();
             default: return new TramWorld();
         }
     }

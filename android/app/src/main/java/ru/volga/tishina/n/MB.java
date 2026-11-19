@@ -86,6 +86,14 @@ final class MB {
         }
         return this;
     }
+    /** лента по земле: точки центра (x,z), ширина, высота y; uv — метры/tile */
+    MB ribbonX(float[] xs, float[] zs, float half, float y) {
+        Matrix.setIdentityM(M, 0); Matrix.setIdentityM(R, 0); float tl = tile > 0 ? tile : 1;
+        for (int i = 0; i + 1 < xs.length; i++) { float x0 = xs[i], x1 = xs[i + 1], a0 = zs[i], a1 = zs[i + 1];
+            v(x0, y, a0 + half, 0, 1, 0, x0 / tl, 0); v(x1, y, a1 + half, 0, 1, 0, x1 / tl, 0); v(x1, y, a1 - half, 0, 1, 0, x1 / tl, 2 * half / tl);
+            v(x0, y, a0 + half, 0, 1, 0, x0 / tl, 0); v(x1, y, a1 - half, 0, 1, 0, x1 / tl, 2 * half / tl); v(x0, y, a0 - half, 0, 1, 0, x0 / tl, 2 * half / tl); }
+        return this;
+    }
     /** готовый меш (вызывать в GL-потоке) */
     Mesh build() { return new Mesh(d, n); }
 }
