@@ -65,7 +65,7 @@ const M = {
   yel: STD(0xe0b020, 0.45, 0.2), dark: STD(0x16181c, 0.7), tree: STD(0x1c2016, 1), trunk: STD(0x2a241e, 1),
   // салон
   floor: STD(0x2e2c2a, 0.9), wallLo: STD(0xb8b2a2, 0.6), wallIn: STD(0xd8d2c0, 0.55), ceil: STD(0xe8e4d8, 0.6), frame: STD(0x8a8e90, 0.4, 0.6),
-  seat: STD(0xc8461e, 0.45), seatB: STD(0xa8381a, 0.5), rubber: STD(0x101010, 0.9), hand: STD(0xf0c020, 0.35, 0.3),
+  seat: STD(0x3e5276, 0.9), seatB: STD(0x30405e, 0.9), rubber: STD(0x101010, 0.9), hand: STD(0xf0c020, 0.35, 0.3),
   body: STD(0xd8d4c8, 0.5, 0.1), bodyR: STD(0xb02a22, 0.5, 0.1), lamp: new THREE.MeshBasicMaterial({ color: 0xfff2d8 }), comp: STD(0xd02818, 0.5),
   glass: new THREE.MeshStandardMaterial({ color: 0x8aa0b8, roughness: 0.05, metalness: 0.4, transparent: true, opacity: 0.16, depthWrite: false }),
   door: STD(0xb02a22, 0.5, 0.1), skin: STD(0xd8a888, 0.7), coat: [STD(0x23262c, 0.9), STD(0x3a2c24, 0.9), STD(0x2a3240, 0.9), STD(0x4a3a40, 0.9), STD(0x30302a, 0.9)],
@@ -151,14 +151,18 @@ function buildSeg(k) {
 function disposeSeg(sg) { scene.remove(sg.g); sg.g.traverse((o) => { if (o.geometry && !Object.values(G).includes(o.geometry)) o.geometry.dispose(); if (o.material && o.material.map && o.material.map.isCanvasTexture && o.material !== M.ground) { o.material.map.dispose(); o.material.dispose(); } }); }
 function stream(s) { const k0 = Math.floor(s / SEG); for (let k = k0 - 4; k <= k0 + 9; k++) if (!segs.has(k)) segs.set(k, buildSeg(k)); for (const [k, sg] of segs) if (k < k0 - 6 || k > k0 + 12) { disposeSeg(sg); segs.delete(k); } }
 // ---------- трамвай ----------
-const TR = { L: 22, W: 2.5, fy: 0.9, h: 2.3, doors: [-6.5, 0.5, 7.5], dw: 1.3 };
+const TR = { L: 30, W: 2.5, fy: 0.35, h: 2.3, doors: [-11.2, -4.6, 4.6, 11.2], dw: 1.4 };
 const tram = { s: 0, v: 0, state: 'stop', t: 0, next: 1, at: 0, door: 0, g: new THREE.Group(), seats: [], jointAcc: 0, said: false, extra: false };
 const doorMesh = [];
 let ledTex, ledCtx, ledText = '', ledOff = 0;
 function buildTram() {
   const g = tram.g, H = TR.h, fy = TR.fy, L = TR.L, hw = TR.W / 2;
   // кузов снаружи
-  box(g, M.bodyR, 0, 0.55, 0, TR.W + 0.02, 0.7, L); box(g, M.body, 0, fy + 1.55, 0, TR.W + 0.04, 1.1, L - 0.02);
+  box(g, M.body, 0, (fy + 0.85) / 2 + 0.06, 0, TR.W + 0.02, fy + 0.74, L); box(g, M.bodyR, 0, fy + 0.62, 0, TR.W + 0.05, 0.16, L + 0.02); for (const sx of [-1, 1]) box(g, M.body, sx * (hw + 0.01), fy + 2.17, 0, 0.04, 0.36, L - 0.02);
+  for (const bz of [-L / 2 + 3, -1.6, 1.6, L / 2 - 3]) box(g, M.dark, 0, 0.2, bz, TR.W - 0.3, 0.3, 2.2);
+  // гармошка между секциями
+  for (let i = -3; i <= 3; i++) { const z = i * 0.16; for (const sx of [-1, 1]) box(g, M.rubber, sx * (hw - 0.02), fy + H / 2, z, 0.12, H, 0.1); box(g, M.rubber, 0, fy + H - 0.02, z, TR.W, 0.12, 0.1); }
+  cyl(g, M.frame, 0, fy + 0.006, 0, 0.95, 0.012);
   box(g, M.floor, 0, fy - 0.05, 0, TR.W - 0.1, 0.1, L - 0.2);
   box(g, M.ceil, 0, fy + H + 0.03, 0, TR.W, 0.08, L); box(g, M.body, 0, fy + H + 0.25, 0, TR.W - 0.2, 0.35, L * 0.6);
   // пантограф
@@ -166,9 +170,9 @@ function buildTram() {
   // стены: низ до 0.85 над полом, окна до 2.0, верх; простенки
   const wy = fy + 0.43;
   for (const sx of [-1, 1]) { const x = sx * (hw - 0.04);
-    const gaps = sx > 0 ? TR.doors : [];
+    const gaps = (sx > 0 ? TR.doors.map((d) => [d, TR.dw]) : []).concat([[0, 1.2]]).sort((a, b) => a[0] - b[0]);
     let a = -L / 2;
-    const parts = []; for (const d of gaps) { parts.push([a, d - TR.dw / 2]); a = d + TR.dw / 2; } parts.push([a, L / 2]);
+    const parts = []; for (const [d, w] of gaps) { parts.push([a, d - w / 2]); a = d + w / 2; } parts.push([a, L / 2]);
     for (const [p0, p1] of parts) { const zz = (p0 + p1) / 2, ln = p1 - p0; box(g, M.wallLo, x, wy, zz, 0.08, 0.86, ln); box(g, M.wallIn, x, fy + 2.15, zz, 0.08, 0.3, ln);
       for (let z = p0; z <= p1 + 0.01; z += Math.max(0.6, ln / Math.max(1, Math.round(ln / 1.6)))) box(g, M.frame, x, fy + 1.43, z, 0.07, 1.2, 0.07);
       box(g, M.glass, x + sx * 0.02, fy + 1.43, zz, 0.02, 1.15, ln); box(g, M.frame, x, fy + 0.86, zz, 0.1, 0.05, ln); }
@@ -183,9 +187,9 @@ function buildTram() {
     // ступенька
     box(g, M.rubber, hw - 0.2, fy - 0.08, d, 0.4, 0.04, TR.dw); }
   // торцы: кабина спереди с перегородкой, сзади окно
-  box(g, M.wallLo, 0, fy + 0.6, -L / 2 + 1.6, TR.W - 0.1, 1.2, 0.06); box(g, M.wallIn, 0, fy + 2.0, -L / 2 + 1.6, TR.W - 0.1, 0.6, 0.06);
-  box(g, M.glass, 0, fy + 1.45, -L / 2 + 1.6, TR.W - 0.1, 0.5, 0.02);
-  box(g, M.glass, 0, fy + 1.4, -L / 2 + 0.02, TR.W - 0.2, 1.3, 0.04); box(g, M.wallLo, 0, fy + 0.4, -L / 2 + 0.05, TR.W, 0.8, 0.08);
+  box(g, M.wallLo, 0, fy + 0.5, -L / 2 + 1.6, TR.W - 0.1, 1.0, 0.06); box(g, M.wallIn, 0, fy + 2.15, -L / 2 + 1.6, TR.W - 0.1, 0.3, 0.06); box(g, M.frame, 0.45, fy + 1.5, -L / 2 + 1.6, 0.06, 1.0, 0.06);
+  box(g, M.glass, 0, fy + 1.5, -L / 2 + 1.6, TR.W - 0.1, 1.0, 0.02);
+  box(g, M.glass, 0, fy + 1.45, -L / 2 + 0.02, TR.W - 0.2, 1.6, 0.04); box(g, M.wallLo, 0, fy + 0.4, -L / 2 + 0.05, TR.W, 0.8, 0.08);
   { const d = new THREE.Group(); box(d, M.coat[0], 0, fy + 0.95, 0, 0.5, 0.65, 0.35); const h = new THREE.Mesh(G.sph, M.skin); h.position.set(0, fy + 1.45, 0); h.scale.set(0.22, 0.26, 0.24); d.add(h); box(d, STD(0x1a1a1a, 0.8), 0, fy + 1.6, 0, 0.26, 0.08, 0.28); d.position.set(-0.3, 0, -L / 2 + 0.85); g.add(d); box(g, M.dark, -0.3, fy + 0.85, -L / 2 + 0.4, 0.9, 0.5, 0.4); }
   box(g, M.wallLo, 0, fy + 0.45, L / 2 - 0.04, TR.W, 0.9, 0.08); box(g, M.glass, 0, fy + 1.45, L / 2 - 0.04, TR.W - 0.2, 1.2, 0.03); box(g, M.wallIn, 0, fy + 2.2, L / 2 - 0.04, TR.W, 0.2, 0.08);
   // табло над кабиной
@@ -195,8 +199,8 @@ function buildTram() {
   for (let z = -L / 2 + 2.5; z < L / 2 - 0.5; z += 2.4) box(g, M.lamp, 0, fy + H - 0.02, z, 0.5, 0.03, 1.6);
   // сиденья: слева двойные, справа одиночные (между дверями)
   const seatAt = (x, z, w) => { box(g, M.seat, x, fy + 0.45, z, w, 0.08, 0.44); box(g, M.seatB, x, fy + 0.78, z + 0.22, w, 0.62, 0.06); box(g, M.frame, x, fy + 0.2, z, 0.06, 0.4, 0.3); tram.seats.push({ x, z, w }); };
-  for (let z = -L / 2 + 2.6; z < L / 2 - 0.8; z += 1.05) { if (z > 3.5 && z < 6.2) continue; seatAt(-0.66, z, 0.9); }
-  for (let z = -L / 2 + 2.6; z < L / 2 - 0.8; z += 1.05) { if (TR.doors.some((d) => Math.abs(z - d) < TR.dw / 2 + 0.6)) continue; seatAt(0.86, z, 0.48); }
+  for (let z = -L / 2 + 2.6; z < L / 2 - 0.8; z += 1.05) { if (Math.abs(z) < 1.5) continue; seatAt(-0.66, z, 0.9); }
+  for (let z = -L / 2 + 2.6; z < L / 2 - 0.8; z += 1.05) { if (Math.abs(z) < 1.5 || TR.doors.some((d) => Math.abs(z - d) < TR.dw / 2 + 0.6)) continue; seatAt(0.86, z, 0.48); }
   // вертикальные поручни
   for (let z = -L / 2 + 2.3; z < L / 2 - 0.5; z += 2.1) cyl(g, M.hand, -0.18, fy + H / 2, z, 0.02, H);
   // компостеры
@@ -215,7 +219,7 @@ function buildTram() {
   for (const sx of [-0.8, 0.8]) { spr(g, LMP.head, sx, 0.8, -L / 2 - 0.1, 1.6); spr(g, LMP.red, sx, 0.8, L / 2 + 0.1, 0.8); }
   plane(g, new THREE.MeshBasicMaterial({ map: signTex('𒀱  ТИШИНА', '#111', '#ffb030', 768, 160, 90) }), 0, fy + H - 0.2, -L / 2 - 0.05, 1.6, 0.32, Math.PI);
   // свет салона
-  for (const z of [-6, 3]) { const p = new THREE.PointLight(0xfff0d8, 3.2, 11, 1.6); p.position.set(0, fy + H - 0.25, z); g.add(p); }
+  for (const z of [-9, 0, 9]) { const p = new THREE.PointLight(0xfff0d8, 3.4, 14, 1.4); p.position.set(0, fy + H - 0.25, z); g.add(p); }
   scene.add(g);
 }
 // пассажиры
@@ -229,7 +233,7 @@ function shufflePax() { for (const p of pax) p.o.visible = Math.random() < 0.2 &
 function drawLED(dt) { ledOff += dt * 140; const g = ledCtx; g.fillStyle = '#100800'; g.fillRect(0, 0, 1024, 96); g.font = '600 62px ui-monospace,Menlo,Consolas,monospace'; g.fillStyle = '#ffa020'; g.shadowColor = '#ff8000'; g.shadowBlur = 12; g.textBaseline = 'middle';
   const w = g.measureText(ledText).width + 200; const x = 1024 - (ledOff % (w + 1024)); g.fillText(ledText, x, 50); g.shadowBlur = 0; ledTex.needsUpdate = true; }
 // ---------- игрок ----------
-const P = { on: true, lx: -0.05, lz: 4.4, x: 0, z: 0, y: 0, yaw: 0, pitch: -0.05, bob: 0 };
+const P = { on: true, lx: 0.2, lz: 13.6, x: 0, z: 0, y: 0, yaw: 0, pitch: -0.05, bob: 0 };
 let sit = null;
 const keys = {}; let started = false, leaving = false;
 function camWorld() { if (P.on) return { x: P.lx, z: -tram.s + P.lz, y: TR.fy }; return { x: P.x, z: P.z, y: P.y }; }
@@ -271,7 +275,7 @@ function tramUpdate(dt) {
     if (!tram.extra && tram.t > 22 && P.on && Math.random() < dt * 0.02) { tram.extra = true; const i = (Math.random() * 4) | 0; say('x' + i, EXTRA[i]); }
     if (dist < 0.05 || (dist < 0.6 && tram.v < 0.15)) { tram.s = target; tram.v = 0; tram.state = 'open'; tram.t = 0; tram.at = tram.next; hiss(1.1, 0.22); thump(0.25, 90); const nm = NAMES[nIdx(tram.at)]; say('stop' + nIdx(tram.at), 'Остановка — ' + nm + '.'); ledText = 'ОСТАНОВКА: ' + nm.toUpperCase(); ledOff = 0; }
     if (dist < 160 && !tram.said && P.on) { tram.said = true; ledText = 'СЛЕДУЮЩАЯ: ' + NAMES[nIdx(tram.next)].toUpperCase(); }
-  } else if (tram.state === 'open') { tram.door = Math.min(1, tram.door + dt * 1.4); if (tram.t > (tram.at === 0 ? 5 : 15) && !inDoor()) { tram.state = 'close'; tram.t = 0; } if (tram.t > 2 && tram.t < 2.1) shufflePax(); }
+  } else if (tram.state === 'open') { tram.door = Math.min(1, tram.door + dt * 1.4); if (tram.t > (tram.at === 0 ? 12 : 16) && !inDoor()) { tram.state = 'close'; tram.t = 0; } if (tram.t > 2 && tram.t < 2.1) shufflePax(); }
   else if (tram.state === 'close') { if (tram.t < dt * 1.5) { const n = tram.at + 1; say('next' + nIdx(n), 'Осторожно, двери закрываются. Следующая остановка — ' + NAMES[nIdx(n)] + '.'); } if (tram.t > 3.6) { if (inDoor()) { tram.state = 'open'; tram.t = 5; return; } tram.door = Math.max(0, tram.door - dt * 1.6); if (tram.t > 3.7 && tram.t < 3.7 + dt * 1.5) hiss(0.8, 0.16); if (tram.door <= 0) { thump(0.35, 70, 0.12); bell(); tram.state = 'run'; tram.t = 0; tram.next = tram.at + 1; tram.said = false; tram.extra = false; ledText = 'СЛЕДУЮЩАЯ: ' + NAMES[nIdx(tram.next)].toUpperCase(); } } }
   else if (tram.state === 'stop') { tram.state = 'open'; tram.t = 0; tram.door = 1; tram.at = 0; ledText = 'ОСТАНОВКА: ' + NAMES[nIdx(0)].toUpperCase(); }
   tram.s += tram.v * dt; tram.g.position.z = -tram.s;
@@ -325,7 +329,12 @@ if (TOUCH) { $('touch').style.display = 'block';
   const up = (e) => { if (e.pointerId === stick.id) { stick.id = -1; stick.x = stick.y = 0; $('knob').style.transform = ''; } if (e.pointerId === look.id) look.id = -1; };
   addEventListener('pointerup', up); addEventListener('pointercancel', up); }
 function nearSeat() { if (!P.on) return null; let best = null, bd = 0.95; for (const s of tram.seats) { const xs = s.w > 0.6 ? [s.x - 0.22, s.x + 0.22] : [s.x]; for (const x of xs) { const d = Math.hypot(P.lx - x, P.lz - s.z); const taken = pax.some((p) => p.o.visible && p.s === s && Math.abs(p.o.position.x - x) < 0.1); if (d < bd && !taken) { bd = d; best = { s, x }; } } } return best; }
-function act() { if (!started) return; if (sit) { P.lx = sit.x > 0 ? sit.x - 0.55 : -0.05; P.lz = sit.s.z - 0.2; if (sit.x < 0) P.lx = 0.1; sit = null; return; } const n = nearSeat(); if (n) { sit = n; P.yaw = 0; toast('Сел. E — встать', 1500); } }
+function doorNear() { const open = tram.door > 0.85 && tram.state !== 'run';
+  if (!open) return null; if (P.on) { const d = TR.doors.find((d) => Math.abs(P.lz - d) < 1.5 && P.lx > -0.3); return d === undefined ? null : { out: true, d }; }
+  const lz = P.z + tram.s; if (Math.abs(P.y - W.pY) < 0.5 && P.x < 4 && P.x > 0) { const d = TR.doors.find((d) => Math.abs(lz - d) < 1.8); if (d !== undefined) return { out: false, d }; } return null; }
+function act() { if (!started) return;
+  if (!sit) { const dn = doorNear(); if (dn && dn.out) { P.on = false; P.x = 1.9; P.z = -tram.s + dn.d; P.y = W.pY; P.yaw = -Math.PI / 2; $('mode').textContent = 'маршрут 𒀱 · на остановке'; return; }
+    if (dn && !dn.out) { P.on = true; P.lx = 0.45; P.lz = dn.d; P.yaw = 0; $('mode').textContent = 'маршрут 𒀱 · в салоне'; return; } } if (sit) { P.lx = sit.x > 0 ? sit.x - 0.55 : -0.05; P.lz = sit.s.z - 0.2; if (sit.x < 0) P.lx = 0.1; sit = null; return; } const n = nearSeat(); if (n) { sit = n; P.yaw = 0; toast('Сел. E — встать', 1500); } }
 // ---------- цикл ----------
 let last = performance.now(), dist = 0, warned = false, clkT = 0;
 function frame(now) {
@@ -343,8 +352,8 @@ function step(dt) {
   if (!sit && fl > 0.01) { const sp = (keys.ShiftLeft ? 2.6 : 1.6) * dt; const c = Math.cos(P.yaw), s = Math.sin(P.yaw); const dx = (fx * c + fz * s) * sp, dz = (-fx * s + fz * c) * sp; if (P.on) moveOn(dx, dz); else moveOff(dx, dz); P.bob += fl * dt * 9; }
   if (sit && TOUCH && fl > 0.5) act();
   // подсказки
-  if (P.on) { const n = !sit && nearSeat(); if (sit) prompt(''); else if (inDoor() && tram.door > 0.85) prompt('выход →'); else if (n) prompt(TOUCH ? 'E — сесть' : 'E — сесть'); else prompt(''); }
-  else { const s = -P.z, k = Math.round(s / STEP); const d = Math.hypot(P.x - 3, -P.z - stS(k)); prompt('');
+  if (P.on) { const n = !sit && nearSeat(); if (sit) prompt(''); else if (doorNear()) prompt('E — выйти'); else if (n) prompt(TOUCH ? 'E — сесть' : 'E — сесть'); else prompt(''); }
+  else { const s = -P.z, k = Math.round(s / STEP); const d = Math.hypot(P.x - 3, -P.z - stS(k)); prompt(doorNear() ? 'E — войти в трамвай' : '');
     if (d > 32 && !warned) { warned = true; toast('Остановка позади. Дальше — что-то знакомое…', 3200); }
     if (d < 25) warned = false;
     if (d > 46 && !leaving) { leaving = true; toast('…двор. Героев Тулы, 13.', 3000); $('fade').style.opacity = 1; setTimeout(() => { location.href = 'dvory.html'; }, 1400); } }
@@ -361,7 +370,7 @@ function step(dt) {
 buildTram(); buildPax(); shufflePax(); stream(0); prog();
 TL.manager && setTimeout(prog, 400);
 ledText = 'ОСТАНОВКА: ' + NAMES[nIdx(0)].toUpperCase(); drawLED(0);
-camera.position.set(0, TR.fy + 1.6, 4.4); camera.rotation.set(0, 0, 0);
+camera.position.set(0.2, TR.fy + 1.6, 13.6); camera.rotation.set(0, 0, 0);
 requestAnimationFrame((t) => { last = t; frame(t); setTimeout(() => ($('fade').style.opacity = 0), 100); });
 $('play').onclick = () => { if (started) return; started = true; $('start').style.display = 'none'; audio(); if (AC && AC.state === 'suspended') AC.resume(); if (!TOUCH && cv.requestPointerLock) cv.requestPointerLock(); toast(NAMES[nIdx(0)], 2200); };
 $('back').onclick = () => window.__esc();
