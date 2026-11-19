@@ -126,7 +126,7 @@ body.shake .bgl.on{animation:kb 28s ease-in-out infinite alternate,sh .35s steps
 const IMG = /*THUMBS*/{}, BLUR = /*BLUR*/{};
 const its = (w, ic) => () => { const n = +ls(w + '_items') || 0; return n ? `${ic} ${n}` : ''; };
 const WORLDS = [
-  { id: 'dvory', name: 'ДВОРЫ', tag: 'СЮЖЕТ', desc: '415-й микрорайон, Героев Тулы, 13. Ноябрь, 14:50, после дождя. Ключа нет, домофон молчит. Главная история.', stat: () => { const c = Math.min(12, +ls('dvory_cards') || 0), m = +ls('dvory_mand') || 0; return (c ? `✉ ${c}/12 ` : '') + (m ? `🌰 ${m}` : ''); } },
+  { id: 'dvory', name: 'ДВОРЫ', tag: '⚡ НОВЫЙ ДВИЖОК', desc: '415-й микрорайон, Героев Тулы, 13. Ноябрь, 14:50, после дождя. Ключа нет, домофон молчит. Главная история.', stat: () => { const c = Math.min(12, +ls('dvory_cards') || 0), m = +ls('dvory_mand') || 0; return (c ? `✉ ${c}/12 ` : '') + (m ? `🌰 ${m}` : ''); } },
   { id: 'alt', name: 'ALTERNATIVE', tag: 'АНОМАЛИИ', desc: 'Тот же двор, но красный. Часы идут назад, дома висят в воздухе, безликие ходят, когда не смотришь.', stat: () => '' },
   { id: 'tishina', name: 'ТИШИНА', desc: 'Волга, осень, костёр. Горы, лес, брошенные деревни. 10 записок.', stat: () => '' },
   { id: 'tropa', name: 'ТРОПА', tag: '⚡ НОВЫЙ ДВИЖОК', desc: 'Бесконечная тропа вдоль трассы. Туман, тополя, магазины с монетами.', stat: () => { const m = +ls('tropa_money') || 0; return m ? `🪙 ${m}` : ''; } },

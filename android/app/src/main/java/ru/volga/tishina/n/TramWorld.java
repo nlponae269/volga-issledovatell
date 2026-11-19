@@ -330,7 +330,7 @@ final class TramWorld extends World {
             g.prompt(dn != null ? "E — войти: " + (dn[2] == tram ? "СТ" : ((Veh) dn[2]).sp.name) : "");
             if (d > 32 && !warned) { warned = true; g.toast("Остановка позади. Дальше — что-то знакомое…", 3200); }
             if (d < 25) warned = false;
-            if (d > 46 && !leaving) { leaving = true; g.toast("…двор. Героев Тулы, 13.", 3000); g.goWeb("dvory.html"); } }
+            if (d > 46 && !leaving) { leaving = true; g.toast("…двор. Героев Тулы, 13.", 3000); g.go("dvory"); } }
         // звук мотора
         Veh src = V; float dd = 1; if (src == null) { float bd = 1e9f; ArrayList<Veh> all = new ArrayList<>(rvs); all.add(tram); for (Veh U : all) { float q = (float) Math.hypot(px - U.x, pz + U.s); if (q < bd) { bd = q; src = U; } } dd = Math.max(0.03f, 1 - bd / 70); }
         float[] eg = src.sp.eng; float v = src.v; boolean run = src.state.equals("run");

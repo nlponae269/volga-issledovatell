@@ -180,7 +180,7 @@ final class PodezdWorld extends World {
             String msg = a[rnd.nextInt(a.length)] + "\nкв. " + d.apt; g.h.postDelayed(() -> g.toast(msg, 3200), 900); return; }
         if ("call".equals(nearest)) { int c = curN(); snd.tone(660, 0.15f, 0.06f); if (liftN == c) { liftTgt = 1; clank(); } else { liftSt = "coming"; liftT = 2 + Math.min(5, Math.abs(liftN - c) * 0.6f); snd.motorF = 55; snd.motorG = 0.05f; } return; }
         if ("dial".equals(nearest)) { g.askNumber("ЛИФТ · наберите этаж", "грузоподъёмность 320 кг · 4 человека · не курить", this::liftGo); return; }
-        if ("win".equals(nearest)) { g.toast("Прыгаешь в сугроб под окном…", 2200); g.goWeb("dvory.html"); }
+        if ("win".equals(nearest)) { g.toast("Прыгаешь в сугроб под окном…", 2200); g.go("dvory"); }
     }
     void clank() { snd.thump(0.4f, 90, 0.2f); g.h.postDelayed(() -> snd.noise(0.12f, 0.08f, 0.7f), 120); }
     void liftGo(String v) {

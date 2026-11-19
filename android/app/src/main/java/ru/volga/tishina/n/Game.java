@@ -35,6 +35,7 @@ public class Game extends Activity {
             case "tramvay": return new TramWorld();
             case "podezd": return new PodezdWorld();
             case "tropa": return new TropaWorld();
+            case "dvory": return new DvoryWorld();
             default: return new TramWorld();
         }
     }

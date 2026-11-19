@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     }
 
     /** миры, перенесённые на свой движок, открываются нативно */
-    static final String[] NATIVE = {"tramvay", "podezd", "tropa"};
+    static final String[] NATIVE = {"tramvay", "podezd", "tropa", "dvory"};
     private boolean nativeWorld(String url) {
         if (url == null) return false;
         for (String w : NATIVE) if (url.contains("/" + w + ".html")) {
