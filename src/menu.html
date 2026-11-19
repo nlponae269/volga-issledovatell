@@ -144,6 +144,7 @@ const WORLDS = [
   { id: 'lager', name: 'ПИОНЕРЛАГЕРЬ', desc: 'Ночь, корпуса, гипсовый пионер. Горн из громкоговорителя.', stat: its('lager', '⭐') },
   { id: 'pole', name: 'ПОЛЕ', desc: 'Поле без края и одна ЛЭП. Будка трансформатора открыта.', stat: its('pole', '💠') },
   { id: 'elektrichka', name: 'ЭЛЕКТРИЧКА', desc: 'Бесконечный поезд. Каждая станция — другой мир.', stat: () => '' },
+  { id: 'tramvay', name: 'ТРАМ𒀱Й', tag: 'НОВЫЙ', desc: 'Обычный вечерний трамвай. Сиденья, поручни, диктор объявляет остановки. Выйти можно на любой — только далеко не уходи.', stat: () => '' },
   { id: 'voditel', name: 'ВОДИТЕЛЬ', tag: 'НОВЫЙ', desc: 'Ночь, мокрое стекло, город без конца. Едешь мимо витрин и светофоров. Остановись — можно выйти и зайти в магазин.', stat: () => '' },
   { id: 'nastroyki', name: 'НАСТРОЙКИ', tag: 'НОВЫЙ', desc: 'Телефон, в котором меню настроек никогда не кончается. Чем глубже лезешь — тем страннее пункты.', stat: () => { const d = +ls('ui_maxdepth') || 0; return d ? `глубина ${d}` : ''; } },
   { id: 'stroyka', name: 'СТРОЙКА', desc: 'Плиты, арматура, туман внизу. Упадёшь — проснёшься в подъезде.', stat: its('stroyka', '⛑') },
@@ -152,7 +153,7 @@ const KEYW = ['dvory', 'tishina', 'tropa', 'dom', 'podezd', 'ostanovka', 'shkola
 function keysTxt() { let k = []; try { k = JSON.parse(ls('dream_keys') || '[]'); } catch (e) {} const n = KEYW.filter((w) => k.includes(w)).length; return ls('dream_done') ? 'ты проснулся · сон пройден' : `ключи от ворот: ${n} / ${KEYW.length}` + (n >= KEYW.length ? ' — ворота ждут' : ''); }
 function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 
-const PAL = { voditel: ['#ff9a40', '#ff2a4a'], nastroyki: ['#7ab0ff', '#a05ae0'], alt: ['#ff2a1a', '#3a0000'], dvory: ['#ff7a59', '#7b5cff'], tishina: ['#e8a96d', '#3d8ab8'], tropa: ['#b9d4a0', '#5a7a9a'], vorota: ['#d8e05a', '#e0566b'], dom: ['#d88a3a', '#4a3a9a'], podezd: ['#3fd8e0', '#2a5ad8'], garages: ['#ff3b3b', '#8a1aff'],
+const PAL = { tramvay: ['#ffb030', '#d8281e'], voditel: ['#ff9a40', '#ff2a4a'], nastroyki: ['#7ab0ff', '#a05ae0'], alt: ['#ff2a1a', '#3a0000'], dvory: ['#ff7a59', '#7b5cff'], tishina: ['#e8a96d', '#3d8ab8'], tropa: ['#b9d4a0', '#5a7a9a'], vorota: ['#d8e05a', '#e0566b'], dom: ['#d88a3a', '#4a3a9a'], podezd: ['#3fd8e0', '#2a5ad8'], garages: ['#ff3b3b', '#8a1aff'],
   zima: ['#ff4fc8', '#2be0e0'], ostanovka: ['#f0a030', '#3a6ad8'], shkola: ['#3a9ae8', '#e8c840'], bolnica: ['#5ae0c0', '#7ab0ff'], metro: ['#e8b84a', '#c82a3a'], magazin: ['#ff5a5a', '#ffd040'], plyazh: ['#4ac0f0', '#f0c890'], lager: ['#ff5040', '#4060c0'],
   pole: ['#f8c840', '#4aa0f0'], elektrichka: ['#4ae070', '#4ab0e0'], stroyka: ['#ff8a20', '#8a9aa8'] };
 const pal = (id) => PAL[id] || ['#d9b45a', '#5a7ad9'], $ = (id) => document.getElementById(id), root = document.documentElement;
