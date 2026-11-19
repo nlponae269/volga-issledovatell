@@ -33,6 +33,7 @@ public class Game extends Activity {
     static World make(String id) {
         switch (id) {
             case "tramvay": return new TramWorld();
+            case "podezd": return new PodezdWorld();
             default: return new TramWorld();
         }
     }
@@ -85,6 +86,13 @@ public class Game extends Activity {
     void sub(String s, int ms) { final int k = ++subN; h.post(() -> { sub.setText(s); sub.animate().alpha(1).setDuration(250).start(); }); h.postDelayed(() -> { if (k == subN) sub.animate().alpha(0).setDuration(400).start(); }, ms); }
     void fadeOut(Runnable then) { h.post(() -> fadeV.animate().alpha(1).setDuration(1100).setStartDelay(0).withEndAction(then).start()); }
     void showMap() { h.post(() -> { map.setVisibility(map.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE); map.invalidate(); }); }
+    /** спросить число (лифт); ответ приходит в GL-поток */
+    void askNumber(String title, String hint, java.util.function.Consumer<String> done) { h.post(() -> {
+        android.widget.EditText in = new android.widget.EditText(this); in.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED); in.setTextSize(26); in.setTextColor(0xFFFF5A3A); in.setBackgroundColor(0xFF0B0B0B); in.setGravity(Gravity.CENTER); in.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(22)});
+        android.app.AlertDialog d = new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(title).setMessage(hint).setView(in)
+            .setPositiveButton("Поехать", (x, y) -> { String v = in.getText().toString().trim(); gv.queueEvent(() -> done.accept(v)); }).setNegativeButton("Отмена", null).create();
+        d.show(); in.requestFocus(); d.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE); }); }
+    android.content.SharedPreferences prefs() { return getSharedPreferences("tishina", MODE_PRIVATE); }
     boolean mapOpen() { return map.getVisibility() == View.VISIBLE; }
     void redrawMap() { h.post(() -> map.invalidate()); }
     /** перейти в другой нативный мир */
