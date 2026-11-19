@@ -56,16 +56,16 @@ async function startGame() {
   await page.goto(`http://127.0.0.1:${PORT}/g/${START}`);
   cdp = await ctx.newCDPSession(page);
   cdp.on('Page.screencastFrame', (f) => { cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {}); frames++;
-    const buf = Buffer.from(f.data, 'base64'); for (const c of wss.clients) { if (c.readyState !== 1) continue; if (c.busy) c.pending = buf; else { c.busy = true; c.sent = (c.sent || 0) + buf.length; c.send(buf); } } });
+    const buf = Buffer.from(f.data, 'base64'); for (const c of wss.clients) { if (c.readyState !== 1) continue; if ((c.fly || 0) >= 3) c.pending = buf; else { c.fly = (c.fly || 0) + 1; c.sent = (c.sent || 0) + buf.length; c.send(buf); } } });
   await screencast(Q, W, H);
-  setInterval(() => { fps = frames; frames = 0; for (const c of wss.clients) if (c.readyState === 1) { c.send(JSON.stringify({ fps, w: W, h: H, url: page.url().split('/').pop(), kbs: Math.round((c.sent || 0) / 1024), shown: c.shown || 0 })); c.sent = 0; c.shown = 0; } }, 1000);
+  setInterval(() => { fps = frames; frames = 0; for (const c of wss.clients) if (c.readyState === 1) { c.send(JSON.stringify({ fps, srv: fps, w: W, h: H, url: page.url().split('/').pop(), kbs: Math.round((c.sent || 0) / 1024), shown: c.shown || 0 })); c.sent = 0; c.shown = 0; } }, 1000);
   console.log(`игра запущена (${GPU ? 'GPU' : 'CPU'}, ${W}x${H})`);
 }
 wss.on('connection', (ws, req) => {
   if (KEY && new URL(req.url, 'http://x').searchParams.get('k') !== KEY) return ws.close();
   ws.on('message', async (m) => { if (!cdp) return; let d; try { d = JSON.parse(m); } catch (e) { return; }
     try {
-      if (d.t === 'ack') { ws.busy = false; ws.shown = (ws.shown || 0) + 1; if (ws.pending) { const b = ws.pending; ws.pending = null; ws.busy = true; ws.sent = (ws.sent || 0) + b.length; ws.send(b); } }
+      if (d.t === 'ack') { ws.fly = Math.max(0, (ws.fly || 0) - 1); ws.shown = (ws.shown || 0) + 1; if (ws.pending) { const b = ws.pending; ws.pending = null; ws.fly++; ws.sent = (ws.sent || 0) + b.length; ws.send(b); } }
       else if (d.t === 'q' && PRESET[d.q]) await screencast(...PRESET[d.q]);
       else if (d.t === 'mute') ws.mute = !!d.v;
       else if (d.t === 'touch') await cdp.send('Input.dispatchTouchEvent', { type: d.type, touchPoints: d.pts.map(([id, x, y]) => ({ id, x: x * W, y: y * H, radiusX: 8, radiusY: 8, force: 1 })) });

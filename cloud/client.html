@@ -22,7 +22,7 @@ function connect() {
   sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + (k ? '?k=' + encodeURIComponent(k) : ''));
   sock.binaryType = 'blob';
   sock.onmessage = async (e) => {
-    if (typeof e.data === 'string') { const d = JSON.parse(e.data); gw = d.w; gh = d.h; document.getElementById('bar').textContent = `☁ ${d.shown} к/с у тебя · ${d.kbs} КБ/с · ${d.url}`; return; }
+    if (typeof e.data === 'string') { const d = JSON.parse(e.data); gw = d.w; gh = d.h; document.getElementById('bar').textContent = `☁ сервер рисует ${d.srv} к/с · доходит ${d.shown} к/с · ${d.kbs} КБ/с · ${d.url}`; return; }
     const head = new Uint8Array(await e.data.slice(0, 2).arrayBuffer());
     if (head[0] === 1) { playPcm(head[1], await e.data.slice(2).arrayBuffer()); return; }
     got++; const bm = await createImageBitmap(e.data); send({ t: 'ack' }); const s = Math.min(c.width / bm.width, c.height / bm.height); const w = bm.width * s, h = bm.height * s, x = (c.width - w) / 2, y = (c.height - h) / 2;
