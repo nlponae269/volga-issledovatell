@@ -10,6 +10,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%}
 #wait b{font-size:34px;font-weight:300;letter-spacing:8px;display:block;margin-bottom:8px}
 </style></head><body>
 <canvas id="c"></canvas><div id="bar">соединение…</div>
+<div id="snd" style="position:fixed;right:10px;top:6px;font-size:12px;background:#0009;padding:4px 8px;border-radius:6px">🔇 тапни, чтобы включить звук</div>
 <div id="btns"><button id="fs">⛶ на весь экран</button><button id="mn">меню</button></div>
 <div id="wait"><div><b>ТИШИНА</b>облачный запуск · игра идёт на сервере<br><span id="ws">подключаюсь…</span></div></div>
 <script>
@@ -22,6 +23,8 @@ function connect() {
   sock.binaryType = 'blob';
   sock.onmessage = async (e) => {
     if (typeof e.data === 'string') { const d = JSON.parse(e.data); gw = d.w; gh = d.h; document.getElementById('bar').textContent = `☁ сервер · ${d.fps} к/с · ${d.url}`; return; }
+    const head = new Uint8Array(await e.data.slice(0, 2).arrayBuffer());
+    if (head[0] === 1) { playPcm(head[1], await e.data.slice(2).arrayBuffer()); return; }
     got++; const bm = await createImageBitmap(e.data); const s = Math.min(c.width / bm.width, c.height / bm.height); const w = bm.width * s, h = bm.height * s, x = (c.width - w) / 2, y = (c.height - h) / 2;
     rect = { x: x / devicePixelRatio, y: y / devicePixelRatio, w: w / devicePixelRatio, h: h / devicePixelRatio }; g.drawImage(bm, x, y, w, h); bm.close && bm.close();
     if (got === 1) document.getElementById('wait').style.display = 'none'; };
@@ -29,6 +32,14 @@ function connect() {
   sock.onclose = () => { document.getElementById('bar').textContent = 'нет связи — переподключение…'; setTimeout(connect, 1500); };
 }
 connect();
+// ---- звук с сервера ----
+let actx = null; const tl = {}; window.__aud = 0;
+function unlock() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 }); } catch (e) { actx = new (window.AudioContext || window.webkitAudioContext)(); } } if (actx.state === 'suspended') actx.resume(); document.getElementById('snd').style.display = 'none'; }
+['pointerdown', 'keydown', 'touchstart'].forEach((ev) => addEventListener(ev, unlock, { capture: true }));
+function playPcm(id, ab) { window.__aud++; if (!actx || actx.state !== 'running') return; const i16 = new Int16Array(ab); if (!i16.length) return;
+  const b = actx.createBuffer(1, i16.length, 24000), d = b.getChannelData(0); for (let i = 0; i < i16.length; i++) d[i] = i16[i] / 32768;
+  const s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); const now = actx.currentTime; let t = tl[id] || 0;
+  if (t < now + 0.03 || t > now + 0.6) t = now + 0.12; s.start(t); tl[id] = t + b.duration; }
 const send = (o) => sock && sock.readyState === 1 && sock.send(JSON.stringify(o));
 const norm = (x, y) => [Math.max(0, Math.min(1, (x - rect.x) / rect.w)), Math.max(0, Math.min(1, (y - rect.y) / rect.h))];
 const pts = (tl) => Array.from(tl).map((t) => [t.identifier % 1000, ...norm(t.clientX, t.clientY)]);
