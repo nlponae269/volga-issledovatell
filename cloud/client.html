@@ -11,7 +11,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%}
 </style></head><body>
 <canvas id="c"></canvas><div id="bar">соединение…</div>
 <div id="snd" style="position:fixed;right:10px;top:6px;font-size:12px;background:#0009;padding:4px 8px;border-radius:6px">🔇 тапни, чтобы включить звук</div>
-<div id="btns"><button id="fs">⛶ на весь экран</button><button id="mn">меню</button></div>
+<div id="btns"><button id="fs">⛶ на весь экран</button><button id="mn">меню</button><button id="q">качество: среднее</button><button id="mu">🔊 звук</button></div>
 <div id="wait"><div><b>ТИШИНА</b>облачный запуск · игра идёт на сервере<br><span id="ws">подключаюсь…</span></div></div>
 <script>
 const c = document.getElementById('c'), g = c.getContext('2d'); let sock, gw = 960, gh = 540, rect = { x: 0, y: 0, w: 1, h: 1 }, last = 0, got = 0;
@@ -22,10 +22,10 @@ function connect() {
   sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + (k ? '?k=' + encodeURIComponent(k) : ''));
   sock.binaryType = 'blob';
   sock.onmessage = async (e) => {
-    if (typeof e.data === 'string') { const d = JSON.parse(e.data); gw = d.w; gh = d.h; document.getElementById('bar').textContent = `☁ сервер · ${d.fps} к/с · ${d.url}`; return; }
+    if (typeof e.data === 'string') { const d = JSON.parse(e.data); gw = d.w; gh = d.h; document.getElementById('bar').textContent = `☁ ${d.shown} к/с у тебя · ${d.kbs} КБ/с · ${d.url}`; return; }
     const head = new Uint8Array(await e.data.slice(0, 2).arrayBuffer());
     if (head[0] === 1) { playPcm(head[1], await e.data.slice(2).arrayBuffer()); return; }
-    got++; const bm = await createImageBitmap(e.data); const s = Math.min(c.width / bm.width, c.height / bm.height); const w = bm.width * s, h = bm.height * s, x = (c.width - w) / 2, y = (c.height - h) / 2;
+    got++; const bm = await createImageBitmap(e.data); send({ t: 'ack' }); const s = Math.min(c.width / bm.width, c.height / bm.height); const w = bm.width * s, h = bm.height * s, x = (c.width - w) / 2, y = (c.height - h) / 2;
     rect = { x: x / devicePixelRatio, y: y / devicePixelRatio, w: w / devicePixelRatio, h: h / devicePixelRatio }; g.drawImage(bm, x, y, w, h); bm.close && bm.close();
     if (got === 1) document.getElementById('wait').style.display = 'none'; };
   sock.onopen = () => (document.getElementById('ws').textContent = 'жду первый кадр…');
@@ -53,4 +53,7 @@ const key = (type) => (e) => { if (e.repeat && type === 'keyDown' && e.key.lengt
 addEventListener('keydown', key('keyDown')); addEventListener('keyup', key('keyUp'));
 document.getElementById('fs').onclick = () => { const d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen).call(d).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); };
 document.getElementById('mn').onclick = () => send({ t: 'menu' });
+const QS = [['low', 'низкое'], ['mid', 'среднее'], ['high', 'высокое']]; let qi = 1;
+document.getElementById('q').onclick = (e) => { qi = (qi + 1) % 3; e.target.textContent = 'качество: ' + QS[qi][1]; send({ t: 'q', q: QS[qi][0] }); };
+let muted = false; document.getElementById('mu').onclick = (e) => { muted = !muted; e.target.textContent = muted ? '🔇 без звука' : '🔊 звук'; send({ t: 'mute', v: muted }); };
 </script></body></html>

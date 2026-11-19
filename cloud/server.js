@@ -37,6 +37,9 @@ const srv = http.createServer((req, res) => {
 });
 const wss = new WebSocketServer({ server: srv, path: '/ws' });
 let page, cdp, frames = 0, fps = 0;
+let curQ = Q;
+async function screencast(q, w, h) { curQ = q; try { await cdp.send('Page.stopScreencast'); } catch (e) {} await cdp.send('Page.startScreencast', { format: 'jpeg', quality: q, maxWidth: w, maxHeight: h, everyNthFrame: 1 }); }
+const PRESET = { low: [30, 426, 240], mid: [45, 640, 360], high: [60, 960, 540] };
 async function startGame() {
   const args = ['--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
   if (GPU) args.push('--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=default'); else args.push('--use-angle=swiftshader', '--enable-unsafe-swiftshader');
@@ -46,23 +49,26 @@ async function startGame() {
   await ctx.addInitScript(AUDIO_HOOK);
   if (!GPU) await ctx.addInitScript(() => { try { localStorage.setItem('gfx', 'normal'); } catch (e) {} });   // без видеокарты — обычная графика
   await ctx.exposeBinding('__pushAudio', (_, id, b64) => { const pcm = Buffer.from(b64, 'base64'); const pk = Buffer.concat([Buffer.from([1, id]), pcm]);
-    for (const c of wss.clients) if (c.readyState === 1 && c.bufferedAmount < 3e6) c.send(pk); });
+    for (const c of wss.clients) if (c.readyState === 1 && !c.mute && c.bufferedAmount < 2e5) c.send(pk); });
   page = await ctx.newPage();
   page.on('crash', () => { console.log('вкладка упала — перезапуск'); page.reload().catch(() => {}); });
   page.on('pageerror', (e) => console.log('ошибка в игре:', e.message));
   await page.goto(`http://127.0.0.1:${PORT}/g/${START}`);
   cdp = await ctx.newCDPSession(page);
   cdp.on('Page.screencastFrame', (f) => { cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {}); frames++;
-    const buf = Buffer.from(f.data, 'base64'); for (const c of wss.clients) if (c.readyState === 1 && c.bufferedAmount < 2e6) c.send(buf); });
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: Q, maxWidth: W, maxHeight: H, everyNthFrame: 1 });
-  setInterval(() => { fps = frames; frames = 0; for (const c of wss.clients) if (c.readyState === 1) c.send(JSON.stringify({ fps, w: W, h: H, url: page.url().split('/').pop() })); }, 1000);
+    const buf = Buffer.from(f.data, 'base64'); for (const c of wss.clients) { if (c.readyState !== 1) continue; if (c.busy) c.pending = buf; else { c.busy = true; c.sent = (c.sent || 0) + buf.length; c.send(buf); } } });
+  await screencast(Q, W, H);
+  setInterval(() => { fps = frames; frames = 0; for (const c of wss.clients) if (c.readyState === 1) { c.send(JSON.stringify({ fps, w: W, h: H, url: page.url().split('/').pop(), kbs: Math.round((c.sent || 0) / 1024), shown: c.shown || 0 })); c.sent = 0; c.shown = 0; } }, 1000);
   console.log(`игра запущена (${GPU ? 'GPU' : 'CPU'}, ${W}x${H})`);
 }
 wss.on('connection', (ws, req) => {
   if (KEY && new URL(req.url, 'http://x').searchParams.get('k') !== KEY) return ws.close();
   ws.on('message', async (m) => { if (!cdp) return; let d; try { d = JSON.parse(m); } catch (e) { return; }
     try {
-      if (d.t === 'touch') await cdp.send('Input.dispatchTouchEvent', { type: d.type, touchPoints: d.pts.map(([id, x, y]) => ({ id, x: x * W, y: y * H, radiusX: 8, radiusY: 8, force: 1 })) });
+      if (d.t === 'ack') { ws.busy = false; ws.shown = (ws.shown || 0) + 1; if (ws.pending) { const b = ws.pending; ws.pending = null; ws.busy = true; ws.sent = (ws.sent || 0) + b.length; ws.send(b); } }
+      else if (d.t === 'q' && PRESET[d.q]) await screencast(...PRESET[d.q]);
+      else if (d.t === 'mute') ws.mute = !!d.v;
+      else if (d.t === 'touch') await cdp.send('Input.dispatchTouchEvent', { type: d.type, touchPoints: d.pts.map(([id, x, y]) => ({ id, x: x * W, y: y * H, radiusX: 8, radiusY: 8, force: 1 })) });
       else if (d.t === 'key') await cdp.send('Input.dispatchKeyEvent', { type: d.type, key: d.key, code: d.code, windowsVirtualKeyCode: d.kc, nativeVirtualKeyCode: d.kc, text: d.type === 'keyDown' && d.key.length === 1 ? d.key : undefined });
       else if (d.t === 'menu') await page.goto(`http://127.0.0.1:${PORT}/g/index.html`);
     } catch (e) {} });
