@@ -1,0 +1,45 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Тишина Cloud</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,sans-serif;color:#ddd}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+#bar{position:fixed;left:8px;top:6px;font-size:12px;opacity:.7;text-shadow:0 1px 3px #000;pointer-events:none}
+#btns{position:fixed;left:8px;bottom:8px;display:flex;gap:6px;opacity:.55}
+#btns button{background:#0008;color:#fff;border:1px solid #fff4;border-radius:6px;padding:6px 10px;font-size:13px}
+#wait{position:fixed;inset:0;display:grid;place-items:center;text-align:center;background:#06070b;font-size:15px;line-height:1.6}
+#wait b{font-size:34px;font-weight:300;letter-spacing:8px;display:block;margin-bottom:8px}
+</style></head><body>
+<canvas id="c"></canvas><div id="bar">соединение…</div>
+<div id="btns"><button id="fs">⛶ на весь экран</button><button id="mn">меню</button></div>
+<div id="wait"><div><b>ТИШИНА</b>облачный запуск · игра идёт на сервере<br><span id="ws">подключаюсь…</span></div></div>
+<script>
+const c = document.getElementById('c'), g = c.getContext('2d'); let sock, gw = 960, gh = 540, rect = { x: 0, y: 0, w: 1, h: 1 }, last = 0, got = 0;
+function size() { c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; }
+addEventListener('resize', size); size();
+function connect() {
+  const k = new URLSearchParams(location.search).get('k');
+  sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + (k ? '?k=' + encodeURIComponent(k) : ''));
+  sock.binaryType = 'blob';
+  sock.onmessage = async (e) => {
+    if (typeof e.data === 'string') { const d = JSON.parse(e.data); gw = d.w; gh = d.h; document.getElementById('bar').textContent = `☁ сервер · ${d.fps} к/с · ${d.url}`; return; }
+    got++; const bm = await createImageBitmap(e.data); const s = Math.min(c.width / bm.width, c.height / bm.height); const w = bm.width * s, h = bm.height * s, x = (c.width - w) / 2, y = (c.height - h) / 2;
+    rect = { x: x / devicePixelRatio, y: y / devicePixelRatio, w: w / devicePixelRatio, h: h / devicePixelRatio }; g.drawImage(bm, x, y, w, h); bm.close && bm.close();
+    if (got === 1) document.getElementById('wait').style.display = 'none'; };
+  sock.onopen = () => (document.getElementById('ws').textContent = 'жду первый кадр…');
+  sock.onclose = () => { document.getElementById('bar').textContent = 'нет связи — переподключение…'; setTimeout(connect, 1500); };
+}
+connect();
+const send = (o) => sock && sock.readyState === 1 && sock.send(JSON.stringify(o));
+const norm = (x, y) => [Math.max(0, Math.min(1, (x - rect.x) / rect.w)), Math.max(0, Math.min(1, (y - rect.y) / rect.h))];
+const pts = (tl) => Array.from(tl).map((t) => [t.identifier % 1000, ...norm(t.clientX, t.clientY)]);
+const T = { touchstart: 'touchStart', touchmove: 'touchMove', touchend: 'touchEnd', touchcancel: 'touchCancel' };
+for (const ev of Object.keys(T)) c.addEventListener(ev, (e) => { e.preventDefault(); send({ t: 'touch', type: T[ev], pts: pts(e.touches) }); }, { passive: false });
+// мышь на ПК = один палец
+let md = false; c.addEventListener('mousedown', (e) => { md = true; send({ t: 'touch', type: 'touchStart', pts: [[0, ...norm(e.clientX, e.clientY)]] }); });
+addEventListener('mousemove', (e) => { if (md) send({ t: 'touch', type: 'touchMove', pts: [[0, ...norm(e.clientX, e.clientY)]] }); });
+addEventListener('mouseup', () => { if (md) { md = false; send({ t: 'touch', type: 'touchEnd', pts: [] }); } });
+const key = (type) => (e) => { if (e.repeat && type === 'keyDown' && e.key.length > 1) return; if (['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Backspace'].includes(e.key)) e.preventDefault(); send({ t: 'key', type, key: e.key, code: e.code, kc: e.keyCode }); };
+addEventListener('keydown', key('keyDown')); addEventListener('keyup', key('keyUp'));
+document.getElementById('fs').onclick = () => { const d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen).call(d).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); };
+document.getElementById('mn').onclick = () => send({ t: 'menu' });
+</script></body></html>
