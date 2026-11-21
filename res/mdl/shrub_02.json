@@ -1,0 +1,1 @@
+{"mats": [{"name": "shrub_02", "map": "shrub_02_diff_1k_rgba.png", "nor": "shrub_02_nor_gl_1k.jpg", "arm": "shrub_02_arm_1k.jpg", "alpha": "MASK", "color": [1, 1, 1, 1], "metal": 0, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 18599, "i": 81762, "off": 0}], "size": [6.05387771375643, 1.7025465797087667, 2.285062478932092]}

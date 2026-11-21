@@ -1,0 +1,1 @@
+{"mats": [{"name": "power_box_01", "map": "power_box_01_diff_1k.jpg", "nor": "power_box_01_nor_gl_1k.jpg", "arm": "power_box_01_arm_1k.jpg", "alpha": null, "color": [1, 1, 1, 1], "metal": 1, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 20452, "i": 63816, "off": 0}], "size": [0.46132426899084034, 0.503142774105072, 0.3989851245430228]}

@@ -1,0 +1,18 @@
+{
+  "name": "Тишина Cloud",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "hostRequirements": {
+    "cpus": 4
+  },
+  "forwardPorts": [
+    8080
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "Тишина Cloud",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postCreateCommand": "cd cloud && npm install && npx playwright install --with-deps chromium",
+  "postStartCommand": "(git pull --ff-only || true); cd cloud && (test -d node_modules || npm install) && setsid nohup node server.js > /tmp/cloud.log 2>&1 < /dev/null & sleep 3; gh codespace ports visibility 8080:public -c \"$CODESPACE_NAME\" || true"
+}

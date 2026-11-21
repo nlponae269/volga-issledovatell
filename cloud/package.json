@@ -1,0 +1,3 @@
+{ "name": "tishina-cloud", "version": "1.0.0", "private": true, "description": "Облачный запуск «Тишины»: игра на сервере, видео в браузер",
+  "scripts": { "setup": "npx playwright install --with-deps chromium", "start": "node server.js" },
+  "dependencies": { "playwright": "1.65.1", "ws": "8.18.0" } }
