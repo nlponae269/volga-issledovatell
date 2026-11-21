@@ -165,12 +165,15 @@ final class Engine implements GLSurfaceView.Renderer {
     /** повернуть фигуру лицом к камере (только вокруг вертикали) */
     void billboard(Group g, Obj o) { float[] w = wpos(g, o.bx, o.by, o.bz); float a = (float) Math.toDegrees(Math.atan2(cx - w[0], cz - w[2])) - (float) Math.toDegrees(g.ry);
         Matrix.setIdentityM(o.M, 0); Matrix.translateM(o.M, 0, o.bx, o.by, o.bz); Matrix.rotateM(o.M, 0, a, 0, 1, 0); Matrix.scaleM(o.M, 0, o.bw, o.bh, 1); }
-    static Mesh card; static final java.util.HashMap<Integer, Mat> people = new java.util.HashMap<>();
+    static Mesh card; static final java.util.HashMap<String, Mat> people = new java.util.HashMap<>();
+    /** материал вырезанного фото res/tex/people/NAME.png */
+    static Mat pmat(String name) { Mat mt = people.get(name); if (mt == null) { mt = Mat.c(0xffffff).tex(Tex.file("res/tex/people/" + name + ".png")).two(); mt.cut = true; people.put(name, mt); } return mt; }
+    static Obj card(Group g, String name, float x, float y, float z, float h, float aspect) {
+        if (card == null) { MB m = new MB(); m.plane(0, 0.5f, 0, 1, 1, 0, 0); card = m.build(); }
+        Obj o = g.add(card, pmat(name)); o.bill = true; o.bx = x; o.by = y; o.bz = z; o.bh = h; o.bw = h * aspect; return o; }
     /** реалистичный человек (вырезанное фото res/tex/people/pN.png): ноги в (x,y,z), рост h */
     static Obj person(Group g, int idx, float x, float y, float z, float h) {
-        if (card == null) { MB m = new MB(); m.plane(0, 0.5f, 0, 1, 1, 0, 0); card = m.build(); }
-        Mat mt = people.get(idx); if (mt == null) { mt = Mat.c(0xffffff).tex(Tex.file("res/tex/people/p" + idx + ".png")).two(); mt.cut = true; people.put(idx, mt); }
-        Obj o = g.add(card, mt); o.bill = true; o.bx = x; o.by = y; o.bz = z; o.bh = h; o.bw = h * 0.5f; return o; }
+        return card(g, "p" + idx, x, y, z, h, 0.5f); }
     private final float[] pl = new float[32], pc = new float[24];
     private void lightPick() {
         int nL = lights.size(); Light[] best = new Light[8]; float[] bd = new float[8]; int k = 0;
