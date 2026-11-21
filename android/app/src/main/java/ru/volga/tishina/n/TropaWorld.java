@@ -137,6 +137,22 @@ final class TropaWorld extends World {
             if (Math.abs(c.x - px) > 220) { e.groups.remove(c.g); c.g.free(); cars.remove(i); } }
         snd.motorF = 45; snd.motorG = Math.max(0, 1 - bd / 90) * 0.06f; snd.noiseG = Math.max(0, 1 - bd / 70) * 0.05f; snd.noiseCut = 500;
     }
+
+    // ---------- прохожие (фото людей) ----------
+    static final class Walker { Obj o; float x, z, dx, dz, h, t; }
+    final ArrayList<Walker> walkers = new ArrayList<>(); Group wg; float walkT = 2;
+    static final int[] WALK_IDS = {0, 1, 2, 3, 4, 5, 6, 7};
+    void walkTick(float dt, int max, float minD, float maxD, float vanish) {
+        if (wg == null) { wg = new Group(); e.groups.add(wg); }
+        walkT -= dt;
+        if (walkers.size() < max && walkT < 0) { walkT = 1.5f + rnd.nextFloat() * 3;
+            for (int tries = 0; tries < 8; tries++) { float a = rnd.nextFloat() * 6.283f, d = minD + rnd.nextFloat() * (maxD - minD); float x = px + (float) Math.sin(a) * d, z = pz + (float) Math.cos(a) * d; if (!walkable(x, z)) continue;
+                Walker w = new Walker(); int id = WALK_IDS[rnd.nextInt(WALK_IDS.length)]; w.h = id == 5 ? 1.3f : 1.66f + rnd.nextFloat() * 0.12f; w.x = x; w.z = z; float b = rnd.nextFloat() * 6.283f; w.dx = (float) Math.sin(b) * 1.15f; w.dz = (float) Math.cos(b) * 1.15f;
+                w.o = Engine.person(wg, id, x, 0, z, w.h); walkers.add(w); break; } }
+        for (int i = walkers.size() - 1; i >= 0; i--) { Walker w = walkers.get(i); w.t += dt; float nx = w.x + w.dx * dt, nz = w.z + w.dz * dt; if (!walkable(nx, nz)) { w.dx = -w.dx; w.dz = -w.dz; } else { w.x = nx; w.z = nz; }
+            float d = (float) Math.hypot(w.x - px, w.z - pz); w.o.bx = w.x; w.o.bz = w.z; w.o.by = (float) Math.abs(Math.sin(w.t * 5.5f)) * 0.025f;
+            if (d < vanish || d > maxD + 30 || w.t > 90) { w.o.vis = false; wg.objs.remove(w.o); walkers.remove(i); } } }
+    boolean walkable(float x, float z) { if (Math.abs(z - ROAD_C) < ROAD_HW + 1) return false; for (Chunk C : chunks.values()) for (float[] b : C.boxes) if (Math.abs(x - b[0]) < b[2] + 0.6f && Math.abs(z - b[1]) < b[3] + 0.6f) return false; return true; }
     // ---------- кадр ----------
     @Override void button(String id) { if (!id.equals("E")) return; for (Chunk C : chunks.values()) for (Coin c : C.coins) if (!c.got && Math.hypot(c.x - px, c.z - pz) < 1.4f) { take(c); return; } }
     void take(Coin c) { c.got = true; c.o.vis = false; money += c.val; got.add(c.key); g.prefs().edit().putInt("tropa_money", money).putStringSet("tropa_got", new java.util.HashSet<>(got)).apply(); snd.tone(1320, 0.12f, 0.06f); g.h.postDelayed(() -> snd.tone(1760, 0.18f, 0.05f), 90); g.toast("+" + c.val + " ₽", 1000); }
@@ -146,7 +162,7 @@ final class TropaWorld extends World {
         if (fl > 0.05f) { float sp = (1.7f + Math.max(0, fl - 0.9f) * 12) * dt; float cs = (float) Math.cos(g.yaw), sn = (float) Math.sin(g.yaw); float dx = (fx * cs + fz * sn) * sp, dz = (-fx * sn + fz * cs) * sp;
             float nx = px + dx, nz = pz + dz; for (Chunk C : chunks.values()) for (float[] b : C.boxes) if (Math.abs(nx - b[0]) < b[2] + R && Math.abs(nz - b[1]) < b[3] + R) { if (Math.abs(px - b[0]) < b[2] + R) nz = pz; else nx = px; }
             px = nx; pz = nz; float ob = bob; bob += fl * dt * 9; if ((int) (ob / Math.PI) != (int) (bob / Math.PI)) { boolean onPath = Math.abs(pz - pathC(px)) < 1.3f; snd.noise(0.09f, onPath ? 0.06f : 0.035f, onPath ? 0.5f : 0.2f); } }
-        stream(); carTick(dt);
+        stream(); carTick(dt); walkTick(dt, 2, 30, 55, 14);
         // монеты крутятся, подсказка
         float tt = System.nanoTime() / 1e9f; String pr = "";
         for (Chunk C : chunks.values()) for (Coin c : C.coins) { if (c.got) continue; c.o.at(c.x, c.y + (float) Math.sin(tt * 2 + c.x) * 0.05f, c.z); android.opengl.Matrix.rotateM(c.o.M, 0, tt * 90 % 360, 0, 1, 0); if (Math.hypot(c.x - px, c.z - pz) < 1.4f) pr = "E — подобрать " + (c.val == 100 ? "слиток" : c.val == 50 ? "горстку монет" : "монету"); }

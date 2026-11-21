@@ -213,6 +213,22 @@ final class DvoryWorld extends World {
             if (Math.abs(i - cx) > 4 || Math.abs(j - cz) > 4) { Chunk C = en.getValue(); e.groups.remove(C.g); C.g.free(); for (Flock f : C.flocks) { e.groups.remove(f.g); f.g.free(); } it.remove(); } } }
     void streamAll() { for (int k = 0; k < 64; k++) stream(); }
 
+
+    // ---------- прохожие (фото людей) ----------
+    static final class Walker { Obj o; float x, z, dx, dz, h, t; }
+    final ArrayList<Walker> walkers = new ArrayList<>(); Group wg; float walkT = 2;
+    static final int[] WALK_IDS = {0, 1, 2, 3, 4, 5, 6, 7};
+    void walkTick(float dt, int max, float minD, float maxD, float vanish) {
+        if (wg == null) { wg = new Group(); e.groups.add(wg); }
+        walkT -= dt;
+        if (walkers.size() < max && walkT < 0) { walkT = 1.5f + rnd.nextFloat() * 3;
+            for (int tries = 0; tries < 8; tries++) { float a = rnd.nextFloat() * 6.283f, d = minD + rnd.nextFloat() * (maxD - minD); float x = px + (float) Math.sin(a) * d, z = pz + (float) Math.cos(a) * d; if (!walkable(x, z)) continue;
+                Walker w = new Walker(); int id = WALK_IDS[rnd.nextInt(WALK_IDS.length)]; w.h = id == 5 ? 1.3f : 1.66f + rnd.nextFloat() * 0.12f; w.x = x; w.z = z; float b = rnd.nextFloat() * 6.283f; w.dx = (float) Math.sin(b) * 1.15f; w.dz = (float) Math.cos(b) * 1.15f;
+                w.o = Engine.person(wg, id, x, 0, z, w.h); walkers.add(w); break; } }
+        for (int i = walkers.size() - 1; i >= 0; i--) { Walker w = walkers.get(i); w.t += dt; float nx = w.x + w.dx * dt, nz = w.z + w.dz * dt; if (!walkable(nx, nz)) { w.dx = -w.dx; w.dz = -w.dz; } else { w.x = nx; w.z = nz; }
+            float d = (float) Math.hypot(w.x - px, w.z - pz); w.o.bx = w.x; w.o.bz = w.z; w.o.by = (float) Math.abs(Math.sin(w.t * 5.5f)) * 0.025f;
+            if (d < vanish || d > maxD + 30 || w.t > 90) { w.o.vis = false; wg.objs.remove(w.o); walkers.remove(i); } } }
+    boolean walkable(float x, float z) { for (Chunk C : chunks.values()) for (float[] b : C.boxes) if (Math.abs(x - b[0]) < b[2] + 0.6f && Math.abs(z - b[1]) < b[3] + 0.6f) return false; return true; }
     // ---------- кадр ----------
     Object near; String nearLabel = "";
     @Override void button(String id) {
@@ -231,7 +247,7 @@ final class DvoryWorld extends World {
         if (fl > 0.05f) { float sp = (1.7f + Math.max(0, fl - 0.9f) * 14) * dt; float cs = (float) Math.cos(g.yaw), sn = (float) Math.sin(g.yaw); float dx = (fx * cs + fz * sn) * sp, dz = (-fx * sn + fz * cs) * sp;
             float nx = px + dx, nz = pz + dz; for (Chunk C : chunks.values()) for (float[] b : C.boxes) { if (b.length > 4) continue; if (Math.abs(nx - b[0]) < b[2] + R && Math.abs(nz - b[1]) < b[3] + R) { if (Math.abs(px - b[0]) < b[2] + R) nz = pz; else nx = px; } }
             px = nx; pz = nz; float ob = bob; bob += fl * dt * 9; if ((int) (ob / Math.PI) != (int) (bob / Math.PI)) { boolean road = onRoad(px, pz); snd.noise(0.09f, road ? 0.06f : 0.045f, road ? 0.6f : 0.15f); } }
-        stream();
+        stream(); walkTick(dt, 4, 25, 65, 11);
         // голуби
         for (Chunk C : chunks.values()) for (Flock f : C.flocks) { float d = (float) Math.hypot(px - f.cx, pz - f.cz);
             if (!f.fly && d < (fl > 0.95f ? 6.5f : 3.6f) + 3.5f) { f.fly = true; f.t = 0; for (int k = 0; k < 4; k++) { final int kk = k; g.h.postDelayed(() -> snd.noise(0.25f, 0.08f, 0.8f), kk * 60); } }

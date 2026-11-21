@@ -208,10 +208,12 @@ final class TramWorld extends World {
         for (float d : T.doors) { MB a = new MB(); a.box(0, 0, 0, 0.04f, H - 0.15f, T.dw / 2 - 0.02f); Mesh m = a.build();
             Obj l = g.add(m, body), r = g.add(m, body); V.doors.add(new Obj[]{l, r}); }
         // пассажиры
-        MB bm = new MB(); bm.box(0, fy + 0.82f, 0.08f, 0.42f, 0.6f, 0.28f); bm.box(0, fy + 0.55f, -0.15f, 0.38f, 0.16f, 0.42f); bm.box(0, fy + 0.26f, -0.36f, 0.34f, 0.5f, 0.14f); Mesh bodyM = bm.build();
-        MB hm = new MB(); hm.sphere(0, fy + 1.27f, 0.04f, 0.2f, 0.24f, 0.22f); Mesh headM = hm.build();
+        int[] SEATED = {9, 10, 11};
         for (Seat s : V.seats) { if (s.w > 1.4f) continue; float x = s.w > 0.6f ? s.x + (rnd.nextBoolean() ? -0.22f : 0.22f) : s.x; Pax p = new Pax(); p.s = s; p.px = x;
-            p.body = g.add(bodyM, mCoat[rnd.nextInt(5)]).at(x, 0, s.z); p.head = g.add(headM, mSkin).at(x, 0, s.z); boolean vis = V.rv && rnd.nextFloat() < 0.45f; p.body.vis = p.head.vis = vis; V.pax.add(p); }
+            p.body = Engine.person(g, SEATED[rnd.nextInt(3)], x, fy, s.z - 0.05f, 1.32f); p.head = p.body; boolean vis = V.rv && rnd.nextFloat() < 0.45f; p.body.vis = vis; V.pax.add(p); }
+        // стоящие пассажиры в проходе
+        int[] STAND = {1, 4, 7, 3, 2};
+        for (int i = 0; i < (T.tram ? 3 : 1); i++) { Pax p = new Pax(); p.s = new Seat(0.05f, -L / 2 + 4 + rnd.nextFloat() * (L - 6), 0.1f); p.px = 0.05f; p.body = Engine.person(g, STAND[rnd.nextInt(STAND.length)], 0.05f + (rnd.nextFloat() - 0.5f) * 0.3f, fy, p.s.z, 1.7f + rnd.nextFloat() * 0.1f); p.head = p.body; p.body.vis = rnd.nextFloat() < 0.4f; V.pax.add(p); }
         e.lights.addAll(V.lights);
         moveDoors(V);
         return V;

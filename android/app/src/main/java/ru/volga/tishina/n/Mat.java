@@ -4,7 +4,7 @@ package ru.volga.tishina.n;
 final class Mat {
     float r = 1, g = 1, b = 1, a = 1, er, eg, eb, rx = 1, ry = 1, spec = 0;
     int tex = 0;
-    boolean unlit, blend, additive, twoSided, noFog;
+    boolean unlit, blend, additive, twoSided, noFog, cut;
     static float lin(float c) { return (float) Math.pow(c, 2.2); }
     static Mat c(int rgb) { Mat m = new Mat(); m.col(rgb); return m; }
     static Mat unlit(int rgb) { Mat m = c(rgb); m.unlit = true; return m; }

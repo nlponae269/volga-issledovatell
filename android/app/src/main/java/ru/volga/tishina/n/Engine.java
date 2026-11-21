@@ -18,14 +18,14 @@ final class Engine implements GLSurfaceView.Renderer {
         "void main(){ vec4 w=uM*vec4(aP,1.0); vW=w.xyz; vN=mat3(uM)*aN; vU=aU*uRep; vL=uLVP*w; gl_Position=uVP*w; }\n";
     static final String FS = "#version 300 es\nprecision highp float; precision highp sampler2DShadow;\n" +
         "in vec3 vW; in vec3 vN; in vec2 vU; in vec4 vL; uniform sampler2DShadow uSh; uniform int uShOn;\n" +
-        "uniform vec4 uCol; uniform vec3 uEmis; uniform sampler2D uTex; uniform int uHasTex, uUnlit, uNoFog;\n" +
+        "uniform vec4 uCol; uniform vec3 uEmis; uniform sampler2D uTex; uniform int uHasTex, uUnlit, uNoFog, uCut;\n" +
         "uniform vec3 uSky, uGnd, uDirD, uDirC, uCam, uFogC; uniform float uFogD, uExp, uSpec;\n" +
         "uniform vec4 uPL[8]; uniform vec3 uPC[8]; uniform int uNPL;\n" +
         "uniform vec3 uSpP, uSpD, uSpC; uniform float uSpCos; uniform vec2 uRes; uniform float uVig;\n" +
         "out vec4 o;\n" +
         "vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }\n" +
         "void main(){\n" +
-        " vec4 base=uCol; if(uHasTex==1){ vec4 t=texture(uTex,vU); base*=vec4(pow(t.rgb,vec3(2.2)),t.a); }\n" +
+        " vec4 base=uCol; if(uHasTex==1){ vec4 t=texture(uTex,vU); if(uCut==1){ if(t.a<0.5) discard; t.rgb/=max(t.a,0.01); } base*=vec4(pow(t.rgb,vec3(2.2)),t.a); }\n" +
         " vec3 c;\n" +
         " if(uUnlit==1) c=base.rgb; else {\n" +
         "  vec3 n=normalize(vN); if(!gl_FrontFacing) n=-n;\n" +
@@ -77,7 +77,7 @@ final class Engine implements GLSurfaceView.Renderer {
         GLES30.glLinkProgram(p); int[] ok = new int[1]; GLES30.glGetProgramiv(p, GLES30.GL_LINK_STATUS, ok, 0);
         if (ok[0] == 0) throw new RuntimeException("link: " + GLES30.glGetProgramInfoLog(p)); return p;
     }
-    static final String[] UN = {"uLVP", "uSh", "uShOn", "uVP", "uM", "uRep", "uCol", "uEmis", "uTex", "uHasTex", "uUnlit", "uNoFog", "uSky", "uGnd", "uDirD", "uDirC", "uCam", "uFogC", "uFogD", "uExp", "uSpec", "uPL", "uPC", "uNPL", "uSpP", "uSpD", "uSpC", "uSpCos", "uRes", "uVig"};
+    static final String[] UN = {"uLVP", "uSh", "uShOn", "uVP", "uM", "uRep", "uCol", "uEmis", "uTex", "uHasTex", "uUnlit", "uNoFog", "uSky", "uGnd", "uDirD", "uDirC", "uCam", "uFogC", "uFogD", "uExp", "uSpec", "uPL", "uPC", "uNPL", "uSpP", "uSpD", "uSpC", "uSpCos", "uRes", "uVig", "uCut"};
     private int u(String n) { for (int i = 0; i < UN.length; i++) if (UN[i].equals(n)) return U[i]; return -1; }
 
     @Override public void onSurfaceCreated(GL10 gl, EGLConfig cfg) {
@@ -96,7 +96,7 @@ final class Engine implements GLSurfaceView.Renderer {
         GLES30.glEnableVertexAttribArray(1); GLES30.glVertexAttribPointer(1, 2, GLES30.GL_FLOAT, false, 36, 12);
         GLES30.glEnableVertexAttribArray(2); GLES30.glVertexAttribPointer(2, 4, GLES30.GL_FLOAT, false, 36, 20);
         GLES30.glBindVertexArray(0);
-        Tex.cache.clear();
+        Tex.cache.clear(); card = null; people.clear();
         if (world != null) { groups.clear(); lights.clear(); loose.clear(); world.init(); }
         ready = true; last = System.nanoTime();
     }
@@ -159,9 +159,18 @@ final class Engine implements GLSurfaceView.Renderer {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, shFbo); GLES30.glViewport(0, 0, 2048, 2048); GLES30.glClear(GLES30.GL_DEPTH_BUFFER_BIT); GLES30.glEnable(GLES30.GL_DEPTH_TEST);
         GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL); GLES30.glPolygonOffset(2f, 4f);
         GLES30.glUseProgram(dprog); int lu = GLES30.glGetUniformLocation(dprog, "uLVP"), mu = GLES30.glGetUniformLocation(dprog, "uM"); GLES30.glUniformMatrix4fv(lu, 1, false, LVP, 0);
-        for (Group g : groups) { if (!g.vis || g == dome) continue; for (Obj o : g.objs) { if (!o.vis || o.mat.blend || o.mat.unlit) continue; Matrix.multiplyMM(MM, 0, g.M, 0, o.M, 0); GLES30.glUniformMatrix4fv(mu, 1, false, MM, 0); o.mesh.draw(); } }
+        for (Group g : groups) { if (!g.vis || g == dome) continue; for (Obj o : g.objs) { if (!o.vis || o.mat.blend || o.mat.unlit || o.mat.cut) continue; Matrix.multiplyMM(MM, 0, g.M, 0, o.M, 0); GLES30.glUniformMatrix4fv(mu, 1, false, MM, 0); o.mesh.draw(); } }
         GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL); GLES30.glBindVertexArray(0); GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
     }
+    /** повернуть фигуру лицом к камере (только вокруг вертикали) */
+    void billboard(Group g, Obj o) { float[] w = wpos(g, o.bx, o.by, o.bz); float a = (float) Math.toDegrees(Math.atan2(cx - w[0], cz - w[2])) - (float) Math.toDegrees(g.ry);
+        Matrix.setIdentityM(o.M, 0); Matrix.translateM(o.M, 0, o.bx, o.by, o.bz); Matrix.rotateM(o.M, 0, a, 0, 1, 0); Matrix.scaleM(o.M, 0, o.bw, o.bh, 1); }
+    static Mesh card; static final java.util.HashMap<Integer, Mat> people = new java.util.HashMap<>();
+    /** реалистичный человек (вырезанное фото res/tex/people/pN.png): ноги в (x,y,z), рост h */
+    static Obj person(Group g, int idx, float x, float y, float z, float h) {
+        if (card == null) { MB m = new MB(); m.plane(0, 0.5f, 0, 1, 1, 0, 0); card = m.build(); }
+        Mat mt = people.get(idx); if (mt == null) { mt = Mat.c(0xffffff).tex(Tex.file("res/tex/people/p" + idx + ".png")).two(); mt.cut = true; people.put(idx, mt); }
+        Obj o = g.add(card, mt); o.bill = true; o.bx = x; o.by = y; o.bz = z; o.bh = h; o.bw = h * 0.5f; return o; }
     private final float[] pl = new float[32], pc = new float[24];
     private void lightPick() {
         int nL = lights.size(); Light[] best = new Light[8]; float[] bd = new float[8]; int k = 0;
@@ -176,8 +185,9 @@ final class Engine implements GLSurfaceView.Renderer {
     private void draw(boolean blendPass) {
         for (int gi = 0; gi < groups.size(); gi++) { Group g = groups.get(gi); if (!g.vis) continue;
             for (int i = 0; i < g.objs.size(); i++) { Obj o = g.objs.get(i); Mat m = o.mat; if (!o.vis || m.blend != blendPass) continue;
+                if (o.bill) billboard(g, o);
                 Matrix.multiplyMM(MM, 0, g.M, 0, o.M, 0);
-                GLES30.glUniformMatrix4fv(u("uM"), 1, false, MM, 0);
+                GLES30.glUniformMatrix4fv(u("uM"), 1, false, MM, 0); GLES30.glUniform1i(u("uCut"), m.cut ? 1 : 0);
                 GLES30.glUniform2f(u("uRep"), m.rx, m.ry);
                 GLES30.glUniform4f(u("uCol"), m.r, m.g, m.b, m.a); GLES30.glUniform3f(u("uEmis"), m.er, m.eg, m.eb);
                 GLES30.glUniform1i(u("uHasTex"), m.tex != 0 ? 1 : 0); if (m.tex != 0) GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, m.tex);
