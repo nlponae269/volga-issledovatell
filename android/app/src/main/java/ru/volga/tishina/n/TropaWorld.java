@@ -22,7 +22,7 @@ final class TropaWorld extends World {
     java.util.Set<String> got;
 
     @Override void init() {
-        e.fogD = 0.034f; e.col3(e.fogC, 0xc4c8cc, 1); e.col3(e.clear, 0xc4c8cc, 1); e.col3(e.sky, 0xd8dce0, 0.95f); e.col3(e.gnd, 0x6a6458, 0.55f); e.col3(e.dirC, 0xfff4e8, 0.3f); e.dirD = new float[]{-0.3f, -1, -0.4f}; e.exposure = 1.0f; e.vig = 0.45f; e.fov = 70;
+        e.fogD = 0.034f; e.col3(e.fogC, 0xc4c8cc, 1); e.col3(e.clear, 0xc4c8cc, 1); e.col3(e.sky, 0xd8dce0, 0.95f); e.col3(e.gnd, 0x6a6458, 0.55f); e.col3(e.dirC, 0xfff4e8, 0.3f); e.dirD = new float[]{-0.3f, -1, -0.4f}; e.exposure = 1.0f; e.vig = 0.5f; e.bloom = 0.2f; e.sat = 1.0f; e.warm = 0.6f; e.fov = 70;
         e.skyDome(new int[]{0xffb8bcc2, 0xffc4c8cc, 0xffc4c8cc}, new float[]{0, 0.45f, 1});
         mGrass = Mat.c(0x9a9a7a).tex(Tex.file("res/tex/withered_grass_diff.jpg")); mPath = Mat.c(0xb8aa98).tex(Tex.file("res/tex/brown_mud_dry_diff.jpg")); mRoad = Mat.c(0x8a8a8e).tex(Tex.file("res/tex/asphalt_02_diff.jpg"));
         mLine = Mat.c(0xd8d8d0); mFence = Mat.c(0xa8aaa8).spec(0.4f); mPole = Mat.c(0x5a4a3a); mWood = Mat.c(0x6a5038); mWire = Mat.c(0x222222);

@@ -61,9 +61,9 @@ final class TramWorld extends World {
 
     @Override void init() {
         e.fogD = 0.011f; e.col3(e.fogC, 0x242a38, 1); e.col3(e.clear, 0x242a38, 1);
-        e.col3(e.sky, 0x52607e, 0.55f); e.col3(e.gnd, 0x2a2018, 0.55f); e.col3(e.dirC, 0xffb080, 0.35f); e.dirD = new float[]{30, -12, 40}; e.exposure = 1.25f;
+        e.col3(e.sky, 0x52607e, 0.55f); e.col3(e.gnd, 0x2a2018, 0.55f); e.col3(e.dirC, 0xffb080, 0.35f); e.dirD = new float[]{30, -12, 40}; e.exposure = 1.25f; e.bloom = 0.75f; e.vig = 0.6f; e.warm = 1.1f;
         e.skyDome(new int[]{0xff0b1020, 0xff1f2a44, 0xff4a4a5a, 0xff7a5a48, 0xff2a2a30, 0xff14161a}, new float[]{0, 0.4f, 0.55f, 0.62f, 0.7f, 1});
-        mGround = Mat.c(0x4a4844).tex(Tex.file("res/tex/brown_mud_dry_diff.jpg")); mGrass = Mat.c(0x6a6a58).tex(Tex.file("res/tex/withered_grass_diff.jpg")); mRoad = Mat.c(0x7a7a80).tex(Tex.file("res/tex/asphalt_02_diff.jpg")).spec(0.25f);
+        mGround = Mat.c(0x4a4844).tex(Tex.file("res/tex/brown_mud_dry_diff.jpg")); mGrass = Mat.c(0x6a6a58).tex(Tex.file("res/tex/withered_grass_diff.jpg")); mRoad = Mat.c(0x7a7a80).tex(Tex.file("res/tex/asphalt_02_diff.jpg")).spec(0.6f);
         mPlat = Mat.c(0x9a9a96).tex(Tex.file("res/tex/concrete_floor_worn_001_diff.jpg")); mCurb = Mat.c(0xa8a8a0).tex(Tex.file("res/tex/chipped_concrete_diff.jpg"));
         mRail = Mat.c(0x8a8a90).spec(0.6f); mSleeper = Mat.c(0x3a3630); mBed = Mat.c(0x2a2826); mPole = Mat.c(0x5a6066); mWire = Mat.c(0x15171a); mYel = Mat.c(0xe0b020); mDark = Mat.c(0x16181c); mTree = Mat.c(0x1c2016); mTrunk = Mat.c(0x2a241e);
         mFloor = Mat.c(0x2e2c2a); mWallIn = Mat.c(0xd8d2c0); mCeil = Mat.c(0xe8e4d8); mFrame = Mat.c(0x8a8e90).spec(0.3f); mRubber = Mat.c(0x101010); mHand = Mat.c(0xf0c020).spec(0.5f); mLamp = Mat.unlit(0xfff2d8);

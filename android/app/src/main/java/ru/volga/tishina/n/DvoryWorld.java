@@ -56,10 +56,10 @@ final class DvoryWorld extends World {
 
     @Override void init() {
         e.fogD = 0.0065f; e.col3(e.fogC, 0xc4c8ce, 1); e.col3(e.clear, 0xc4c8ce, 1); e.col3(e.sky, 0xd2d6dc, 0.85f); e.col3(e.gnd, 0x5e564c, 0.55f); e.col3(e.dirC, 0xfff0dc, 0.55f); e.dirD = new float[]{-0.45f, -1f, -0.35f};
-        e.exposure = 1.05f; e.vig = 0.42f; e.fov = 68; e.shadows = true; e.shR = 48;
+        e.exposure = 1.05f; e.vig = 0.5f; e.bloom = 0.3f; e.sat = 1.08f; e.warm = 0.8f; e.fov = 68; e.shadows = true; e.shR = 48;
         e.skyDome(new int[]{0xffa8adb5, 0xffbcc1c8, 0xffc8ccd2, 0xffc4c8ce}, new float[]{0, 0.3f, 0.48f, 1});
         String T = "res/tex/ai/";
-        mMud = Mat.c(0xb0a898).tex(Tex.file(T + "ground_mud.jpg")); mMudWet = Mat.c(0x8a8278).tex(Tex.file(T + "dv_mud_wet.jpg")).spec(0.35f); mAsph = Mat.c(0x9a9aa0).tex(Tex.file(T + "dv_asph.jpg")).spec(0.25f);
+        mMud = Mat.c(0xb0a898).tex(Tex.file(T + "ground_mud.jpg")); mMudWet = Mat.c(0x8a8278).tex(Tex.file(T + "dv_mud_wet.jpg")).spec(0.5f); mAsph = Mat.c(0x9a9aa0).tex(Tex.file(T + "dv_asph.jpg")).spec(0.55f);
         mWalk = Mat.c(0xa8a8a4).tex(Tex.file(T + "dv_walk.jpg")); mCurb = Mat.c(0xc8c6c0).tex(Tex.file(T + "dv_curb_side.jpg")); mGrass = Mat.c(0xb8b088).tex(Tex.file(T + "dv_grass.jpg"));
         mLeaves = Mat.c(0xffffff).tex(Tex.file(T + "dv_leaves_decal.png")); mLeaves.blend = true;
         mPuddle = Mat.unlit(0xa4aab2).tex(blobTex(false)).spec(0); mPuddle.blend = true; mPuddle.a = 0.85f; mPudRim = Mat.c(0x2a2622).tex(blobTex(true)); mPudRim.blend = true;

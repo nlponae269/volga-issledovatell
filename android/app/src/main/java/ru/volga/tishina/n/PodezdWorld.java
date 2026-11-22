@@ -40,7 +40,7 @@ final class PodezdWorld extends World {
     BigInteger real(int n) { return base.add(BigInteger.valueOf(n + 1)); }
 
     @Override void init() {
-        e.fogD = 0.09f; e.col3(e.fogC, 0x06070a, 1); e.col3(e.clear, 0x050608, 1); e.col3(e.sky, 0x2a2c34, 0.18f); e.col3(e.gnd, 0x141210, 0.18f); e.dirC = new float[]{0, 0, 0}; e.exposure = 1.35f; e.vig = 0.65f; e.fov = 72;
+        e.fogD = 0.09f; e.col3(e.fogC, 0x06070a, 1); e.col3(e.clear, 0x050608, 1); e.col3(e.sky, 0x2a2c34, 0.18f); e.col3(e.gnd, 0x141210, 0.18f); e.dirC = new float[]{0, 0, 0}; e.exposure = 1.35f; e.vig = 0.75f; e.bloom = 0.8f; e.grain = 0.05f; e.warm = 1.2f; e.fov = 72;
         String[] wl = {"podezd_wall_1", "podezd_wall_2", "podezd_wall_3", "podezd_wall_4", "podezd_wall_5", "podezd_wall_6"}; mWall = new Mat[wl.length];
         for (int i = 0; i < wl.length; i++) mWall[i] = Mat.c(0xffffff).tex(Tex.file("res/tex/ai/" + wl[i] + ".jpg"));
         mTile = Mat.c(0xffffff).tex(Tex.file("res/tex/ai/pod_floor.jpg")).spec(0.3f); mTile2 = Mat.c(0xffffff).tex(Tex.file("res/tex/ai/pod_floor2.jpg")).spec(0.3f);

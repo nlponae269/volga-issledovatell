@@ -21,21 +21,23 @@ final class Engine implements GLSurfaceView.Renderer {
         "uniform vec4 uCol; uniform vec3 uEmis; uniform sampler2D uTex; uniform int uHasTex, uUnlit, uNoFog, uCut;\n" +
         "uniform vec3 uSky, uGnd, uDirD, uDirC, uCam, uFogC; uniform float uFogD, uExp, uSpec;\n" +
         "uniform vec4 uPL[8]; uniform vec3 uPC[8]; uniform int uNPL;\n" +
-        "uniform vec3 uSpP, uSpD, uSpC; uniform float uSpCos; uniform vec2 uRes; uniform float uVig;\n" +
+        "uniform vec3 uSpP, uSpD, uSpC; uniform float uSpCos; uniform vec2 uRes; uniform float uVig, uBump;\n" +
         "out vec4 o;\n" +
         "vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }\n" +
         "void main(){\n" +
-        " vec4 base=uCol; if(uHasTex==1){ vec4 t=texture(uTex,vU); if(uCut==1){ if(t.a<0.5) discard; t.rgb/=max(t.a,0.01); } base*=vec4(pow(t.rgb,vec3(2.2)),t.a); }\n" +
+        " vec4 base=uCol; float hgt=0.0; if(uHasTex==1){ vec4 t=texture(uTex,vU); if(uCut==1){ if(t.a<0.5) discard; t.rgb/=max(t.a,0.01); } hgt=dot(t.rgb,vec3(0.333)); base*=vec4(pow(t.rgb,vec3(2.2)),t.a); }\n" +
         " vec3 c;\n" +
         " if(uUnlit==1) c=base.rgb; else {\n" +
         "  vec3 n=normalize(vN); if(!gl_FrontFacing) n=-n;\n" +
+        "  if(uHasTex==1 && uCut==0){ vec3 dpx=dFdx(vW), dpy=dFdy(vW); vec3 r1=cross(dpy,n), r2=cross(n,dpx); float det=dot(dpx,r1); vec2 g=vec2(dFdx(hgt),dFdy(hgt))*uBump; vec3 gr=sign(det)*(g.x*r1+g.y*r2); n=normalize(abs(det)*n-gr); }\n" +
         "  float sh=1.0; if(uShOn==1){ vec3 q=vL.xyz/vL.w*0.5+0.5; if(q.x>0.0&&q.x<1.0&&q.y>0.0&&q.y<1.0&&q.z<1.0){ float b=0.0015; float s=0.0; for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++) s+=texture(uSh,vec3(q.xy+vec2(i,j)/2048.0,q.z-b)); sh=s/9.0; } }\n" +
         "  vec3 L=mix(uGnd,uSky,n.y*0.5+0.5)*(0.72+0.28*sh)+uDirC*max(dot(n,-uDirD),0.0)*sh;\n" +
         "  vec3 V=normalize(uCam-vW); vec3 sp=vec3(0.0);\n" +
         "  for(int i=0;i<8;i++){ if(i>=uNPL) break; vec3 d=uPL[i].xyz-vW; float dl=max(length(d),0.001); float a=clamp(1.0-dl/uPL[i].w,0.0,1.0); a*=a; vec3 l=d/dl;\n" +
         "   L+=uPC[i]*a*max(dot(n,l),0.0); if(uSpec>0.0) sp+=uPC[i]*a*pow(max(dot(n,normalize(l+V)),0.0),40.0)*uSpec; }\n" +
         "  if(uSpC.r+uSpC.g+uSpC.b>0.0){ vec3 d=uSpP-vW; float dl=max(length(d),0.001); vec3 l=d/dl; float cs=dot(-l,uSpD); float cone=smoothstep(uSpCos,uSpCos+0.08,cs); L+=uSpC*cone/(1.0+dl*dl*0.08)*max(dot(n,l),0.0); }\n" +
-        "  c=base.rgb*L+sp; }\n" +
+        "  vec3 Rf=reflect(-V,n); float fr=0.04+0.96*pow(1.0-max(dot(n,V),0.0),5.0); vec3 env=mix(uGnd,uSky,clamp(Rf.y*0.5+0.5,0.0,1.0))*1.4;\n" +
+        "  c=base.rgb*L+sp+env*fr*uSpec*1.6; }\n" +
         " c+=uEmis;\n" +
         " if(uNoFog==0){ float dist=length(uCam-vW); float f=1.0-exp(-uFogD*uFogD*dist*dist); c=mix(c,uFogC,f); }\n" +
         " c=aces(c*uExp); vec2 q=gl_FragCoord.xy/uRes-0.5; c*=1.0-uVig*dot(q,q)*1.6;\n" +
@@ -45,6 +47,48 @@ final class Engine implements GLSurfaceView.Renderer {
     static final String SFS = "#version 300 es\nprecision mediump float; in vec2 vU; in vec4 vC; uniform sampler2D uTex; out vec4 o;\n" +
         "void main(){ vec4 t=texture(uTex,vU); o=vec4(vC.rgb*t.rgb*vC.a*t.a,1.0); }\n";
 
+    // --- постобработка («киношный» кадр) ---
+    static final String QVS = "#version 300 es\nout vec2 vUv; void main(){ vec2 p=vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2)); vUv=p; gl_Position=vec4(p*2.0-1.0,0.0,1.0); }\n";
+    static final String BRIGHT = "#version 300 es\nprecision mediump float; in vec2 vUv; uniform sampler2D uC; uniform vec2 uPx; out vec4 o;\n" +
+        "void main(){ vec3 c=vec3(0.0); for(int i=0;i<4;i++){ vec2 q=vec2(float(i&1),float(i>>1))-0.5; c+=texture(uC,vUv+q*uPx*2.0).rgb; } c*=0.25; float l=max(c.r,max(c.g,c.b)); o=vec4(c*smoothstep(0.62,0.95,l),1.0); }\n";
+    static final String BLUR = "#version 300 es\nprecision mediump float; in vec2 vUv; uniform sampler2D uC; uniform vec2 uDir; out vec4 o;\n" +
+        "void main(){ float w[5]=float[](0.227,0.195,0.122,0.054,0.016); vec3 c=texture(uC,vUv).rgb*w[0]; for(int i=1;i<5;i++){ c+=texture(uC,vUv+uDir*float(i)*1.6).rgb*w[i]; c+=texture(uC,vUv-uDir*float(i)*1.6).rgb*w[i]; } o=vec4(c,1.0); }\n";
+    static final String COMP = "#version 300 es\nprecision highp float; in vec2 vUv; uniform sampler2D uC, uB; uniform vec2 uPx; uniform float uT, uVig, uBloom, uGrain, uCA, uSat, uWarm; out vec4 o;\n" +
+        "void main(){ vec2 d=vUv-0.5; float r2=dot(d,d);\n" +
+        " vec3 c=vec3(texture(uC,vUv-d*uCA*r2).r, texture(uC,vUv).g, texture(uC,vUv+d*uCA*r2).b);\n" +
+        " vec3 bl=(texture(uC,vUv+vec2(uPx.x,0.0)).rgb+texture(uC,vUv-vec2(uPx.x,0.0)).rgb+texture(uC,vUv+vec2(0.0,uPx.y)).rgb+texture(uC,vUv-vec2(0.0,uPx.y)).rgb)*0.25; c+=(c-bl)*0.45;\n" +
+        " vec3 b=texture(uB,vUv).rgb; c=1.0-(1.0-c)*(1.0-b*uBloom);\n" +
+        " float l=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(l),c,uSat); c=mix(c,c*c*(3.0-2.0*c),0.35);\n" +
+        " c+=vec3(0.03,0.008,-0.03)*uWarm*smoothstep(0.35,1.0,l)+vec3(-0.015,0.004,0.028)*uWarm*(1.0-smoothstep(0.0,0.45,l));\n" +
+        " c*=1.0-uVig*r2*1.9;\n" +
+        " float n=fract(sin(dot(vUv*vec2(1733.1,977.3)+uT,vec2(12.9898,78.233)))*43758.5453); c+=(n-0.5)*uGrain;\n" +
+        " o=vec4(clamp(c,0.0,1.0),1.0); }\n";
+    /** настройки кадра (миры могут менять) */
+    boolean post = true; float bloom = 0.55f, grain = 0.035f, ca = 0.012f, sat = 1.12f, warm = 1.0f, bump = 0.018f;
+    private int qprog, bprog, blprog, cprog, qVao, fbo, colTex, depthRb, bfA, btA, bfB, btB, PW, PH, BW, BH;
+    private void mkTargets() {
+        if (fbo != 0) { GLES30.glDeleteFramebuffers(3, new int[]{fbo, bfA, bfB}, 0); GLES30.glDeleteTextures(3, new int[]{colTex, btA, btB}, 0); GLES30.glDeleteRenderbuffers(1, new int[]{depthRb}, 0); }
+        PW = W; PH = H; BW = Math.max(1, W / 4); BH = Math.max(1, H / 4);
+        int[] t = new int[1]; colTex = tex2d(PW, PH); GLES30.glGenRenderbuffers(1, t, 0); depthRb = t[0]; GLES30.glBindRenderbuffer(GLES30.GL_RENDERBUFFER, depthRb); GLES30.glRenderbufferStorage(GLES30.GL_RENDERBUFFER, GLES30.GL_DEPTH_COMPONENT24, PW, PH);
+        GLES30.glGenFramebuffers(1, t, 0); fbo = t[0]; GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, fbo); GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0, GLES30.GL_TEXTURE_2D, colTex, 0); GLES30.glFramebufferRenderbuffer(GLES30.GL_FRAMEBUFFER, GLES30.GL_DEPTH_ATTACHMENT, GLES30.GL_RENDERBUFFER, depthRb);
+        if (GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER) != GLES30.GL_FRAMEBUFFER_COMPLETE) post = false;
+        btA = tex2d(BW, BH); GLES30.glGenFramebuffers(1, t, 0); bfA = t[0]; GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, bfA); GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0, GLES30.GL_TEXTURE_2D, btA, 0);
+        btB = tex2d(BW, BH); GLES30.glGenFramebuffers(1, t, 0); bfB = t[0]; GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, bfB); GLES30.glFramebufferTexture2D(GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0, GLES30.GL_TEXTURE_2D, btB, 0);
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0); }
+    private int tex2d(int w, int h) { int[] t = new int[1]; GLES30.glGenTextures(1, t, 0); GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, t[0]); GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_RGBA8, w, h, 0, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, null);
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR); GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR);
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE); GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE); return t[0]; }
+    private void quad(int prog, int src, int dst, int w, int h) { GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, dst); GLES30.glViewport(0, 0, w, h); GLES30.glUseProgram(prog); GLES30.glActiveTexture(GLES30.GL_TEXTURE0); GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, src); GLES30.glUniform1i(GLES30.glGetUniformLocation(prog, "uC"), 0); }
+    private void postPass() {
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST); GLES30.glDisable(GLES30.GL_BLEND); GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glBindVertexArray(qVao);
+        quad(bprog, colTex, bfA, BW, BH); GLES30.glUniform2f(GLES30.glGetUniformLocation(bprog, "uPx"), 1f / PW, 1f / PH); GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3);
+        for (int i = 0; i < 2; i++) { quad(blprog, btA, bfB, BW, BH); GLES30.glUniform2f(GLES30.glGetUniformLocation(blprog, "uDir"), 1f / BW, 0); GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3);
+            quad(blprog, btB, bfA, BW, BH); GLES30.glUniform2f(GLES30.glGetUniformLocation(blprog, "uDir"), 0, 1f / BH); GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3); }
+        quad(cprog, colTex, 0, W, H); GLES30.glActiveTexture(GLES30.GL_TEXTURE1); GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, btA); GLES30.glUniform1i(GLES30.glGetUniformLocation(cprog, "uB"), 1);
+        GLES30.glUniform2f(GLES30.glGetUniformLocation(cprog, "uPx"), 1f / PW, 1f / PH); GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uT"), (System.nanoTime() / 1e6f) % 1000f);
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uVig"), vig); GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uBloom"), bloom); GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uGrain"), grain);
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uCA"), ca); GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uSat"), sat); GLES30.glUniform1f(GLES30.glGetUniformLocation(cprog, "uWarm"), warm);
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3); GLES30.glActiveTexture(GLES30.GL_TEXTURE0); GLES30.glBindVertexArray(0); GLES30.glEnable(GLES30.GL_DEPTH_TEST); }
     // --- сцена ---
     final ArrayList<Group> groups = new ArrayList<>();
     final ArrayList<Light> lights = new ArrayList<>();
@@ -77,12 +121,14 @@ final class Engine implements GLSurfaceView.Renderer {
         GLES30.glLinkProgram(p); int[] ok = new int[1]; GLES30.glGetProgramiv(p, GLES30.GL_LINK_STATUS, ok, 0);
         if (ok[0] == 0) throw new RuntimeException("link: " + GLES30.glGetProgramInfoLog(p)); return p;
     }
-    static final String[] UN = {"uLVP", "uSh", "uShOn", "uVP", "uM", "uRep", "uCol", "uEmis", "uTex", "uHasTex", "uUnlit", "uNoFog", "uSky", "uGnd", "uDirD", "uDirC", "uCam", "uFogC", "uFogD", "uExp", "uSpec", "uPL", "uPC", "uNPL", "uSpP", "uSpD", "uSpC", "uSpCos", "uRes", "uVig", "uCut"};
+    static final String[] UN = {"uLVP", "uSh", "uShOn", "uVP", "uM", "uRep", "uCol", "uEmis", "uTex", "uHasTex", "uUnlit", "uNoFog", "uSky", "uGnd", "uDirD", "uDirC", "uCam", "uFogC", "uFogD", "uExp", "uSpec", "uPL", "uPC", "uNPL", "uSpP", "uSpD", "uSpC", "uSpCos", "uRes", "uVig", "uCut", "uBump"};
     private int u(String n) { for (int i = 0; i < UN.length; i++) if (UN[i].equals(n)) return U[i]; return -1; }
 
     @Override public void onSurfaceCreated(GL10 gl, EGLConfig cfg) {
         prog = link(VS, FS); for (int i = 0; i < UN.length; i++) U[i] = GLES30.glGetUniformLocation(prog, UN[i]);
         sprog = link(SVS, SFS); dprog = link(DVS, DFS);
+        try { bprog = link(QVS, BRIGHT); blprog = link(QVS, BLUR); cprog = link(QVS, COMP); int[] qv = new int[1]; GLES30.glGenVertexArrays(1, qv, 0); qVao = qv[0]; } catch (RuntimeException ex) { post = false; }
+        fbo = 0;
         { int[] t = new int[1]; GLES30.glGenTextures(1, t, 0); shTex = t[0]; GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, shTex);
           GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_DEPTH_COMPONENT24, 2048, 2048, 0, GLES30.GL_DEPTH_COMPONENT, GLES30.GL_UNSIGNED_INT, null);
           GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR); GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR);
@@ -100,7 +146,7 @@ final class Engine implements GLSurfaceView.Renderer {
         if (world != null) { groups.clear(); lights.clear(); loose.clear(); world.init(); }
         ready = true; last = System.nanoTime();
     }
-    @Override public void onSurfaceChanged(GL10 gl, int w, int h) { W = w; H = h; GLES30.glViewport(0, 0, w, h); }
+    @Override public void onSurfaceChanged(GL10 gl, int w, int h) { W = w; H = h; GLES30.glViewport(0, 0, w, h); if (post) mkTargets(); }
 
     /** небо-купол с вертикальным градиентом (цвета сверху вниз) */
     void skyDome(int[] cols, float[] stops) {
@@ -117,6 +163,7 @@ final class Engine implements GLSurfaceView.Renderer {
         if (world != null) world.update(dt);
         if (dome != null) { dome.x = cx; dome.y = cy; dome.z = cz; dome.upd(); }
         if (shadows) shadowPass();
+        boolean pp = post && fbo != 0; GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, pp ? fbo : 0);
         GLES30.glViewport(0, 0, W, H);
         GLES30.glClearColor(clear[0], clear[1], clear[2], 1); GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
         GLES30.glEnable(GLES30.GL_DEPTH_TEST);
@@ -133,7 +180,7 @@ final class Engine implements GLSurfaceView.Renderer {
         float dl = (float) Math.sqrt(dirD[0] * dirD[0] + dirD[1] * dirD[1] + dirD[2] * dirD[2]);
         GLES30.glUniform3f(u("uDirD"), dirD[0] / dl, dirD[1] / dl, dirD[2] / dl); GLES30.glUniform3fv(u("uDirC"), 1, dirC, 0);
         GLES30.glUniform3f(u("uCam"), cx, cy, cz); GLES30.glUniform3fv(u("uFogC"), 1, fogC, 0);
-        GLES30.glUniform1f(u("uFogD"), fogD); GLES30.glUniform1f(u("uExp"), exposure); GLES30.glUniform2f(u("uRes"), W, H); GLES30.glUniform1f(u("uVig"), vig);
+        GLES30.glUniform1f(u("uFogD"), fogD); GLES30.glUniform1f(u("uExp"), exposure); GLES30.glUniform2f(u("uRes"), W, H); GLES30.glUniform1f(u("uVig"), post ? 0f : vig); GLES30.glUniform1f(u("uBump"), bump);
         GLES30.glUniform3fv(u("uSpP"), 1, spP, 0); GLES30.glUniform3fv(u("uSpD"), 1, spD, 0); GLES30.glUniform3fv(u("uSpC"), 1, spC, 0); GLES30.glUniform1f(u("uSpCos"), spCos);
         GLES30.glUniformMatrix4fv(u("uLVP"), 1, false, LVP, 0); GLES30.glUniform1i(u("uShOn"), shadows ? 1 : 0);
         GLES30.glActiveTexture(GLES30.GL_TEXTURE1); GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, shTex); GLES30.glUniform1i(u("uSh"), 1);
@@ -148,6 +195,7 @@ final class Engine implements GLSurfaceView.Renderer {
         // блики
         sprites();
         GLES30.glDepthMask(true); GLES30.glDisable(GLES30.GL_BLEND);
+        if (pp) postPass();
     }
     private final float[] LV = new float[16], LP = new float[16];
     private void shadowPass() {
