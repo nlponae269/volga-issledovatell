@@ -1,0 +1,1 @@
+{"mats": [{"name": "modular_metal_gutter", "map": "modular_metal_gutter_diff_1k.jpg", "nor": "modular_metal_gutter_nor_gl_1k.jpg", "arm": "modular_metal_gutter_arm_1k.jpg", "alpha": null, "color": [1, 1, 1, 1], "metal": 1, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 508, "i": 2682, "off": 0}], "size": [0.1573237031698227, 0.9999269352992997, 0.16103219985961914]}

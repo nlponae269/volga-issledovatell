@@ -1,0 +1,1 @@
+{"mats": [{"name": "rollershutter_door", "map": "rollershutter_door_diff_1k.jpg", "nor": "rollershutter_door_nor_gl_1k.jpg", "arm": "rollershutter_door_arm_1k.jpg", "alpha": null, "color": [1, 1, 1, 1], "metal": 1, "rough": 1, "double": true}], "parts": [{"mat": 0, "v": 670, "i": 1656, "off": 0}], "size": [1.0800000429153442, 2.3999734893445748, 0.3000857066363096]}
